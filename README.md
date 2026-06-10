@@ -1,37 +1,38 @@
-# 🛒 Elite Tech Shop
+# Elite Tech Shop
 
-Elite Tech Shop is a modern React‑based e‑commerce demo application.  
-It uses public APIs (like DummyJSON or Fake Store API) to fetch product data, display categories, and simulate a shopping experience.  
-Built with a neon‑dark theme inspired by Elite Tech branding.
-
----
-
-## 🚀 Features
-- Product listing with images, price, and description
-- Product detail pages with extra info
-- Add to cart / remove from cart functionality
-- Persistent watchlist using localStorage
-- Responsive design with dark cyberpunk styling
-- API integration (DummyJSON)
+A React demo e‑commerce application — with a neon‑dark Elite Tech vibe.  
+This project showcases:
+- **Product Catalog** → fetched from DummyJSON / Fake Store API
+- **Cart System** → add, remove, and persist items
+- **Watchlist** → save products for later using localStorage
+- **Responsive UI** → styled with cyberpunk‑inspired CSS
 
 ---
 
-## 🛠️ Tech Stack
-- **React + Vite** for frontend
-- **React Router** for navigation
-- **Context API** for cart & watchlist state
-- **CSS Modules** for styling
-- **Netlify** for deployment
+## 🚀 Live Portfolio
+Check out my profile site: [Elite Tech](https://elite-tech-official.netlify.app/)
 
 ---
 
-## 📦 Installation
-Clone the repo and install dependencies:
-```bash
-git clone https://github.com/arts009009009/elite-tech-shop.git
-cd elite-tech-shop
-npm install
-## License
+## 🛠️ Features
+- Built with **React + Vite**
+- Styled with custom neon‑inspired CSS
+- Product listing, detail pages, and categories
+- Cart & watchlist powered by Context API
+- MIT licensed for open collaboration
 
-This project is licensed under the MIT License — you are free to use, modify, and distribute it with proper attribution.
+---
 
+## 📂 Install & Run Locally
+1. Clone the repo  
+   ```bash
+   git clone https://github.com/arts009009009/elite-tech-shop.git
+2. Install dependencies
+  npm install
+3. Run locally
+  npm run dev
+🤝 Contributing
+Feel free to edit or remix the code — just credit me:
+arts009009009 (Elite Tech)
+📜 License
+This project is licensed under the MIT License.
