@@ -9,9 +9,22 @@ This project showcases:
 
 ---
 
-## 🚀 Live Portfolio
-Check out my profile site: [Elite Tech](https://elite-tech-official.netlify.app/)
-
+## 🚀 Versions and releases
+   All versions released will be major versions only like 1.0.0 and 2.0.0
+   and patches and minor features updates will remain in dev cycle and expected to roll out
+   once every major version and major versions are released with no release dates but they
+   wont take more than 1 month for every major release and stay tuned!
+   and expected next major release will add new bug fixes and alongside with new features
+   and bug fixes and patches like:
+   1-Performance optimization
+   2-Ui patches
+   3-Bug fixes
+   4-Stabilty hardening
+   5-Improved translation
+   6-Improved accounts support
+   7-Caching
+   8-System auto detect theme
+   9-And much more...
 ---
 
 ## 🛠️ Features
@@ -36,3 +49,4 @@ Feel free to edit or remix the code — just credit me:
 arts009009009 (Elite Tech)
 📜 License
 This project is licensed under the MIT License.
+look at versions and releases part
