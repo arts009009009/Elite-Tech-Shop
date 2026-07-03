@@ -49,4 +49,3 @@ Feel free to edit or remix the code — just credit me:
 arts009009009 (Elite Tech)
 📜 License
 This project is licensed under the MIT License.
-look at versions and releases part
