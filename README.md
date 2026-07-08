@@ -25,6 +25,7 @@ This project showcases:
    7-Caching
    8-System auto detect theme
    9-And much more...
+   Currently:2.3.2(Build 32)
 ---
 
 ## 🛠️ Features
