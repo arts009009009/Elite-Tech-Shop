@@ -10,11 +10,15 @@ This project showcases:
 ---
 
 ## 🚀 Versions and releases
-   All versions released will be major versions only like 1.0.0 and 2.0.0
-   and patches and minor features updates will remain in dev cycle and expected to roll out
-   once every major version and major versions are released with no release dates but they
-   wont take more than 1 month for every major release and stay tuned!
+   All versions are released as **Major.Minor (Build X)**.  
+   - Patch field has been removed for clarity.  
+   - Build counter reflects raw tally of fixes and commits.  
+   - Minor increments mark new feature cycles.  
+   - No double digits allowed in minor field; overflow rolls into the next major.  
+
+   Example: `3.8 (Build 77)` → current release.  
    #No plans yet for 4.0.0
+
 ---
 
 ## 🛠️ Features
@@ -30,12 +34,3 @@ This project showcases:
 1. Clone the repo  
    ```bash
    git clone https://github.com/arts009009009/elite-tech-shop.git
-2. Install dependencies
-  npm install
-3. Run locally
-  npm run dev
-🤝 Contributing
-Feel free to edit or remix the code — just credit me:
-arts009009009 (Elite Tech)
-📜 License
-This project is licensed under the MIT License.
