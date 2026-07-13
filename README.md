@@ -31,6 +31,8 @@ This project showcases:
 ---
 
 ## 📂 Install & Run Locally
-1. Clone the repo  
+1. Download the repo as a **ZIP file** from GitHub.  
+2. Extract the ZIP to your desired folder.  
+3. Install dependencies:  
    ```bash
-   git clone https://github.com/arts009009009/elite-tech-shop.git
+   npm install
