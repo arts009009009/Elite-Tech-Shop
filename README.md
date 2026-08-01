@@ -25,20 +25,28 @@ Example: `3.8 (Build 77)`
 
 ---
 
-## 🛠️ Install & Run Locally
+## 🛠️ Install & Run Locally (Latest Version)
+⚠️ **Note:** This guide only supported for absolute latest version 
+#For version 4.4 (Build 328) replace step 5 with ## Setup Rust backend
+#For versions under 4.4 (Build 328) skip step 5 and ## Setup Rust backend completely
+#For versions 4.5 (Build 330) and up this default guide containing steps: 1 , 2 , 3 , 4 and 5 is most straightforward
 1. Download the repo as a ZIP from GitHub and extract it  
 2. Navigate into the project folder:
    cd elite-tech-shop
 3. Install dependencies:
-   npm install
+   pnpm install
 4. Start frontend:
-   npm run dev
-5. Setup Rust backend (required after 4.4 Build 328):
+   pnpm run dev
+5. Start backend
+   pnpm run backend
+## Setup Rust backend (required after 4.4 Build 328):
    - Navigate into backend folder
    - Run:
      cargo run
 
 ⚠️ **Note:** Project won’t work without Rust backend in versions after `4.4 (Build 328)`
+
+⚠️ **Note:** Project won’t work without Java backend in versions after `4.5 (Build 330)`
 
 ---
 
@@ -51,17 +59,11 @@ Example: `3.8 (Build 77)`
 
 ---
 
-## 🧩 Tech Stack
-- **Frontend:** React + Vite  
-- **Styling:** Custom neon‑inspired CSS  
-- **State:** Context API for cart & watchlist  
-- **Backend:** Rust (Axum) → Java prep in progress  
-- **License:** MIT  
+💬 Elite Tech Shop marches toward its next era: **v5.0 (Build XX)**.  
+Expect chaos builds, sharp release notes, and full‑stack grind energy.
 
 ---
 
-💬 Elite Tech Shop marches toward its next era: **v5.0 (Build XX)**.  
-Expect chaos builds, sharp release notes, and full‑stack grind energy.
 ## 🚀 Tech Stack arts009009009 got
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
