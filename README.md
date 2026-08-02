@@ -1,4 +1,4 @@
-```
+
 # ⚡ Elite Tech Shop
 
 A **React demo e‑commerce application** with a **neon‑dark Elite Tech vibe**.  
@@ -79,7 +79,7 @@ Expect chaos builds, sharp release notes, and full‑stack grind energy.
 
 ## 🚀 Tech Stack
 
-`https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white`  
+`https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
 `https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black`  
 `https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white`  
 `https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white`  
