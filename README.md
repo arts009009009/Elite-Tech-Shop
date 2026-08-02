@@ -6,7 +6,7 @@ Built for chaos, speed, and full‑stack experimentation.
 ---
 
 ## ✨ Features
-- **Product Catalog** → fetched from DummyJSON / Fake Store API  
+- **Product Catalog** → fetched from Local JSON
 - **Cart System** → add, remove, and persist items  
 - **Watchlist** → save products for later using localStorage  
 - **Responsive UI** → cyberpunk‑inspired CSS with neon styling  
