@@ -26,10 +26,15 @@ Example: `3.8 (Build 77)`
 ---
 
 ## 🛠️ Install & Run Locally (Latest Version)
+
 ⚠️ **Note:** This guide only supported for absolute latest version 
+
 #For version 4.4 (Build 328) replace step 5 with ## Setup Rust backend
+
 #For versions under 4.4 (Build 328) skip step 5 and ## Setup Rust backend completely
+
 #For versions 4.5 (Build 330) and up this default guide containing steps: 1 , 2 , 3 , 4 and 5 is most straightforward
+
 1. Download the repo as a ZIP from GitHub and extract it  
 2. Navigate into the project folder:
    cd elite-tech-shop
