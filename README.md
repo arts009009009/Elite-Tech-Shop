@@ -109,7 +109,7 @@ Expect chaos builds, sharp release notes, and full‑stack grind energy.
 ## Preview
 
 ### Sick Default UI Mode
-![Cosmic Theme](Default.jpeg)
+![Cosmic Theme](Default.png)
 
 ### Hacker Neon Mode
 ![Hacker Theme](Hacker.png)
