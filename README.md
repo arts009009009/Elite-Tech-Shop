@@ -117,6 +117,7 @@ Expect chaos builds, sharp release notes, and full‑stack grind energy.
 ### Customizer and Fire in Action
 ![Theme Customizer](Fire.png)
 
+Supports EN, RU, AR, FR, ES — chaos multilingual grind.
 ---
 
 ##🏷️ Identity & Copyright
