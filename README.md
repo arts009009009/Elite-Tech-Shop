@@ -105,6 +105,19 @@ Expect chaos builds, sharp release notes, and full‑stack grind energy.
 ![Rust](https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white)
 ![Java](https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=java&logoColor=white)
 
+---
+## Preview
+
+### Sick Default UI Mode
+![Cosmic Theme](Default.jpeg)
+
+### Hacker Neon Mode
+![Hacker Theme](Hacker.png)
+
+### Customizer and Fire in Action
+![Theme Customizer](Fire.png)
+
+---
 
 ##🏷️ Identity & Copyright
 
