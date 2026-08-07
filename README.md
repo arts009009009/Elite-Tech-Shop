@@ -1,4 +1,4 @@
-```markdown
+
 # ⚡ Elite Tech Shop
 
 A **full-stack demo e-commerce application** with a **neon-dark Elite Tech vibe**.
@@ -152,4 +152,3 @@ Expect chaos builds, sharp release notes, and full-stack grind energy.
 
 © arts009009009 2026 — Inventor of Triple Backend (Java + Rust + Go)
 © Elite Tech 2026 — Chaos Collective Branding
-```
