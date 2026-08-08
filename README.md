@@ -1,4 +1,3 @@
-
 # ⚡ Elite Tech Shop
 
 A **full-stack demo e-commerce application** with a **neon-dark Elite Tech vibe**.
@@ -37,7 +36,7 @@ All versions follow **Major.Minor (Build X)** format:
 
 Example: `3.8 (Build 77)`
 
-**Current Version:** `1.4 (Build 32)` | `4.7 (Build 382)`
+**Current Version:** `1.4 (Build 35)` | `4.7 (Build 382)`
 
 ---
 
