@@ -42,7 +42,7 @@ Example: `3.8 (Build 77)`
 
 ## 🛠️ Install & Run Locally
 
-> This guide covers the **latest version only**.
+> This guide covers the **latest version only including latest pre-release**.
 
 1. Download the repo as a ZIP from GitHub and extract it
 
