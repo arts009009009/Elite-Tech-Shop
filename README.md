@@ -130,6 +130,12 @@ All frontend→backend calls are logged with `[BACKEND]` prefix for debugging.
 Expect chaos builds, sharp release notes, and full-stack grind energy.
 
 ---
+##Showcase
+
+![Hacker](Hacker.png)
+![Fire](Fire.png)
+![Fire](Default.png)
+---
 
 ## 🚀 Tech Stack
 
