@@ -152,3 +152,5 @@ Expect chaos builds, sharp release notes, and full-stack grind energy.
 © arts009009009 2026 — Inventor of Triple Backend (Java + Rust + Go)
 
 © Elite Tech 2026 — Chaos Collective Branding
+
+If you cloned this repo, drop a comment or star so I know you’re here.
