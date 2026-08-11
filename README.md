@@ -3,7 +3,7 @@
 A **full-stack demo e-commerce application** with a **neon-dark Elite Tech vibe**.
 React frontend, three independent backends (Rust + Java + Go), and a Minecraft Alpha voxel minigame — built for chaos, speed, and full-stack grind energy.
 
-Cloned this repo? Drop feedback in Discussions!
+```Cloned this repo? Drop feedback in Discussions!```
 ---
 
 ## ✨ Features
