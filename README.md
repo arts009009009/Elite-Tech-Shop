@@ -181,6 +181,13 @@ All versions follow **`Major.Minor (Build X)`** format.
 | Minor increments | New feature cycles |
 | Overflow | Rolls into next major |
 
+| Major Rules | Description |
+|:-----------:|:-----------:|
+| Feature Freeze | Before next major |
+| User interface Freeze | Before next major |
+| Backend Freeze | Before next major |
+| New major release | After all freezes|
+
 **Current Version:** `4.9 (Build 544)`
 
 </div>
