@@ -185,7 +185,6 @@ All versions follow **`Major.Minor (Build X)`** format.
 |:-----------:|:-----------:|
 | Feature Freeze | Before next major |
 | User interface Freeze | Before next major |
-| Backend Freeze | Before next major |
 | New major release | After all freezes|
 
 **Current Version:** `5.0 UI Freeze`
