@@ -43,7 +43,7 @@ React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minig
 
 <br>
 
-### 📌 `4.9 (Build 544)` &nbsp;|&nbsp; 🌐 10 Languages &nbsp;|&nbsp; 🎮 WASM Minigame &nbsp;|&nbsp; 🧩 130+ Translations
+### 📌 `5.0 UI Freeze &nbsp;|&nbsp; 🌐 10 Languages &nbsp;|&nbsp; 🎮 WASM Minigame &nbsp;|&nbsp; 🧩 130+ Translations
 
 </div>
 
@@ -188,7 +188,7 @@ All versions follow **`Major.Minor (Build X)`** format.
 | Backend Freeze | Before next major |
 | New major release | After all freezes|
 
-**Current Version:** `4.9 (Build 544)`
+**Current Version:** `5.0 UI Freeze`
 
 </div>
 
