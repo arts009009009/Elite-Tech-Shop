@@ -1,372 +1,254 @@
-
 <div align="center">
-
-<a name="top"></a>
 
 # ⚡ Elite Tech Shop
 
 ### *The Triple Backend Fusion — Rust × Java × Go*
 
-<br>
-
 **A full‑stack demo e‑commerce application with a neon‑dark Elite Tech vibe.**
 
-React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minigame · 10‑Language i18n
+React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minigame · 10‑language i18n
 
 *Built for chaos, speed, and full‑stack grind energy.*
 
-<br>
+---
+
+💬 <a href="https://github.com/arts009009009/Elite-Tech-Shop/discussions">Discussions</a> · ⭐ <a href="https://github.com/arts009009009/Elite-Tech-Shop">Star this repo</a> · 🏆 <a href="https://github.com/arts009009009/Elite-Tech-Shop/discussions/11">Hall of Fame</a>
 
 ---
 
-<br>
-
-💬 **Cloned this repo?** Drop feedback in [Discussions](https://github.com/arts009009009/Elite-Tech-Shop/discussions) &nbsp;|&nbsp;
-⭐ **Like this repo?** Smash that star &nbsp;|&nbsp;
-🏆 **First commenter** gets immortalized in the [Hall of Fame](https://github.com/arts009009009/Elite-Tech-Shop/discussions/11)
-
-<br>
-
----
-
-<br>
-
-![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=next.js&logoColor=white)
-![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript_5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-CE412B?style=for-the-badge&logo=rust&logoColor=white)
-![Java](https://img.shields.io/badge/Java_21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Go](https://img.shields.io/badge/Go_1.22-00ADD8?style=for-the-badge&logo=go&logoColor=white)
-![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=for-the-badge&logo=webassembly&logoColor=white)
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
-
-<br>
-
-### 📌 `5.0 UI Freeze &nbsp;|&nbsp; 🌐 10 Languages &nbsp;|&nbsp; 🎮 WASM Minigame &nbsp;|&nbsp; 🧩 130+ Translations
-
-</div>
+<a href="https://nextjs.org"><img alt="Next.js" src="https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=next.js&logoColor=white" /></a>
+<a href="https://react.dev"><img alt="React" src="https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black" /></a>
+<a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript_5-3178C6?style=for-the-badge&logo=typescript&logoColor=white" /></a>
+<a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/Rust-CE412B?style=for-the-badge&logo=rust&logoColor=white" /></a>
+<a href="https://openjdk.org/"><img alt="Java" src="https://img.shields.io/badge/Java_21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" /></a>
+<a href="https://golang.org/"><img alt="Go" src="https://img.shields.io/badge/Go_1.22-00ADD8?style=for-the-badge&logo=go&logoColor=white" /></a>
+<a href="https://webassembly.org/"><img alt="WebAssembly" src="https://img.shields.io/badge/WebAssembly-654FF0?style=for-the-badge&logo=webassembly&logoColor=white" /></a>
 
 ---
 
-<div align="center">
+## 🚀 Elite Tech Shop 5.0 Stable — Release Summary
+
+**Highlights**
+- Multi‑manager support: **npm, pnpm, yarn, bun, deno**  
+- Next.js 16 frontend with React 19.2 and TypeScript 5.9  
+- Performance boosts (Bun + pnpm friendly)  
+- Cross‑platform: Linux, macOS, Windows, WSL  
+- Browser compatibility: **Firefox + Chrome verified**  
+- Extension compatibility: **uBlock Origin** tested and working  
+- **Backends moved into the same repo** (no external folder; no more `cd` hassles)
+
+---
+
+<p>
+<a href="https://www.npmjs.com/"><img alt="npm" src="https://img.shields.io/badge/npm-compatible-red?logo=npm" /></a>
+<a href="https://pnpm.io/"><img alt="pnpm" src="https://img.shields.io/badge/pnpm-compatible-orange?logo=pnpm" /></a>
+<a href="https://yarnpkg.com/"><img alt="yarn" src="https://img.shields.io/badge/yarn-compatible-blue?logo=yarn" /></a>
+<a href="https://bun.sh/"><img alt="bun" src="https://img.shields.io/badge/bun-compatible-black?logo=bun" /></a>
+<a href="https://deno.com/"><img alt="deno" src="https://img.shields.io/badge/deno-compatible-gray?logo=deno" /></a>
+<a href="https://www.mozilla.org/firefox/"><img alt="firefox" src="https://img.shields.io/badge/firefox-supported-orange?logo=firefox" /></a>
+<a href="https://www.google.com/chrome/"><img alt="chrome" src="https://img.shields.io/badge/chrome-supported-green?logo=google-chrome" /></a>
+<a href="https://ublockorigin.com/"><img alt="uBlock Origin" src="https://img.shields.io/badge/uBlock-Origin-purple?logo=ublockorigin" /></a>
+</p>
+
+---
 
 ## 📸 Showcase
 
-</div>
-
-### 🖥️ Hacker Theme
-
-<div align="center">
-
-![Hacker Theme](Hacker.png)
-
-</div>
+Hacker Theme · Fire Theme · Default Theme  
+![Hacker](Hacker.png)
+![Fire](Fire.png)
+![Default](Default.png)
 
 ---
-
-### 🔥 Fire Theme
-
-<div align="center">
-
-![Fire Theme](Fire.png)
-
-</div>
-
----
-
-### 🎨 Default Theme
-
-<div align="center">
-
-![Default Theme](Default.png)
-
-</div>
-
----
-
-<div align="center">
 
 ## ✨ Features
 
-</div>
+### 🛒 Core Commerce
+- Product catalog (Rust/Axum)  
+- Cart system (Go)  
+- Checkout, orders, order history & PDF export (Go)  
+- Wishlist (per‑user persistence)  
+- Product comparison, flash sales, stock alerts
 
-<details>
-<summary><b>🛒 Core Commerce</b></summary>
-<br>
+### 🎯 Engagement
+- Reviews & ratings  
+- Rewards & referral program  
+- Discount codes and promo system
 
-| Feature | Details | Backend |
-|:-------:|:-------:|:-------:|
-| **Product Catalog** | 50+ products, multi‑language JSON (EN, AR, RU, FR, ES, DE, ZH, JA, PT, HI) | Rust/Axum `:3002` |
-| **Cart System** | Add, remove, update quantity, persist across sessions | Go `:3003` |
-| **Order Processing** | Full history + status tracking | Go `:3003` |
-| **Wishlist** | Save products locally per user | localStorage |
-| **Checkout Flow** | Debounce protection, stock validation, redirect to orders | Go `:3003` |
+### 🔐 Admin & Analytics
+- Admin dashboard (Go)  
+- Admin auth & user management (Java/Spring)
 
-</details>
+### 🎨 UI & UX
+- Multi‑theme system (Modern, Classic, Cyberpunk, Neon Green, Synthwave, Matrix, Vaporwave, Crimson, etc.)  
+- Theme customizer (real‑time color/font/style)  
+- Light/Dark/High contrast + `prefers-reduced-motion` respect  
+- RTL support and 10 languages (EN, AR, RU, FR, ES, DE, ZH, JA, PT, HI)  
+- Live search, voice search, AI shopping assistant, live chat, push notifications
 
-<details>
-<summary><b>🎯 Engagement</b></summary>
-<br>
+### 💻 Frostbite OS (Mini Desktop)
+Browser‑based mini OS: calculator, notepad, spreadsheet, presentation, word processor, media player, paint, task manager, web browser, WASM minigame
 
-| Feature | Details | Backend |
-|:-------:|:-------:|:-------:|
-| **Reviews & Ratings** | Submit and view product reviews | Go `:3003` |
-| **Rewards Program** | Earn points, tier progression (Bronze → Silver → Gold → Platinum), redeem perks | Go `:3003` |
-| **Discount Codes** | Built‑in validation: `SAVE10` `SAVE20` `FLAT50` `WELCOME5` `BIG100` | Go `:3003` |
-
-</details>
-
-<details>
-<summary><b>🔐 Admin & Analytics</b></summary>
-<br>
-
-| Feature | Details | Backend |
-|:-------:|:-------:|:-------:|
-| **Admin Dashboard** | Analytics, product CRUD, secure storage clear | Go `:3003` |
-| **Admin Auth** | Two‑step login with OS notifications | Java/Spring `:3001` |
-
-</details>
-
-<details>
-<summary><b>🎨 UI & UX</b></summary>
-<br>
-
-| Feature | Details |
-|:-------:|:-------:|
-| **Responsive UI** | Cyberpunk CSS, theme customizer (11 palettes), high contrast, reduced motion |
-| **Live Search** | Debounced instant results |
-| **AI Shopping Assistant** | FAQ chatbot with smart responses |
-| **Live Support Chat** | Simulated support with typing indicators |
-| **Multi‑Language** | 10 languages with full RTL support (Arabic) |
-| **Push Notifications** | Real‑time toast alerts + browser push with infinite test mode |
-| **Offline Indicator** | Live connection status display |
-
-</details>
-
-<details>
-<summary><b>💻 Chaos OS</b></summary>
-<br>
-
-| App | Description |
-|:---:|:-----------:|
-| 🎮 **Minecraft Minigame** | Rust WASM voxel engine, survival physics, arrow/WASD controls, pause overlay |
-| 📊 **Excel Clone** | Spreadsheet with cell styling |
-| 🎨 **Paint App** | Fullscreen canvas drawing |
-| 📄 **Word Editor** | Rich text editor with formatting toolbar |
-| 🧮 **Calculator** | Basic calculator with history |
-| 📝 **Notepad** | Simple text editor |
-| 🕐 **Clock** | Digital clock display |
-| ✅ **Tasks** | Todo list manager |
-| 🎵 **Media Player** | Music player UI |
-
-</details>
+### Performance & Accessibility
+- GPU acceleration with fallbacks  
+- Lazy loading with Suspense boundaries  
+- Keyboard navigation, skip‑to‑content, high contrast mode
 
 ---
-
-<div align="center">
-
-## 🚀 Versioning
-
-</div>
-
-<div align="center">
-
-All versions follow **`Major.Minor (Build X)`** format.
-
-| Rule | Description |
-|:----:|:-----------:|
-| Patch field | Removed for clarity |
-| Build counter | Raw tally of fixes + commits |
-| Minor increments | New feature cycles |
-| Overflow | Rolls into next major |
-
-| Major Rules | Description |
-|:-----------:|:-----------:|
-| Feature Freeze | Before next major |
-| User interface Freeze | Before next major |
-| New major release | After all freezes|
-
-**Current Version:** `5.0 UI Freeze`
-
-</div>
-
----
-
-<div align="center">
 
 ## 🏗️ Architecture
 
-</div>
+<pre><code>
+Frontend (Next.js 16) → localhost:3000
+ ├─ Rust / Axum → localhost:3002  (Products API, multi‑language JSON)
+ ├─ Java / Spring → localhost:3001 (Auth, admin)
+ └─ Go → localhost:3003 (Cart, orders, reviews, rewards)
+</code></pre>
 
-<div align="center">
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Frontend (Next.js 16)                      │
-│                localhost:3000 · Turbopack · React 19            │
-│          App Router · TypeScript · i18n (130 keys)              │
-└─────────────┬───────────────────┬───────────────────┬───────────┘
-              │                   │                   │
-              ▼                   ▼                   ▼
-┌─────────────────────┐ ┌─────────────────────┐ ┌─────────────────────┐
-│    🦀 Rust / Axum   │ │   ☕ Java / Spring   │ │    🐹 Go Backend    │
-│   localhost:3002    │ │   localhost:3001    │ │   localhost:3003    │
-│                     │ │                     │ │                     │
-│  • Products API     │ │  • Register/Login   │ │  • Cart CRUD        │
-│  • Categories       │ │  • Password Reset   │ │  • Orders           │
-│  • Minigame WASM    │ │  • Admin Verify     │ │  • Reviews          │
-│  • Multi-language   │ │  • Session Mgmt     │ │  • Rewards/Tiers    │
-│    JSON catalog     │ │  • OS Notifications │ │  • Discount Codes   │
-│                     │ │                     │ │                     │
-└─────────────────────┘ └─────────────────────┘ └─────────────────────┘
-```
-
-**Request Flow:**
-```
-Browser ──► Next.js API Routes (proxy) ──► Backend Service ──► JSON Response
-```
-
+Request flow: **Browser → Next.js API Routes (proxy) → Backend Service → JSON response**  
 All backend calls logged with `[BACKEND]` prefix for debugging.
 
-</div>
-
 ---
-
-<div align="center">
 
 ## 📦 Installation & Setup
 
+### Prerequisites
+- Node.js 18+  
+- Rust (stable) for WASM & Rust backend  
+- Java 21+ (compile) / 26+ (run) for Spring Boot auth  
+- Go 1.22+ for orders/cart  
+- wasm-pack for WASM builds
+
+### Quick Start (choose one package manager)
+
+<div align="center">
+
+#### pnpm (recommended)
+
+<pre><code>
+git clone [https://github.com/arts009009009/Elite-Tech-Shop.git](https://github.com/arts009009009/Elite-Tech-Shop.git)
+cd Elite-Tech-Shop
+pnpm install
+pnpm run dev
+# Frontend → http://localhost:3000
+</code></pre>
+
+#### npm
+
+<pre><code>
+git clone [https://github.com/arts009009009/Elite-Tech-Shop.git](https://github.com/arts009009009/Elite-Tech-Shop.git)
+cd Elite-Tech-Shop
+npm install
+# If the repo uses pnpm workspace scripts, run via npx:
+npx pnpm -w install
+npx pnpm -w run dev
+# Or run individual scripts if available:
+npm run dev
+</code></pre>
+
+#### yarn
+
+<pre><code>
+git clone [https://github.com/arts009009009/Elite-Tech-Shop.git](https://github.com/arts009009009/Elite-Tech-Shop.git)
+cd Elite-Tech-Shop
+yarn install
+# If using workspaces:
+yarn workspaces focus --all
+yarn dev
+</code></pre>
+
+#### bun
+
+<pre><code>
+git clone [https://github.com/arts009009009/Elite-Tech-Shop.git](https://github.com/arts009009009/Elite-Tech-Shop.git)
+cd Elite-Tech-Shop
+bun install
+bun run dev
+</code></pre>
+
+#### Deno (task runner)
+
+<pre><code>
+git clone [https://github.com/arts009009009/Elite-Tech-Shop.git](https://github.com/arts009009009/Elite-Tech-Shop.git)
+cd Elite-Tech-Shop
+# If a deno task is provided for setup
+deno task setup
+deno task dev
+</code></pre>
+
 </div>
 
-### Prerequisites
+### Start individual services (all managers)
 
-| Tool | Version | Purpose |
-|:----:|:-------:|:-------:|
-| **Node.js** | 18+ | Frontend runtime |
-| **pnpm** | 8+ | Package manager (monorepo) |
-| **Rust** | stable | WASM minigame + products API |
-| **Java** | 21 (compile) / 26 (run) | Spring Boot auth backend |
-| **Go** | 1.22+ | Orders + checkout backend |
-| **wasm-pack** | latest | Building WASM for minigame |
+<pre><code>
+# Start all backends (Rust + Java + Go)
+pnpm run backend          # or npm run backend / yarn backend / bun run backend / deno task backend
 
-### Quick Start
+# Start single backend services
+pnpm run backend:rust     # Rust API → :3002
+pnpm run backend:java     # Java Auth → :3001
+pnpm run backend:go       # Go Orders/Cart → :3003
+</code></pre>
 
-```bash
-# 1. Clone the repo
-git clone https://github.com/arts009009009/Elite-Tech-Shop.git
-cd Elite-Tech-Shop
+### Production build notes
 
-# 2. Install all dependencies
-pnpm install
-
-# 3. Start everything (frontend + all 3 backends)
-pnpm run dev
-
-# 4. Open in browser
-open http://localhost:3000
-```
-
-### Individual Services
-
-```bash
-pnpm run backend          # All backends (Rust + Java + Go) → :3001, :3002, :3003
-pnpm run backend:rust     # Products API                    → :3002
-pnpm run backend:java     # Auth Service                    → :3001
-pnpm run backend:go       # Orders + Cart API               → :3003
-pnpm run dev              # Frontend only                   → :3000
-```
-
-### Build for Production
-
-```bash
+<pre><code>
 # Frontend
-cd frontend && pnpm run build
+cd frontend && pnpm run build   # or npm run build / yarn build / bun run build
 
-# Rust WASM module
+# Rust WASM
 cd backend/rust && wasm-pack build --target web
-```
+
+# Docker
+docker-compose up --build
+</code></pre>
+
+**Notes**  
+- If your environment defaults to a different package manager, use the matching commands above.  
+- For monorepo/workspace setups some managers require `npx pnpm -w` or `yarn workspaces` equivalents — use the manager‑specific workspace commands if you see workspace errors.  
+- All services are configured to run on ports `:3000` (frontend), `:3001` (Java), `:3002` (Rust), `:3003` (Go).
 
 ---
 
-<div align="center">
+## 🔧 Infrastructure
+
+- pnpm workspace (monorepo) with compatibility for npm, yarn, bun, deno  
+- Turbopack for fast dev builds  
+- Experimental React Compiler (Rust‑native in Turbopack)  
+- Playwright E2E testing scaffold  
+- Docker & Docker Compose support
+
+---
+
+## ⚠️ Breaking Changes (Next.js 16)
+
+- `middleware.ts` renamed to `proxy.ts` (function renamed from `middleware` to `proxy`)
+
+---
 
 ## 🧪 Quality
 
-</div>
-
-| Check | Status |
-|:-----:|:------:|
-| **TypeScript** | ✅ 0 errors |
-| **ESLint** | ✅ 0 errors (1 acceptable warning: `eval` in calculator) |
-| **Hydration** | ✅ SSR-safe, no mismatches |
-| **Auth Flow** | ✅ Full Java-backed register/login/logout |
-| **i18n Coverage** | ✅ 130 translation keys, 10 languages, full RTL |
+- ✅ TypeScript: 0 errors  
+- ✅ ESLint: 0 errors (1 acceptable warning: `eval` in calculator)  
+- ✅ Hydration: SSR‑safe, no mismatches  
+- ✅ Auth Flow: Java‑backed register/login/logout  
+- ✅ i18n Coverage: 130 translation keys, 10 languages
 
 ---
-
-<div align="center">
-
-## 🔧 Tech Stack
-
-</div>
-
-<div align="center">
-
-![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=next.js&logoColor=white)
-![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript_5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-CE412B?style=for-the-badge&logo=rust&logoColor=white)
-![Java](https://img.shields.io/badge/Java_21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Go](https://img.shields.io/badge/Go_1.22-00ADD8?style=for-the-badge&logo=go&logoColor=white)
-![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=for-the-badge&logo=webassembly&logoColor=white)
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
-
-</div>
-
----
-
-<div align="center">
-
-## 🔮 Roadmap → v5.0
-
-</div>
-
-| Feature | Description |
-|:-------:|:-----------:|
-| 🤖 **AI Recommendations** | Smart product suggestions based on user activity |
-| 📴 **Offline Mode** | Service worker + cached catalog browsing |
-| 🎨 **Expanded Theme Engine** | More cyberpunk palettes + custom theme builder |
-| 👤 **Enhanced Accounts** | OAuth, profile customization, session management |
-| 📈 **Go Analytics** | Order tracking + real‑time performance metrics |
-| 🧪 **E2E Testing** | Playwright tests for critical user flows |
-| 🔌 **WebSocket Support** | Live cart updates, real‑time inventory |
-
-<div align="center">
-
-> 💬 Elite Tech Shop marches toward its next era: **v5.0**.
-> Expect chaos builds, sharp release notes, and full‑stack grind energy.
-
-</div>
-
----
-
-<div align="center">
 
 ## 🏆 Hall of Fame
 
-First commenter gets immortalized here → [Discussion #3](https://github.com/arts009009009/Elite-Tech-Shop/discussions/3)
+First commenter gets immortalized → <a href="https://github.com/arts009009009/Elite-Tech-Shop/discussions/3">Discussion #3</a>
 
 ---
 
 ## 🏷️ Identity & Copyright
 
-© **arts009009009** 2026 — Inventor of **Triple Backend (Java + Rust + Go)**
+© **arts009009009** 2026 — Inventor of Triple Backend (Java + Rust + Go)  
 © **Elite Tech** 2026 — Chaos Collective Branding
 
-<br>
+---
 
-[⬆ Back to Top](#top)
+**Chaos Verdict:** Elite Shop 5.0 Stable is here — fast, solid, universal, browser‑ready, extension‑safe, and backend‑simplified.
 
 </div>
