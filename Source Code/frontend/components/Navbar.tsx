@@ -61,7 +61,7 @@ export default function Navbar() {
       signup: t("Signup"),
       cart: t("Cart"),
       search: t("Search..."),
-      version: "5.0 Stable",
+      version: "5.0 Canary 0",
       versionLabel: t("Version"),
       products: t("Products"),
       categories: t("Categories"),
