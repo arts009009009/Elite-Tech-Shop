@@ -2,7 +2,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-export default function FrostbiteOSLayout({ children, title }: { children: ReactNode; title: string }) {
+export default function FrostbiteOSLayout({ children, title, embedded }: { children: ReactNode; title: string; embedded?: boolean }) {
+  if (embedded) {
+    return <div style={{ height: "100%", overflow: "auto" }}>{children}</div>;
+  }
   return (
     <div style={{ minHeight: "100vh" }}>
       <nav style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 16px", borderBottom: "1px solid var(--border, #e5e4e7)", background: "var(--card-bg, #111)", flexWrap: "wrap" }}>

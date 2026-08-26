@@ -1,0 +1,483 @@
+/* ═══════════════════════════════════════════════
+   Frostbite OS — Desktop Environment
+   ═══════════════════════════════════════════════ */
+
+.fs-desktop {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #060a14 0%, #0d1b2a 20%, #12103a 45%, #2a1050 70%, #0a0e1a 100%);
+  color: #c8e6ff;
+}
+
+.fs-desktop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 45%, rgba(41,121,255,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 25%, rgba(224,64,251,0.10) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 85%, rgba(0,229,255,0.06) 0%, transparent 45%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fs-snow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Top Bar ── */
+.fs-topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 36px;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: rgba(6,10,20,0.88);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border-bottom: 1px solid rgba(120,180,255,0.18);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fs-topbar-left,
+.fs-topbar-center,
+.fs-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fs-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fs-brand-logo {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4fc3f7, #e040fb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.fs-brand-text {
+  background: linear-gradient(90deg, #4fc3f7, #e040fb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-size: 13px;
+}
+
+.fs-menus {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: rgba(160,200,240,0.55);
+}
+
+.fs-menus span {
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.fs-menus span:hover {
+  color: #c8e6ff;
+}
+
+.fs-elite-label {
+  color: rgba(160,200,240,0.45);
+  font-size: 12px;
+}
+
+.fs-clock {
+  font-variant-numeric: tabular-nums;
+  color: rgba(160,200,240,0.55);
+  font-size: 12px;
+}
+
+.fs-power-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(255,95,87,0.15);
+  color: #ff5f57;
+  text-decoration: none;
+  transition: all 0.2s;
+  border: 1px solid rgba(255,95,87,0.2);
+}
+
+.fs-power-btn:hover {
+  background: rgba(255,95,87,0.3);
+  box-shadow: 0 0 14px rgba(255,59,48,0.35);
+  transform: scale(1.08);
+}
+
+/* ── Desktop Icons ── */
+.fs-icons {
+  position: fixed;
+  top: 52px;
+  left: 16px;
+  bottom: 96px;
+  width: calc(100% - 32px);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 92px);
+  grid-auto-rows: 104px;
+  gap: 4px;
+  align-content: start;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.fs-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 4px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  pointer-events: auto;
+  border: none;
+  background: transparent;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fs-icon:hover {
+  background: rgba(100,180,255,0.1);
+}
+
+.fs-icon:active {
+  transform: scale(0.94);
+}
+
+.fs-icon-img {
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(120,180,255,0.22);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07);
+  transition: all 0.25s;
+}
+
+.fs-icon:hover .fs-icon-img {
+  border-color: #4fc3f7;
+  box-shadow: 0 4px 24px rgba(79,195,247,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+}
+
+.fs-icon-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.fs-icon-label {
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.3;
+  color: #c8e6ff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Dock ── */
+.fs-dock {
+  position: fixed;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4999;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 8px 14px;
+  background: rgba(6,12,28,0.82);
+  backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid rgba(120,180,255,0.2);
+  border-radius: 22px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.55), 0 0 1px rgba(120,180,255,0.3);
+}
+
+.fs-dock-item {
+  all: unset;
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  position: relative;
+  background: rgba(20,30,60,0.55);
+  border: 1px solid transparent;
+  transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  box-sizing: border-box;
+}
+
+.fs-dock-item:hover {
+  transform: translateY(-14px) scale(1.3);
+  border-color: #4fc3f7;
+  background: rgba(30,50,90,0.8);
+  box-shadow: 0 10px 36px rgba(79,195,247,0.35);
+}
+
+.fs-dock-item:active {
+  transform: translateY(-10px) scale(1.18);
+}
+
+.fs-dock-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.fs-dock-dot {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #00e5ff;
+  box-shadow: 0 0 8px #00e5ff;
+  display: none;
+}
+
+.fs-dock-running .fs-dock-dot {
+  display: block;
+}
+
+.fs-dock-sep {
+  width: 1px;
+  height: 32px;
+  background: rgba(120,180,255,0.15);
+  margin: 0 4px;
+  align-self: center;
+}
+
+.fs-dock-power {
+  background: rgba(255,95,87,0.12) !important;
+  border-color: rgba(255,95,87,0.25) !important;
+  color: #ff5f57;
+  font-size: 20px;
+}
+
+.fs-dock-power:hover {
+  background: rgba(255,95,87,0.3) !important;
+  border-color: #ff5f57 !important;
+  box-shadow: 0 10px 36px rgba(255,59,48,0.35) !important;
+}
+
+/* ── Windows ── */
+.fs-win {
+  position: absolute;
+  min-width: 420px;
+  min-height: 320px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(10,18,38,0.92);
+  backdrop-filter: blur(32px) saturate(1.4);
+  border: 1px solid rgba(120,180,255,0.22);
+  box-shadow: 0 14px 64px rgba(0,0,0,0.6), 0 0 1px rgba(120,180,255,0.4);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.3s;
+  z-index: 100;
+}
+
+.fs-win::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 25%);
+}
+
+.fs-win-focus {
+  box-shadow: 0 18px 72px rgba(0,0,0,0.7), 0 0 2px #4fc3f7, 0 0 48px rgba(79,195,247,0.08);
+  z-index: 200;
+}
+
+.fs-win-max {
+  top: 36px !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 36px - 84px) !important;
+  border-radius: 0;
+}
+
+.fs-win-header {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  cursor: default;
+  flex-shrink: 0;
+  background: rgba(12,20,40,0.92);
+  border-bottom: 1px solid rgba(120,180,255,0.12);
+  user-select: none;
+  position: relative;
+  z-index: 2;
+}
+
+.fs-win-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #c8e6ff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fs-win-btns {
+  display: flex;
+  gap: 7px;
+}
+
+.fs-win-btns button {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.fs-btn-close { background: #ff5f57; }
+.fs-btn-close:hover { background: #ff3b30; box-shadow: 0 0 10px rgba(255,59,48,0.5); }
+.fs-btn-min { background: #ffbd2e; }
+.fs-btn-min:hover { background: #ffb800; }
+.fs-btn-max { background: #28c940; }
+.fs-btn-max:hover { background: #20b838; box-shadow: 0 0 10px rgba(40,201,64,0.5); }
+
+.fs-win-body {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  z-index: 1;
+  color: #c8e6ff;
+}
+
+/* ── App overrides: make apps fill the window body ── */
+.fs-win-body > div {
+  height: 100%;
+}
+
+.fs-win-body [style*="min-height: 100vh"],
+.fs-win-body [style*="minHeight"] {
+  min-height: 100% !important;
+  height: 100% !important;
+}
+
+/* Override FrostbiteOSLayout wrapper inside windows */
+.fs-win-body nav {
+  display: none !important;
+}
+
+.fs-win-body > div > div:first-child:has(~ nav) {
+  padding: 0 !important;
+}
+
+/* Make the app root divs fill the window */
+.fs-win-body > div > div {
+  padding: 0;
+  height: 100%;
+}
+
+/* ── Context Menu ── */
+.fs-ctx {
+  position: fixed;
+  min-width: 180px;
+  padding: 6px 0;
+  border-radius: 12px;
+  background: rgba(10,18,36,0.96);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(120,180,255,0.2);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.65);
+  z-index: 9000;
+}
+
+.fs-ctx-item {
+  padding: 8px 18px;
+  font-size: 12.5px;
+  color: #c8e6ff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fs-ctx-item:hover {
+  background: rgba(79,195,247,0.14);
+}
+
+.fs-ctx-sep {
+  height: 1px;
+  background: rgba(120,180,255,0.1);
+  margin: 4px 0;
+}
+
+/* ── Notification ── */
+.fs-notif {
+  position: fixed;
+  top: 48px;
+  right: 16px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: rgba(10,18,36,0.96);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(120,180,255,0.2);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  font-size: 13px;
+  z-index: 8000;
+  transform: translateX(calc(100% + 24px));
+  transition: transform 0.45s cubic-bezier(0.34,1.56,0.64,1);
+  white-space: nowrap;
+}
+
+.fs-notif-show {
+  transform: translateX(0);
+}
+
+/* ── Scrollbar ── */
+.fs-desktop ::-webkit-scrollbar { width: 6px; height: 6px; }
+.fs-desktop ::-webkit-scrollbar-track { background: transparent; }
+.fs-desktop ::-webkit-scrollbar-thumb { background: rgba(120,180,255,0.2); border-radius: 3px; }
+.fs-desktop ::-webkit-scrollbar-thumb:hover { background: rgba(120,180,255,0.35); }
