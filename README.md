@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ Elite Tech Shop
+# ⚡ <a href="https://elite-shop-50-731fukl1n-arts009009009-1652s-projects.vercel.app/">Elite Tech Shop</a>
 
 ### *The Triple Backend Fusion — Rust × Java × Go*
 
@@ -12,7 +12,8 @@ React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minig
 
 ---
 
-💬 <a href="https://github.com/arts009009009/Elite-Tech-Shop/discussions">Discussions</a> · ⭐ <a href="https://github.com/arts009009009/Elite-Tech-Shop">Star this repo</a> · 🏆 <a href="https://github.com/arts009009009/Elite-Tech-Shop/discussions/11">Hall of Fame</a>
+💬 <a href="https://github.com/arts009009009/Elite-Tech-Shop/discussions">Discussions</a> · ⭐ <a href="https://github.com/arts009009009/Elite-Tech-Shop">Star this repo</a> · 🏆 <a href="https://github.com/arts009009009/Elite-Tech-Shop/discussions/11">Hall of Fame</a> . 
+<a href="https://elite-shop-50-731fukl1n-arts009009009-1652s-projects.vercel.app/">Elite Tech Shop Demo</a>
 
 ---
 
