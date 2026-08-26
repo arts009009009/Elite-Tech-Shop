@@ -26,6 +26,18 @@ React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minig
 
 ---
 
+## 📂 Live Source Code
+
+💡 The `/Source Code` folder is **always up to date**.  
+Every commit reflects the latest changes — even if no new release has been published.  
+
+- 🔄 Continuous updates: bug fixes, features, experiments land here first.  
+- 🕹️ Direct viewable code: browse backend, frontend, configs without cloning.  
+- 🛠️ Pull requests welcome: edit files, upload replacements, or propose changes directly.  
+- 🏷️ Releases are snapshots: tagged versions (like **5.0 Stable**) are milestones, but `/Source Code` may be ahead.
+
+---
+
 ## 🚀 Elite Tech Shop 5.0 Stable — Release Summary
 
 **Highlights**
@@ -38,6 +50,7 @@ React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minig
 - **Backends moved into the same repo** (no external folder; no more `cd` hassles)
 
 ---
+
 
 <p>
 <a href="https://www.npmjs.com/"><img alt="npm" src="https://img.shields.io/badge/npm-compatible-red?logo=npm" /></a>
