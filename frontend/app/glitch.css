@@ -1,0 +1,236 @@
+/* Glitch Mode — Elite Tech Shop */
+
+/* Global distortion when active */
+.glitch-active {
+  overflow: hidden;
+  scrollbar-width: none;
+}
+.glitch-active::-webkit-scrollbar {
+  display: none;
+}
+
+/* RGB transparent overlay */
+.glitch-rgb {
+  position: fixed;
+  inset: 0;
+  z-index: 999997;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 0, 0, 0.15),
+    rgba(0, 255, 0, 0.15),
+    rgba(0, 0, 255, 0.15),
+    rgba(255, 0, 0, 0.15),
+    rgba(0, 255, 0, 0.15),
+    rgba(0, 0, 255, 0.15)
+  );
+  background-size: 600% 600%;
+  animation: glitch-rgb-shift 2s linear infinite;
+  will-change: background-position;
+  mix-blend-mode: screen;
+}
+@keyframes glitch-rgb-shift {
+  0% { background-position: 0% 50%; }
+  25% { background-position: 100% 0%; }
+  50% { background-position: 50% 100%; }
+  75% { background-position: 0% 0%; }
+  100% { background-position: 0% 50%; }
+}
+.glitch-active .glitch-rgb {
+  display: block;
+}
+
+/* Flicker effect */
+@keyframes glitch-flicker {
+  0% { opacity: 1; }
+  10% { opacity: 0.7; }
+  20% { opacity: 1; }
+  30% { opacity: 0.85; }
+  40% { opacity: 1; }
+  50% { opacity: 0.6; }
+  60% { opacity: 1; }
+  70% { opacity: 0.9; }
+  80% { opacity: 1; }
+  90% { opacity: 0.75; }
+  100% { opacity: 1; }
+}
+.glitch-flicker {
+  animation: glitch-flicker 0.15s steps(2) infinite;
+}
+
+/* Shake effect */
+@keyframes glitch-shake {
+  0%, 100% { transform: translate(0, 0) skewX(0deg); }
+  10% { transform: translate(-5px, 3px) skewX(-2deg); }
+  20% { transform: translate(4px, -2px) skewX(1deg); }
+  30% { transform: translate(-3px, 5px) skewX(-1deg); }
+  40% { transform: translate(5px, -4px) skewX(2deg); }
+  50% { transform: translate(-2px, 2px) skewX(-2deg); }
+  60% { transform: translate(3px, -5px) skewX(1deg); }
+  70% { transform: translate(-4px, 4px) skewX(-1deg); }
+  80% { transform: translate(2px, -3px) skewX(2deg); }
+  90% { transform: translate(-5px, 5px) skewX(-2deg); }
+}
+.glitch-shake {
+  animation: glitch-shake 0.3s steps(4) !important;
+}
+
+/* Color inversion */
+@keyframes glitch-invert {
+  0% { filter: invert(0) hue-rotate(0deg); }
+  50% { filter: invert(1) hue-rotate(180deg); }
+  100% { filter: invert(0) hue-rotate(360deg); }
+}
+.glitch-invert {
+  animation: glitch-invert 0.15s steps(2) !important;
+}
+
+/* Screen shutter bars */
+.glitch-shutter {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 0, 64, 0.3) 2px,
+    rgba(255, 0, 64, 0.3) 4px
+  );
+  mix-blend-mode: overlay;
+  animation: glitch-shutter-flash 0.1s steps(2);
+}
+@keyframes glitch-shutter-flash {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.8; }
+}
+
+/* Black screen jumpscare */
+.glitch-blackout {
+  position: fixed;
+  inset: 0;
+  z-index: 999998;
+  background: #000;
+  pointer-events: none;
+  animation: glitch-blackout-pulse 0.5s steps(3) infinite;
+}
+@keyframes glitch-blackout-pulse {
+  0% { opacity: 1; }
+  33% { opacity: 0.85; }
+  66% { opacity: 0.95; }
+  100% { opacity: 1; }
+}
+
+/* Distort child elements when active */
+.glitch-active *:not(.glitch-button) {
+  transition: transform 0.05s steps(2), filter 0.1s steps(2);
+}
+
+/* Crash screen flicker */
+@keyframes crash-flicker {
+  0% { opacity: 1; }
+  10% { opacity: 0.97; }
+  20% { opacity: 1; }
+  30% { opacity: 0.98; }
+  50% { opacity: 0.96; }
+  60% { opacity: 1; }
+  80% { opacity: 0.99; }
+  100% { opacity: 1; }
+}
+
+/* Random element offsets */
+.glitch-active > *:nth-child(odd) {
+  transform: translateX(2px);
+}
+.glitch-active > *:nth-child(3n) {
+  transform: translateY(-1px) skewX(0.5deg);
+}
+.glitch-active > *:nth-child(5n) {
+  transform: translateX(-3px) rotate(0.3deg);
+}
+
+/* OVERDRIVE — 10x intensification after 10s */
+.glitch-overdrive {
+  animation: glitch-shake 0.08s steps(4) infinite, glitch-flicker 0.05s steps(2) infinite;
+  filter: invert(1) hue-rotate(90deg) saturate(3) brightness(1.4);
+}
+.glitch-overdrive *:not(.glitch-button) {
+  animation: glitch-shake 0.06s steps(3) infinite !important;
+  filter: hue-rotate(180deg) saturate(5) brightness(1.6) contrast(2) !important;
+  text-shadow: 2px 0 #ff0000, -2px 0 #00ff00, 0 2px #0000ff, 0 -2px #ff00ff !important;
+}
+.glitch-overdrive .glitch-rgb {
+  opacity: 1;
+  animation: glitch-rgb-shift 0.3s linear infinite !important;
+  mix-blend-mode: exclusion !important;
+}
+@keyframes overdrive-tear {
+  0% { clip-path: inset(0 0 100% 0); }
+  10% { clip-path: inset(15% 0 60% 0); }
+  20% { clip-path: inset(40% 0 30% 0); }
+  30% { clip-path: inset(70% 0 10% 0); }
+  40% { clip-path: inset(5% 0 80% 0); }
+  50% { clip-path: inset(50% 0 20% 0); }
+  60% { clip-path: inset(25% 0 55% 0); }
+  70% { clip-path: inset(80% 0 5% 0); }
+  80% { clip-path: inset(10% 0 70% 0); }
+  90% { clip-path: inset(60% 0 15% 0); }
+  100% { clip-path: inset(0 0 100% 0); }
+}
+.glitch-overdrive::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 999996;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    rgba(255, 0, 0, 0.15) 1px,
+    transparent 2px,
+    transparent 3px,
+    rgba(0, 255, 0, 0.12) 4px,
+    transparent 5px,
+    transparent 6px,
+    rgba(0, 0, 255, 0.15) 7px,
+    transparent 8px
+  );
+  animation: overdrive-tear 0.1s steps(6) infinite;
+  mix-blend-mode: exclusion;
+}
+
+/* ── GPU Performance Mode ── keep bursts, kill continuous distortion */
+html[data-perf="low"] .glitch-rgb {
+  animation: none !important;
+  mix-blend-mode: normal !important;
+}
+html[data-perf="low"] .glitch-flicker,
+html[data-perf="low"] .glitch-shake,
+html[data-perf="low"] .glitch-invert,
+html[data-perf="low"] .glitch-blackout,
+html[data-perf="low"] .glitch-shutter,
+html[data-perf="low"] .glitch-active *:not(.glitch-button) {
+  animation: none !important;
+}
+html[data-perf="low"] .glitch-blackout {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+html[data-perf="low"] .glitch-active > * {
+  transform: none !important;
+}
+html[data-perf="low"] .glitch-active *:not(.glitch-button) {
+  transition: none !important;
+}
+html[data-perf="low"] .glitch-overdrive,
+html[data-perf="low"] .glitch-overdrive *:not(.glitch-button) {
+  animation: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+}
+html[data-perf="low"] .glitch-overdrive::after {
+  animation: none !important;
+  display: none !important;
+}
