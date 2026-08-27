@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { APP_COMPONENTS } from "./DesktopApps";
-import { ChaosProvider, useChaos } from "./ChaosEffects";
+import { ChaosProvider, useChaos, CHAOS_PRESETS } from "./ChaosEffects";
 import SystemMonitor from "./SystemMonitor";
 import "./frostbite-os.css";
 import "./frostbite-chaos.css";
@@ -46,13 +46,14 @@ export default function FrostbiteOSDesktop() {
 }
 
 function FrostbiteOSDesktopInner() {
-  const { chaosEnabled, toggleChaos, triggerGlitch } = useChaos();
+  const { chaosEnabled, activePreset, setActivePreset, toggleChaos, triggerGlitch } = useChaos();
   const [windows, setWindows] = useState<WinState[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [topbarTime, setTopbarTime] = useState("");
   const [ctxMenu, setCtxMenu] = useState({ show: false, x: 0, y: 0 });
   const [notif, setNotif] = useState({ show: false, text: "" });
   const [monitorVisible, setMonitorVisible] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
   const snowRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
 
@@ -317,6 +318,35 @@ function FrostbiteOSDesktopInner() {
           Toggle Chaos Mode
           <span className={`fs-ctx-chaos-indicator ${chaosEnabled ? "fs-ctx-chaos-on" : "fs-ctx-chaos-off"}`} />
         </div>
+        <div
+          className="fs-ctx-item"
+          onClick={() => setShowPresets((p) => !p)}
+          style={{ justifyContent: "space-between" }}
+        >
+          Chaos Presets
+          <span style={{ fontSize: 10, color: "rgba(160,200,240,0.4)" }}>{showPresets ? "▲" : "▼"}</span>
+        </div>
+        {showPresets && (
+          <div className="fs-ctx-preset-panel">
+            <div className="fs-ctx-preset-label">Select Preset</div>
+            {CHAOS_PRESETS.map((preset) => (
+              <div
+                key={preset.id}
+                className={`fs-ctx-preset-item ${activePreset.id === preset.id ? "fs-ctx-preset-item-active" : ""}`}
+                onClick={() => {
+                  setActivePreset(preset);
+                  setCtxMenu({ show: false, x: 0, y: 0 });
+                  setShowPresets(false);
+                  showNotif(`Chaos preset: ${preset.name}`);
+                }}
+              >
+                <span className="fs-ctx-preset-icon">{preset.icon}</span>
+                <span className="fs-ctx-preset-name">{preset.name}</span>
+                <span className="fs-ctx-preset-check">✓</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="fs-ctx-item" onClick={() => { setCtxMenu({ show: false, x: 0, y: 0 }); setMonitorVisible((p) => !p); }}>
           Toggle System Monitor
           <span className={`fs-ctx-chaos-indicator ${monitorVisible ? "fs-ctx-chaos-on" : "fs-ctx-chaos-off"}`} />
