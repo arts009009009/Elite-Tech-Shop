@@ -3,7 +3,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { APP_COMPONENTS } from "./DesktopApps";
+import { ChaosProvider, useChaos } from "./ChaosEffects";
+import SystemMonitor from "./SystemMonitor";
 import "./frostbite-os.css";
+import "./frostbite-chaos.css";
 
 interface WinState {
   id: string;
@@ -29,16 +32,27 @@ const APPS = [
   { id: "tasks", name: "Tasks", icon: "✅", color: "#3d7a5f", dock: false },
   { id: "media", name: "Media Player", icon: "🎵", color: "#8b5cf6", dock: true },
   { id: "browser", name: "Browser", icon: "🌐", color: "#1a73e8", dock: true },
+  { id: "sysmon", name: "System Monitor", icon: "🖥️", color: "#00e5ff", dock: false },
 ];
 
 let winCounter = 0;
 
 export default function FrostbiteOSDesktop() {
+  return (
+    <ChaosProvider>
+      <FrostbiteOSDesktopInner />
+    </ChaosProvider>
+  );
+}
+
+function FrostbiteOSDesktopInner() {
+  const { chaosEnabled, toggleChaos, triggerGlitch } = useChaos();
   const [windows, setWindows] = useState<WinState[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [topbarTime, setTopbarTime] = useState("");
   const [ctxMenu, setCtxMenu] = useState({ show: false, x: 0, y: 0 });
   const [notif, setNotif] = useState({ show: false, text: "" });
+  const [monitorVisible, setMonitorVisible] = useState(false);
   const snowRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
 
@@ -118,7 +132,11 @@ export default function FrostbiteOSDesktop() {
       }];
     });
     setFocusedId(appId);
-  }, []);
+    setTimeout(() => {
+      const winEl = document.querySelector(`.fs-win`) as HTMLElement | null;
+      if (winEl) triggerGlitch(winEl);
+    }, 50);
+  }, [triggerGlitch]);
 
   const closeWin = useCallback((id: string) => {
     setWindows((prev) => prev.filter((w) => w.id !== id));
@@ -169,6 +187,7 @@ export default function FrostbiteOSDesktop() {
       setCtxMenu({ show: true, x: e.clientX, y: e.clientY });
     };
     const dismiss = (e: MouseEvent) => {
+      if (e.button !== 0) return;
       if ((e.target as HTMLElement).closest(".fs-ctx")) return;
       setCtxMenu({ show: false, x: 0, y: 0 });
     };
@@ -196,9 +215,6 @@ export default function FrostbiteOSDesktop() {
           <div className="fs-brand">
             <div className="fs-brand-logo">F</div>
             <span className="fs-brand-text">FROSTBITE OS</span>
-          </div>
-          <div className="fs-menus">
-            <span>File</span><span>Edit</span><span>View</span><span>Help</span>
           </div>
         </div>
         <div className="fs-topbar-center">
@@ -280,6 +296,14 @@ export default function FrostbiteOSDesktop() {
           </button>
         ))}
         <div className="fs-dock-sep" />
+        <button
+          className={`fs-dock-item ${monitorVisible ? "fs-dock-running" : ""}`}
+          title="System Monitor"
+          onClick={() => setMonitorVisible((p) => !p)}
+        >
+          <span>🖥️</span>
+          <div className="fs-dock-dot" />
+        </button>
         <Link href="/" className="fs-dock-item fs-dock-power" title="Power Off">
           <span>⏻</span>
         </Link>
@@ -287,10 +311,22 @@ export default function FrostbiteOSDesktop() {
 
       {/* Context Menu */}
       <div className="fs-ctx" style={{ display: ctxMenu.show ? "block" : "none", left: ctxMenu.x, top: ctxMenu.y }}>
-        <div className="fs-ctx-item" onClick={() => showNotif("Desktop refreshed")}>Refresh Desktop</div>
+        <div className="fs-ctx-item" onClick={() => { setCtxMenu({ show: false, x: 0, y: 0 }); showNotif("Desktop refreshed"); }}>Refresh Desktop</div>
         <div className="fs-ctx-sep" />
-        <div className="fs-ctx-item" onClick={() => showNotif("Frostbite OS v1.0 \u2014 Elite Tech Shop")}>About Frostbite OS</div>
+        <div className="fs-ctx-item" onClick={() => { setCtxMenu({ show: false, x: 0, y: 0 }); toggleChaos(); }}>
+          Toggle Chaos Mode
+          <span className={`fs-ctx-chaos-indicator ${chaosEnabled ? "fs-ctx-chaos-on" : "fs-ctx-chaos-off"}`} />
+        </div>
+        <div className="fs-ctx-item" onClick={() => { setCtxMenu({ show: false, x: 0, y: 0 }); setMonitorVisible((p) => !p); }}>
+          Toggle System Monitor
+          <span className={`fs-ctx-chaos-indicator ${monitorVisible ? "fs-ctx-chaos-on" : "fs-ctx-chaos-off"}`} />
+        </div>
+        <div className="fs-ctx-sep" />
+        <div className="fs-ctx-item" onClick={() => { setCtxMenu({ show: false, x: 0, y: 0 }); showNotif("Frostbite OS v1.0 \u2014 Elite Tech Shop"); }}>About Frostbite OS</div>
       </div>
+
+      {/* System Monitor Overlay */}
+      <SystemMonitor visible={monitorVisible} onClose={() => setMonitorVisible(false)} />
 
       {/* Notification */}
       <div className={`fs-notif ${notif.show ? "fs-notif-show" : ""}`}>&#10052; {notif.text}</div>

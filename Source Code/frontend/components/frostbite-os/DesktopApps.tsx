@@ -13,6 +13,7 @@ const ClockApp = dynamic(() => import("@/app/frostbite-os/clock/page"), { ssr: f
 const TasksApp = dynamic(() => import("@/app/frostbite-os/tasks/page"), { ssr: false });
 const MediaPlayerApp = dynamic(() => import("@/app/frostbite-os/mediaplayer/page"), { ssr: false });
 const BrowserApp = dynamic(() => import("@/app/frostbite-os/browser/page"), { ssr: false });
+const SystemMonitorApp = dynamic(() => import("./SystemMonitor"), { ssr: false });
 
 function Wrap({ children }: { children: React.ReactNode }) {
   return (
@@ -22,6 +23,14 @@ function Wrap({ children }: { children: React.ReactNode }) {
         .fs-win-body > div > div { min-height: 100% !important; height: 100% !important; padding: 0 !important; }
         .fs-win-body > div > div > div { height: 100% !important; }
       `}</style>
+      {children}
+    </div>
+  );
+}
+
+function AppWrap({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ height: "100%", overflow: "hidden", background: "var(--bg, #0a0a0f)", color: "var(--text, #e0e0e0)" }}>
       {children}
     </div>
   );
@@ -38,4 +47,5 @@ export const APP_COMPONENTS: Record<string, ComponentType> = {
   tasks: () => <Wrap><TasksApp /></Wrap>,
   media: () => <Wrap><MediaPlayerApp /></Wrap>,
   browser: () => <Wrap><BrowserApp /></Wrap>,
+  sysmon: () => <AppWrap><SystemMonitorApp asApp /></AppWrap>,
 };

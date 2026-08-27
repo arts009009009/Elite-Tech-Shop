@@ -1,0 +1,460 @@
+/* ═══════════════════════════════════════════════
+   Frostbite OS — Chaos UI Animation Library
+   ═══════════════════════════════════════════════ */
+
+/* ── Reactive Wallpaper Hue ── */
+.fs-desktop {
+  --chaos-hue: 200;
+  --chaos-sat: 70%;
+}
+
+.fs-chaos-enabled.fs-desktop {
+  background: hsl(var(--chaos-hue), var(--chaos-sat), 8%);
+}
+
+/* ── Frosted Glass Blur Pulse ── */
+@keyframes frost-blur-pulse {
+  0%, 100% { backdrop-filter: blur(24px) saturate(1.4); }
+  33%      { backdrop-filter: blur(48px) saturate(1.8); }
+  66%      { backdrop-filter: blur(32px) saturate(1.6); }
+}
+
+.fs-chaos-enabled .fs-win {
+  animation: frost-blur-pulse 4s ease-in-out infinite;
+}
+
+/* ── Glitch Transition on App Open ── */
+@keyframes glitch-in {
+  0% {
+    opacity: 1;
+    clip-path: inset(0);
+    filter: none;
+  }
+  15% {
+    opacity: 0.8;
+    clip-path: inset(10% 0 60% 0);
+    filter: hue-rotate(90deg);
+  }
+  30% {
+    opacity: 1;
+    clip-path: inset(40% 0 20% 0);
+    filter: hue-rotate(-60deg) saturate(2);
+  }
+  45% {
+    opacity: 0.7;
+    clip-path: inset(0 0 80% 0);
+    filter: hue-rotate(180deg);
+  }
+  60% {
+    opacity: 1;
+    clip-path: inset(70% 0 0 0);
+    filter: hue-rotate(45deg);
+  }
+  80% {
+    opacity: 0.9;
+    clip-path: inset(0);
+    filter: hue-rotate(-30deg);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0);
+    filter: none;
+  }
+}
+
+@keyframes glitch-scanline {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.fs-chaos-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  animation: glitch-in 0.35s ease-out forwards;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 229, 255, 0.04) 2px,
+    rgba(0, 229, 255, 0.04) 4px
+  );
+  mix-blend-mode: screen;
+}
+
+.fs-chaos-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(0, 229, 255, 0.08) 50%,
+    transparent 100%
+  );
+  height: 40%;
+  animation: glitch-scanline 0.35s linear forwards;
+}
+
+/* ── Icon Morph on Hover ── */
+@keyframes icon-morph {
+  0% {
+    clip-path: inset(0 round 15px);
+    filter: hue-rotate(0deg);
+    transform: translateY(-2px) scale(1);
+  }
+  25% {
+    clip-path: polygon(5% 0%, 95% 8%, 88% 92%, 12% 98%);
+    filter: hue-rotate(60deg);
+    transform: translateY(-4px) scale(1.08);
+  }
+  50% {
+    clip-path: polygon(8% 5%, 92% 0%, 100% 88%, 0% 95%);
+    filter: hue-rotate(120deg);
+    transform: translateY(-6px) scale(1.12);
+  }
+  75% {
+    clip-path: polygon(0% 8%, 100% 3%, 95% 100%, 5% 92%);
+    filter: hue-rotate(180deg);
+    transform: translateY(-4px) scale(1.06);
+  }
+  100% {
+    clip-path: inset(0 round 15px);
+    filter: hue-rotate(360deg);
+    transform: translateY(-2px) scale(1);
+  }
+}
+
+.fs-chaos-enabled .fs-icon:hover .fs-icon-img {
+  animation: icon-morph 0.5s ease forwards;
+}
+
+/* ── Dock Chaos Hover Jitter ── */
+@keyframes chaos-jitter {
+  0%   { transform: translateY(-14px) scale(1.3) rotate(0deg); }
+  20%  { transform: translateY(-16px) scale(1.32) rotate(2deg); }
+  40%  { transform: translateY(-12px) scale(1.28) rotate(-1.5deg); }
+  60%  { transform: translateY(-15px) scale(1.34) rotate(1deg); }
+  80%  { transform: translateY(-13px) scale(1.3) rotate(-0.5deg); }
+  100% { transform: translateY(-14px) scale(1.3) rotate(0deg); }
+}
+
+@keyframes chaos-color-pulse {
+  0%, 100% { border-color: #4fc3f7; box-shadow: 0 10px 36px rgba(79,195,247,0.35); }
+  33%      { border-color: #e040fb; box-shadow: 0 10px 36px rgba(224,64,251,0.35); }
+  66%      { border-color: #00e5ff; box-shadow: 0 10px 36px rgba(0,229,255,0.35); }
+}
+
+.fs-chaos-enabled .fs-dock-item:hover {
+  animation: chaos-jitter 0.4s ease infinite, chaos-color-pulse 1.2s ease infinite;
+}
+
+/* ── System Monitor ── */
+.fs-monitor {
+  position: fixed;
+  top: 48px;
+  right: 16px;
+  width: 280px;
+  z-index: 6000;
+  border-radius: 16px;
+  background: rgba(8, 14, 30, 0.92);
+  backdrop-filter: blur(32px) saturate(1.6);
+  border: 1px solid rgba(120, 180, 255, 0.2);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 1px rgba(120, 180, 255, 0.3);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #c8e6ff;
+  transition: opacity 0.3s, transform 0.3s;
+  overflow: hidden;
+}
+
+.fs-monitor-collapsed {
+  width: 280px;
+}
+
+.fs-monitor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: move;
+  user-select: none;
+  border-bottom: 1px solid rgba(120, 180, 255, 0.1);
+  background: rgba(12, 20, 40, 0.6);
+}
+
+.fs-monitor-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fs-monitor-title-icon {
+  font-size: 14px;
+}
+
+.fs-monitor-btns {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fs-monitor-btn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: rgba(160, 200, 240, 0.6);
+  transition: all 0.2s;
+}
+
+.fs-monitor-btn:hover {
+  background: rgba(120, 180, 255, 0.15);
+  color: #c8e6ff;
+}
+
+.fs-monitor-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: opacity 0.25s ease;
+  overflow: hidden;
+}
+
+.fs-monitor-collapsed .fs-monitor-body {
+  display: none;
+}
+
+.fs-monitor-expanded .fs-monitor-body {
+  display: flex;
+}
+
+/* ── Stat Bars ── */
+.fs-monitor-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fs-monitor-stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.fs-monitor-stat-label {
+  text-transform: uppercase;
+}
+
+.fs-monitor-stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-monitor-bar-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(30, 50, 80, 0.6);
+  overflow: hidden;
+  position: relative;
+}
+
+.fs-monitor-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.fs-monitor-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: neon-bar-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes neon-bar-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+/* ── Bar Color Themes ── */
+.fs-bar-cpu {
+  background: linear-gradient(90deg, #00e5ff, #2979ff);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+}
+
+.fs-bar-ram {
+  background: linear-gradient(90deg, #00e676, #69f0ae);
+  box-shadow: 0 0 12px rgba(0, 230, 118, 0.3);
+}
+
+.fs-bar-gpu {
+  background: linear-gradient(90deg, #d500f9, #e040fb);
+  box-shadow: 0 0 12px rgba(213, 0, 249, 0.3);
+}
+
+/* ── High Load Warning ── */
+@keyframes glitch-border {
+  0%, 100% {
+    border-color: rgba(255, 59, 48, 0.5);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 2px #ff3b30, 0 0 20px rgba(255,59,48,0.15);
+  }
+  33% {
+    border-color: rgba(0, 229, 255, 0.5);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 2px #00e5ff, 0 0 20px rgba(0,229,255,0.15);
+  }
+  66% {
+    border-color: rgba(224, 64, 251, 0.5);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 2px #e040fb, 0 0 20px rgba(224,64,251,0.15);
+  }
+}
+
+.fs-monitor-high-load {
+  animation: glitch-border 1.5s ease infinite;
+}
+
+/* ── Fire Theme ── */
+.fs-monitor-fire .fs-monitor-header {
+  background: rgba(40, 10, 10, 0.6);
+}
+
+.fs-monitor-fire .fs-monitor-bar-fill.fs-bar-cpu {
+  background: linear-gradient(90deg, #ff6d00, #ff3d00);
+  box-shadow: 0 0 16px rgba(255, 109, 0, 0.4);
+}
+
+.fs-monitor-fire .fs-monitor-bar-fill.fs-bar-ram {
+  background: linear-gradient(90deg, #ff9100, #ff6d00);
+  box-shadow: 0 0 16px rgba(255, 145, 0, 0.4);
+}
+
+.fs-monitor-fire .fs-monitor-bar-fill.fs-bar-gpu {
+  background: linear-gradient(90deg, #ff1744, #d50000);
+  box-shadow: 0 0 16px rgba(255, 23, 68, 0.4);
+}
+
+@keyframes fire-flicker {
+  0%, 100% { box-shadow: 0 12px 48px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,100,0,0.03); }
+  50%      { box-shadow: 0 12px 48px rgba(0,0,0,0.6), inset 0 0 30px rgba(255,60,0,0.06); }
+}
+
+.fs-monitor-fire.fs-monitor {
+  animation: fire-flicker 2s ease infinite;
+}
+
+/* ── Ice Theme ── */
+.fs-monitor-ice .fs-monitor-header {
+  background: rgba(10, 20, 40, 0.6);
+}
+
+.fs-monitor-ice .fs-monitor-bar-fill.fs-bar-cpu {
+  background: linear-gradient(90deg, #40c4ff, #00b0ff);
+  box-shadow: 0 0 16px rgba(64, 196, 255, 0.4);
+}
+
+.fs-monitor-ice .fs-monitor-bar-fill.fs-bar-ram {
+  background: linear-gradient(90deg, #80d8ff, #40c4ff);
+  box-shadow: 0 0 16px rgba(128, 216, 255, 0.4);
+}
+
+.fs-monitor-ice .fs-monitor-bar-fill.fs-bar-gpu {
+  background: linear-gradient(90deg, #b388ff, #7c4dff);
+  box-shadow: 0 0 16px rgba(179, 136, 255, 0.4);
+}
+
+@keyframes ice-crystal {
+  0%, 100% { box-shadow: 0 12px 48px rgba(0,0,0,0.6), inset 0 0 20px rgba(100,200,255,0.02); }
+  50%      { box-shadow: 0 12px 48px rgba(0,0,0,0.6), inset 0 0 30px rgba(100,200,255,0.05); }
+}
+
+.fs-monitor-ice.fs-monitor {
+  animation: ice-crystal 3s ease infinite;
+}
+
+/* ── Monitor Readout ── */
+.fs-monitor-readout {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  color: rgba(160, 200, 240, 0.5);
+  text-align: center;
+  padding-top: 6px;
+  border-top: 1px solid rgba(120, 180, 255, 0.08);
+  letter-spacing: 0.5px;
+}
+
+/* ── Monitor Uptime ── */
+.fs-monitor-uptime {
+  font-size: 10px;
+  color: rgba(160, 200, 240, 0.35);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Monitor Transparency Toggle ── */
+.fs-monitor-transparency {
+  position: absolute;
+  top: 10px;
+  right: 60px;
+}
+
+/* ── Context Menu Enhancements ── */
+.fs-ctx-chaos-indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.fs-ctx-chaos-on {
+  background: #00e5ff;
+  box-shadow: 0 0 6px #00e5ff;
+}
+
+.fs-ctx-chaos-off {
+  background: rgba(120, 180, 255, 0.2);
+}
+
+/* ── Desktop App Mode (fills window) ── */
+.fs-monitor-as-app {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.fs-monitor-as-app .fs-monitor-header {
+  height: auto !important;
+  min-height: auto !important;
+}
+
+.fs-monitor-as-app .fs-monitor-body {
+  opacity: 1 !important;
+  padding: 12px 14px !important;
+  display: flex !important;
+  flex: 1;
+  overflow: auto;
+}

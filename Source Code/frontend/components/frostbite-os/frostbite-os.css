@@ -83,22 +83,6 @@
   font-size: 13px;
 }
 
-.fs-menus {
-  display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: rgba(160,200,240,0.55);
-}
-
-.fs-menus span {
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.fs-menus span:hover {
-  color: #c8e6ff;
-}
-
 .fs-elite-label {
   color: rgba(160,200,240,0.45);
   font-size: 12px;
@@ -442,6 +426,9 @@
   color: #c8e6ff;
   cursor: pointer;
   transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .fs-ctx-item:hover {
@@ -481,3 +468,22 @@
 .fs-desktop ::-webkit-scrollbar-track { background: transparent; }
 .fs-desktop ::-webkit-scrollbar-thumb { background: rgba(120,180,255,0.2); border-radius: 3px; }
 .fs-desktop ::-webkit-scrollbar-thumb:hover { background: rgba(120,180,255,0.35); }
+
+/* ── Context Menu Toggle Indicators ── */
+.fs-ctx-chaos-indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.fs-ctx-chaos-on {
+  background: #00e5ff;
+  box-shadow: 0 0 6px #00e5ff;
+}
+
+.fs-ctx-chaos-off {
+  background: rgba(120, 180, 255, 0.2);
+}
