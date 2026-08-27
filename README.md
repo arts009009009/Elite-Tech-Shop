@@ -36,11 +36,17 @@ Every commit reflects the latest changes — even if no new release has been pub
 - 🕹️ Direct viewable code: browse backend, frontend, configs without cloning.  
 - 🛠️ Pull requests welcome: edit files, upload replacements, or propose changes directly.  
 - 🏷️ Releases are snapshots: tagged versions (like **5.0 Stable**) are milestones, but `/Source Code` may be ahead.
+- 
 **⚡ Speed Ranking**
-  -(1): Source Code 💾🔥
-  -(2): Canary 🧪
-  -(3): Stable 🔒
-  -(4): LTS 🛡️
+  
+   (1): Source Code 💾🔥
+  
+   (2): Canary 🧪
+  
+   (3): Stable 🔒
+  
+   (4): LTS 🛡️
+  
 ## ⚠️ Note: Only supports Stable and Canary releases no LTS
 ---
 
