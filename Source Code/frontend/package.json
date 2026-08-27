@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@oprogress/next": "^0.0.1",
-    "next": "16.4.0-canary.4",
+    "next": "16.4.0-canary.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "3.10.0",
