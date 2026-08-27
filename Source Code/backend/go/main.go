@@ -304,10 +304,13 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		MaxAge: -1,
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:   "user_session",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
+		Name:     "user_session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
 	})
 	jsonResponse(w, map[string]string{"status": "ok"}, 200)
 }
