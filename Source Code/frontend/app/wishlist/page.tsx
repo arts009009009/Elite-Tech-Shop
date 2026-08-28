@@ -107,7 +107,7 @@ export default function Wishlist() {
   return (
     <>
       <Navbar />
-      <div className="container" style={{ maxWidth: 1024, paddingTop: 24, paddingBottom: 24 }}>
+      <div className="container max-w-[1024px] py-6">
         <div className="page-card">
           <h2 className="mb-4">
             {uiStrings["Wishlist"][language as Lang] || "Wishlist"}
@@ -132,7 +132,7 @@ export default function Wishlist() {
           ) : (
             <div className="flex items-stretch gap-4 flex-wrap justify-center">
               {filtered.map((p) => (
-                <div key={p.id} className="w-full" style={{ flex: "1 1 30%", minWidth: 250, display: "flex", flexDirection: "column" }}>
+                <div key={p.id} className="w-full flex flex-col" style={{ flex: "1 1 30%", minWidth: 250 }}>
                   <ProductCard product={p} addToCartLabel={uiStrings["AddToCart"][language as Lang] || "Add to Cart"} wishlistLabel={uiStrings["Wishlist"][language as Lang] || "Wishlist"} />
                   <button className="btn btn-xs btn-ghost-red mt-1" onClick={() => removeFromWishlist(p.id)}>{uiStrings["Remove"][language as Lang] || "Remove"}</button>
                 </div>
