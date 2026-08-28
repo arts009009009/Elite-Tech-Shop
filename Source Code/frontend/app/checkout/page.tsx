@@ -50,7 +50,7 @@ export default function Checkout() {
   return (
     <>
       <Navbar />
-      <div className="container" style={{ maxWidth: 768, paddingTop: 24, paddingBottom: 24 }}>
+      <div className="container max-w-[768px] py-6">
         <div className="page-card">
           <h2 className="mb-4">Checkout</h2>
           {!userCtx.user && <p className="mb-4">You must login to place an order.</p>}
@@ -69,19 +69,19 @@ export default function Checkout() {
               <div className="card">
                 <p className="font-semibold text-sm mb-2">Discount Code</p>
                 <div className="flex items-center gap-2">
-                  <input className="input" style={{ fontSize: "0.875rem" }} value={discountInput} onChange={(e) => setDiscountInput(e.target.value.toUpperCase())} placeholder="Enter code..." onKeyDown={(e) => e.key === "Enter" && handleApplyDiscount()} />
+                  <input className="input text-sm" value={discountInput} onChange={(e) => setDiscountInput(e.target.value.toUpperCase())} placeholder="Enter code..." onKeyDown={(e) => e.key === "Enter" && handleApplyDiscount()} />
                   <button className="btn btn-sm btn-outline-brand" onClick={handleApplyDiscount}>Apply</button>
                 </div>
-                {discountError && <p style={{ color: "#ff4444" }} className="text-xs mt-1">{discountError}</p>}
+                {discountError && <p className="text-xs mt-1 text-red-500">{discountError}</p>}
                 {appliedCode && (
-                  <div className="flex items-center justify-between mt-2" style={{ padding: 8, background: "rgba(0,255,65,0.05)", borderRadius: 8 }}>
+                  <div className="flex items-center justify-between mt-2 p-2 rounded-lg" style={{ background: "rgba(0,255,65,0.05)" }}>
                     <p className="text-sm" style={{ color: "var(--neon-green)" }}>✅ {appliedCode}: {discountLabel}</p>
                     <button className="btn btn-xs btn-ghost-red" onClick={removeDiscount}>✕</button>
                   </div>
                 )}
                 <div className="mt-2 text-xs opacity-60">
                   <details>
-                    <summary style={{ cursor: "pointer" }}>Available codes</summary>
+                    <summary className="cursor-pointer">Available codes</summary>
                     <div className="flex flex-col gap-1 mt-1">
                       {availableCodes.map((c) => (
                         <div key={c.code} className="flex items-center justify-between w-full">
@@ -106,7 +106,7 @@ export default function Checkout() {
                       <p className="text-sm">-{formatCurrency(discountAmount)}</p>
                     </div>
                   )}
-                  <div className="flex items-center justify-between w-full font-bold text-lg" style={{ borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: "var(--border, #e5e4e7)", paddingTop: 8 }}>
+                  <div className="flex items-center justify-between w-full font-bold text-lg border-t pt-2" style={{ borderColor: "var(--border, #e5e4e7)" }}>
                     <p>Total</p>
                     <p>{formatCurrency(total)}</p>
                   </div>
