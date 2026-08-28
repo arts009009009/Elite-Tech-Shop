@@ -47,7 +47,7 @@ export default function Login() {
   return (
     <>
       <Navbar />
-      <div style={{ maxWidth: 384, margin: "0 auto", paddingTop: 40, paddingBottom: 40 }}>
+      <div className="max-w-[384px] mx-auto py-10">
         <form className="flex flex-col gap-4" onSubmit={handleLogin}>
           <h2>Login</h2>
           <div>
@@ -56,7 +56,7 @@ export default function Login() {
           <div>
             <input type="password" className="input" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          {error && <p style={{ color: "#ff4444" }} className="text-sm">{error}</p>}
+          {error && <p className="text-sm text-red-500">{error}</p>}
           <button type="submit" className="btn btn-brand w-full" disabled={loading}>
             {loading ? "Logging in..." : "Login"}
           </button>
