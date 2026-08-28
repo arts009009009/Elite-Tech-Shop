@@ -17,6 +17,7 @@ public class PendingPasswordDocument {
 
     private String password;
 
+    @Indexed
     private Date createdAt;
 
     public PendingPasswordDocument(String email, String password) {

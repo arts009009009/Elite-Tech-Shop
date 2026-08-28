@@ -17,6 +17,7 @@ public class SessionDocument {
 
     private String email;
 
+    @Indexed
     private Date createdAt;
 
     public SessionDocument(String token, String email) {
