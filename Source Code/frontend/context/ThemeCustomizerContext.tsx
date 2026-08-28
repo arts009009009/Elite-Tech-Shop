@@ -21,6 +21,10 @@ export const ThemeCustomizerContext = createContext<ThemeCustomizerState | null>
 const THEME_VERSION = 4;
 export const DEFAULT_THEME: CustomTheme = { primaryColor: "#b300ff", secondaryColor: "#00d4ff", accentColor: "#aa3bff", backgroundColor: "#0a0a0f", textColor: "#8443c2", glowIntensity: "medium", borderRadius: "rounded" };
 
+function themesEqual(a: CustomTheme, b: CustomTheme): boolean {
+  return a.primaryColor === b.primaryColor && a.secondaryColor === b.secondaryColor && a.accentColor === b.accentColor && a.backgroundColor === b.backgroundColor && a.textColor === b.textColor && a.glowIntensity === b.glowIntensity && a.borderRadius === b.borderRadius;
+}
+
 const PRESET_PALETTES: Record<string, CustomTheme> = {
   "Fire": { primaryColor: "#ff4500", secondaryColor: "#ffd700", accentColor: "#ff6600", backgroundColor: "#1a0500", textColor: "#ffe0cc", glowIntensity: "high", borderRadius: "rounded" },
   "Cyber Neon": { primaryColor: "#b300ff", secondaryColor: "#00d4ff", accentColor: "#aa3bff", backgroundColor: "#0a0a0f", textColor: "#e0e0e0", glowIntensity: "high", borderRadius: "rounded" },
@@ -109,7 +113,7 @@ export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try { localStorage.setItem("custom_theme", JSON.stringify({ ...customTheme, _version: THEME_VERSION })); } catch {}
     const root = document.documentElement;
-    const isDefault = JSON.stringify(customTheme) === JSON.stringify(DEFAULT_THEME);
+    const isDefault = themesEqual(customTheme, DEFAULT_THEME);
     const set = (key: string, val: string) => root.style.setProperty(key, val);
     const t = isDefault ? DEFAULT_THEME : customTheme;
     set("--custom-primary", t.primaryColor);
@@ -140,7 +144,7 @@ export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
     setCustomThemeState((prev) => {
       const updated = { ...prev, ...partial };
       for (const [name, palette] of Object.entries(PRESET_PALETTES)) {
-        if (JSON.stringify(updated) === JSON.stringify(palette)) { setCurrentPalette(name); return updated; }
+        if (themesEqual(updated, palette)) { setCurrentPalette(name); return updated; }
       }
       setCurrentPalette("Custom"); return updated;
     });
