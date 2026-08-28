@@ -13,8 +13,10 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
+	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -103,6 +105,11 @@ type Store struct {
 	Sessions    map[string]*Session    `json:"sessions"`
 	Profiles    map[string]*UserProfile `json:"profiles"`
 	NextReviewID int                   `json:"next_review_id"`
+
+	// Index maps for O(1) lookups
+	UsersByUsername   map[string]int    // username -> index in Users
+	OrdersByUsername  map[string][]int  // username -> indices in Orders
+	ReviewsByProduct  map[int][]int     // product_id -> indices in Reviews
 }
 
 var store = &Store{
@@ -111,6 +118,9 @@ var store = &Store{
 	Rewards:   make(map[string]*RewardData),
 	Sessions:  make(map[string]*Session),
 	Profiles:  make(map[string]*UserProfile),
+	UsersByUsername:  map[string]int{"admin": 0},
+	OrdersByUsername: make(map[string][]int),
+	ReviewsByProduct: make(map[int][]int),
 	Users: []User{
 		{Username: "admin", Email: "admin@elite.shop", Password: "admin", Role: "admin"},
 	},
@@ -202,18 +212,18 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	for _, u := range store.Users {
-		if u.Username == req.Username {
-			errorResponse(w, "username already exists", 409); return
-		}
+	if _, exists := store.UsersByUsername[req.Username]; exists {
+		errorResponse(w, "username already exists", 409); return
 	}
 
+	idx := len(store.Users)
 	store.Users = append(store.Users, User{
 		Username: req.Username,
 		Email:    req.Email,
 		Password: req.Password,
 		Role:     "user",
 	})
+	store.UsersByUsername[req.Username] = idx
 
 	token := generateToken()
 	store.Sessions[token] = &Session{
@@ -258,8 +268,9 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	for _, u := range store.Users {
-		if u.Username == req.Username && u.Password == req.Password {
+	if idx, ok := store.UsersByUsername[req.Username]; ok {
+		u := store.Users[idx]
+		if u.Password == req.Password {
 			token := generateToken()
 			store.Sessions[token] = &Session{
 				Token:    token,
@@ -298,22 +309,16 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		store.mu.Unlock()
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
+		Name:   "session_token",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:     "user_session",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
+		Name:   "user_session",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
 	})
 	jsonResponse(w, map[string]string{"status": "ok"}, 200)
 }
@@ -327,15 +332,14 @@ func handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 	store.mu.RLock()
 	defer store.mu.RUnlock()
-	for _, u := range store.Users {
-		if u.Username == username {
-			jsonResponse(w, map[string]interface{}{
-				"username": u.Username,
-				"email":    u.Email,
-				"role":     u.Role,
-			}, 200)
-			return
-		}
+	if idx, ok := store.UsersByUsername[username]; ok {
+		u := store.Users[idx]
+		jsonResponse(w, map[string]interface{}{
+			"username": u.Username,
+			"email":    u.Email,
+			"role":     u.Role,
+		}, 200)
+		return
 	}
 	errorResponse(w, "user not found", 404)
 }
@@ -535,9 +539,12 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		store.mu.RLock()
 		var userOrders []Order
-		for _, o := range store.Orders {
-			if o.Username == username {
-				userOrders = append(userOrders, o)
+		if indices, ok := store.OrdersByUsername[username]; ok {
+			userOrders = make([]Order, 0, len(indices))
+			for _, idx := range indices {
+				if idx < len(store.Orders) {
+					userOrders = append(userOrders, store.Orders[idx])
+				}
 			}
 		}
 		store.mu.RUnlock()
@@ -561,7 +568,9 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 			Username:  username,
 		}
 		store.mu.Lock()
+		orderIdx := len(store.Orders)
 		store.Orders = append(store.Orders, order)
+		store.OrdersByUsername[username] = append(store.OrdersByUsername[username], orderIdx)
 		store.Carts[username] = []CartItem{}
 		if store.Rewards[username] == nil {
 			store.Rewards[username] = &RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
@@ -614,10 +623,21 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 		productID := r.URL.Query().Get("product_id")
 		store.mu.RLock()
 		var reviews []Review
-		for _, rev := range store.Reviews {
-			if productID == "" || strconv.Itoa(rev.ProductID) == productID {
-				reviews = append(reviews, rev)
+		if productID != "" {
+			pid, err := strconv.Atoi(productID)
+			if err == nil {
+				if indices, ok := store.ReviewsByProduct[pid]; ok {
+					reviews = make([]Review, 0, len(indices))
+					for _, idx := range indices {
+						if idx < len(store.Reviews) {
+							reviews = append(reviews, store.Reviews[idx])
+						}
+					}
+				}
 			}
+		} else {
+			reviews = make([]Review, len(store.Reviews))
+			copy(reviews, store.Reviews)
 		}
 		store.mu.RUnlock()
 		if reviews == nil { reviews = []Review{} }
@@ -645,6 +665,7 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 			req.Comment = req.Comment[:1000]
 		}
 		store.mu.Lock()
+		revIdx := len(store.Reviews)
 		rev := Review{
 			ID:        store.NextReviewID,
 			ProductID: req.ProductID,
@@ -654,6 +675,7 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: time.Now().Format(time.RFC3339),
 		}
 		store.Reviews = append(store.Reviews, rev)
+		store.ReviewsByProduct[req.ProductID] = append(store.ReviewsByProduct[req.ProductID], revIdx)
 		store.NextReviewID++
 		store.mu.Unlock()
 		jsonResponse(w, rev, 201)
@@ -798,10 +820,8 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 
 	store.mu.RLock()
 	isAdmin := false
-	for _, u := range store.Users {
-		if u.Username == username && u.Role == "admin" {
-			isAdmin = true; break
-		}
+	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
+		isAdmin = true
 	}
 	store.mu.RUnlock()
 	if !isAdmin { errorResponse(w, "forbidden", 403); return }
@@ -810,14 +830,19 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "DELETE" && len(parts) >= 5 {
 		target := parts[4]
 		store.mu.Lock()
-		for i, u := range store.Users {
-			if u.Username == target && u.Role != "admin" {
-				store.Users = append(store.Users[:i], store.Users[i+1:]...)
-				delete(store.Carts, target)
-				delete(store.Wishlists, target)
-				delete(store.Rewards, target)
-				break
+		if targetIdx, ok := store.UsersByUsername[target]; ok && store.Users[targetIdx].Role != "admin" {
+			// Remove from slice and rebuild index
+			store.Users = append(store.Users[:targetIdx], store.Users[targetIdx+1:]...)
+			delete(store.UsersByUsername, target)
+			// Rebuild index after slice modification
+			for uname, idx := range store.UsersByUsername {
+				if idx > targetIdx {
+					store.UsersByUsername[uname] = idx - 1
+				}
 			}
+			delete(store.Carts, target)
+			delete(store.Wishlists, target)
+			delete(store.Rewards, target)
 		}
 		store.mu.Unlock()
 		jsonResponse(w, map[string]string{"status": "deleted"}, 200)
@@ -845,10 +870,8 @@ func handleAdminClearOrders(w http.ResponseWriter, r *http.Request) {
 
 	store.mu.RLock()
 	isAdmin := false
-	for _, u := range store.Users {
-		if u.Username == username && u.Role == "admin" {
-			isAdmin = true; break
-		}
+	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
+		isAdmin = true
 	}
 	store.mu.RUnlock()
 	if !isAdmin { errorResponse(w, "forbidden", 403); return }
@@ -870,10 +893,8 @@ func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
 
 	store.mu.RLock()
 	isAdmin := false
-	for _, u := range store.Users {
-		if u.Username == username && u.Role == "admin" {
-			isAdmin = true; break
-		}
+	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
+		isAdmin = true
 	}
 	store.mu.RUnlock()
 	if !isAdmin { errorResponse(w, "forbidden", 403); return }
@@ -1042,15 +1063,13 @@ func handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 
 	store.mu.Lock()
 	defer store.mu.Unlock()
-	for i, u := range store.Users {
-		if u.Username == username {
-			if u.Password != req.OldPassword {
-				errorResponse(w, "incorrect current password", 401); return
-			}
-			store.Users[i].Password = req.NewPassword
-			jsonResponse(w, map[string]string{"status": "password updated"}, 200)
-			return
+	if idx, ok := store.UsersByUsername[username]; ok {
+		if store.Users[idx].Password != req.OldPassword {
+			errorResponse(w, "incorrect current password", 401); return
 		}
+		store.Users[idx].Password = req.NewPassword
+		jsonResponse(w, map[string]string{"status": "password updated"}, 200)
+		return
 	}
 	errorResponse(w, "user not found", 404)
 }
@@ -1081,14 +1100,10 @@ func handleRecommendations(w http.ResponseWriter, r *http.Request) {
 		}{product: p, score: score})
 	}
 
-	// Sort by score descending (simple bubble sort for small dataset)
-	for i := 0; i < len(scored); i++ {
-		for j := i + 1; j < len(scored); j++ {
-			if scored[j].score > scored[i].score {
-				scored[i], scored[j] = scored[j], scored[i]
-			}
-		}
-	}
+	// Sort by score descending using efficient sort
+	sort.Slice(scored, func(i, j int) bool {
+		return scored[i].score > scored[j].score
+	})
 
 	limit := 6
 	if len(scored) < limit { limit = len(scored) }
@@ -1295,6 +1310,8 @@ type ipRequest struct {
 }
 
 var rateLimiterStore sync.Map
+var rateLimiterCount int64
+const maxRateLimiterEntries = 10000
 
 func rateLimit(next http.Handler) http.Handler {
 	go func() {
@@ -1305,6 +1322,7 @@ func rateLimit(next http.Handler) http.Handler {
 				entry := value.(*ipRequest)
 				if now.After(entry.resetAt) {
 					rateLimiterStore.Delete(key)
+					atomic.AddInt64(&rateLimiterCount, -1)
 				}
 				return true
 			})
@@ -1319,10 +1337,21 @@ func rateLimit(next http.Handler) http.Handler {
 			ip = fwd
 		}
 
-		val, _ := rateLimiterStore.LoadOrStore(ip, &ipRequest{
+		val, loaded := rateLimiterStore.LoadOrStore(ip, &ipRequest{
 			count:   0,
 			resetAt: time.Now().Add(time.Minute),
 		})
+		if !loaded {
+			newCount := atomic.AddInt64(&rateLimiterCount, 1)
+			if newCount > maxRateLimiterEntries {
+				rateLimiterStore.Delete(ip)
+				atomic.AddInt64(&rateLimiterCount, -1)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusTooManyRequests)
+				json.NewEncoder(w).Encode(map[string]string{"error": "rate limit exceeded"})
+				return
+			}
+		}
 		entry := val.(*ipRequest)
 
 		if time.Now().After(entry.resetAt) {
