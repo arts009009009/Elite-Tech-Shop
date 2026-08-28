@@ -892,19 +892,6 @@ body.high-contrast {
   backdrop-filter: blur(8px);
 }
 
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.flex-wrap { flex-wrap: wrap; }
-.items-center { align-items: center; }
-.items-stretch { align-items: stretch; }
-.justify-center { justify-content: center; }
-.justify-between { justify-content: space-between; }
-.gap-4 { gap: 16px; }
-.w-full { width: 100%; }
-.text-center { text-align: center; }
-.text-sm { font-size: 14px; }
-.opacity-60 { opacity: 0.6; }
-
 /* ── Fluid Typography ── */
 :root { font-size: clamp(14px, 1.2vw, 18px); }
 
