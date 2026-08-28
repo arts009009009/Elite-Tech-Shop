@@ -69,9 +69,15 @@ export default function ComparePage() {
     return () => window.removeEventListener("compare-updated", handler);
   }, []);
 
+  const productMap = useMemo(() => {
+    const map = new Map<number, Product>();
+    for (const p of allProducts) map.set(p.id, p);
+    return map;
+  }, [allProducts]);
+
   const items = useMemo<Product[]>(
-    () => ids.map((id) => allProducts.find((p) => p.id === id)).filter(Boolean) as Product[],
-    [ids, allProducts]
+    () => ids.map((id) => productMap.get(id)).filter(Boolean) as Product[],
+    [ids, productMap]
   );
 
   const removeItem = useCallback((id: number) => {
@@ -107,7 +113,7 @@ export default function ComparePage() {
   return (
     <>
       <Navbar />
-      <div className="container" style={{ maxWidth: 920, paddingTop: 24, paddingBottom: 80 }}>
+      <div className="container max-w-[920px] pt-6 pb-20">
         <div className="page-card">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <h2 className="mb-0">{ui("CompareProducts")} ({items.length}/3)</h2>
@@ -144,12 +150,12 @@ export default function ComparePage() {
             <>
               <div className="flex items-stretch gap-4 flex-wrap mb-4">
                 {items.map((p) => (
-                  <div key={p.id} className="card" style={{ flex: "1 1 200px", minWidth: 180, display: "flex", flexDirection: "column", gap: 8, padding: 16 }}>
-                    <p className="font-bold" style={{ margin: 0, fontSize: 14 }}>{p.title}</p>
-                    <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#39FF14" }}>{formatPrice(p.price, p.currency)}</p>
-                    {p.category && <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{p.category}</p>}
-                    <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
-                      <Link href={`/product/${p.id}`} className="btn btn-xs btn-outline-brand" style={{ textDecoration: "none" }}>{ui("View")}</Link>
+                  <div key={p.id} className="card flex flex-col gap-4 p-4" style={{ flex: "1 1 200px", minWidth: 180 }}>
+                    <p className="font-bold text-sm m-0">{p.title}</p>
+                    <p className="m-0 text-lg font-bold text-[#39FF14]">{formatPrice(p.price, p.currency)}</p>
+                    {p.category && <p className="m-0 text-xs opacity-60">{p.category}</p>}
+                    <div className="flex gap-2 mt-auto">
+                      <Link href={`/product/${p.id}`} className="btn btn-xs btn-outline-brand no-underline">{ui("View")}</Link>
                       <button className="btn btn-xs btn-ghost-red" onClick={() => removeItem(p.id)}>{ui("Remove")}</button>
                     </div>
                   </div>
