@@ -1,27 +1,20 @@
 {
-  "name": "frontend",
-  "version": "5.0",
+  "name": "elite-shop",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@oprogress/next": "^0.0.1",
-    "next": "16.4.0-canary.9",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "recharts": "3.10.0",
-    "sharp": "0.35.3"
+    "dev": "node scripts/dev-all.mjs",
+    "build": "cd frontend && npx next build",
+    "start": "cd frontend && npx next start",
+    "lint": "cd frontend && npx eslint",
+    "install:all": "node scripts/install-all.mjs",
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "backend": "node scripts/dev-all.mjs --backend-only",
+    "backend:java": "cd backend && JAVA_HOME=/home/adam/Downloads/OpenJDK26U-jdk_x64_linux_hotspot_26.0.2_10/jdk-26.0.2+10 PATH=/home/adam/Downloads/OpenJDK26U-jdk_x64_linux_hotspot_26.0.2_10/jdk-26.0.2+10/bin:$PATH java -jar target/elite-shop-backend-1.8.0.jar",
+    "backend:rust": "cd backend/rust && ./target/release/products-service products.json",
+    "backend:go": "backend/go-backend"
   },
   "devDependencies": {
-    "@types/node": "20.19.43",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.3",
-    "eslint": "9.39.5",
-    "eslint-config-next": "16.3.1-canary.8",
-    "typescript": "7.0.2"
+    "@playwright/test": "^1.62.1"
   }
 }
