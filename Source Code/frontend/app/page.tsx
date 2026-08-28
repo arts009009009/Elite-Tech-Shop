@@ -22,6 +22,13 @@ const categories = [
   { label: "Laptops", value: "laptops" },
 ];
 
+const gridItemStyle: React.CSSProperties = { flex: "1 1 23%", minWidth: 200, display: "flex" };
+
+const flashSales = [
+  { id: "flash-1", title: "MacBook Air M4 — Limited Time", discount: 15, endsAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() },
+  { id: "flash-2", title: "ROG Zephyrus G16 Deal", discount: 10, endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() },
+];
+
 export default function Home() {
   const { language } = useLanguage();
   const { search, setSearch, liveResults, isSearching } = useSearch();
@@ -33,6 +40,13 @@ export default function Home() {
   const [category, setCategory] = useState("");
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const parentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem("products");
+      if (cached) { setProducts(JSON.parse(cached)); setLoading(false); return; }
+    } catch {}
+  }, []);
 
   const fetchProducts = useCallback(async (lang: string) => {
     try {
@@ -66,29 +80,26 @@ export default function Home() {
      
   }, [products, search, category, maxPrice]);
 
-  const [flashSales] = useState(() => [
-    { id: "flash-1", title: "MacBook Air M4 — Limited Time", discount: 15, endsAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() },
-    { id: "flash-2", title: "ROG Zephyrus G16 Deal", discount: 10, endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() },
-  ]);
+  const containerStyle = useMemo(() => ({
+    paddingTop: 24,
+    paddingBottom: 24,
+    ...(isModern && theme !== 'light-mode' ? {
+      background: 'rgba(6, 6, 12, 0.92)',
+      borderRadius: 'var(--v2-radius, 14px)',
+      border: '1px solid var(--v2-border, rgba(120,200,255,0.14))',
+    } : {}),
+    ...(isModern && theme === 'light-mode' ? {
+      background: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 'var(--v2-radius, 14px)',
+      border: '1px solid rgba(0, 0, 0, 0.08)',
+    } : {}),
+  }), [isModern, theme]);
 
   return (
     <>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}.spinner{width:40px;height:40px;border:4px solid #e2e8f0;border-top-color:var(--accent,#00d4ff);border-radius:50%;animation:spin .8s linear infinite}`}</style>
       <Navbar />
-      <div className={`container${theme === 'light-mode' ? ' light-mode-container' : ''}`} style={{
-        paddingTop: 24,
-        paddingBottom: 24,
-        ...(isModern && theme !== 'light-mode' ? {
-          background: 'rgba(6, 6, 12, 0.92)',
-          borderRadius: 'var(--v2-radius, 14px)',
-          border: '1px solid var(--v2-border, rgba(120,200,255,0.14))',
-        } : {}),
-        ...(isModern && theme === 'light-mode' ? {
-          background: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: 'var(--v2-radius, 14px)',
-          border: '1px solid rgba(0, 0, 0, 0.08)',
-        } : {}),
-      }}>
+      <div className={`container${theme === 'light-mode' ? ' light-mode-container' : ''}`} style={containerStyle}>
         <div className="flex flex-col gap-4">
           {isModern && (
             <section className="hero" aria-label="Hero">
@@ -152,7 +163,7 @@ export default function Home() {
             ) : (
               <div className="flex items-stretch gap-4 flex-wrap justify-center stagger-children">
                 {filteredProducts.map((product) => (
-                  <div key={product.id} className="w-full" style={{ flex: "1 1 23%", minWidth: 200, display: "flex" }}>
+                  <div key={product.id} className="w-full" style={gridItemStyle}>
                     <ProductCard
                       product={product}
                       addToCartLabel={uiStrings["AddToCart"][language as Lang] || "Add to Cart"}
