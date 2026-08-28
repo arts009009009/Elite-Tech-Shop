@@ -79,13 +79,9 @@ public class AuthController {
                     if (mongoAvailable) {
                         try {
                             Date cutoff = new Date(System.currentTimeMillis() - SESSION_TTL_MS);
-                            sessionRepository.findAll().stream()
-                                .filter(s -> s.getCreatedAt().before(cutoff))
-                                .forEach(sessionRepository::delete);
+                            sessionRepository.deleteByCreatedAtBefore(cutoff);
                             Date passwordCutoff = new Date(System.currentTimeMillis() - PASSWORD_TTL_MS);
-                            pendingPasswordRepository.findAll().stream()
-                                .filter(p -> p.getCreatedAt().before(passwordCutoff))
-                                .forEach(pendingPasswordRepository::delete);
+                            pendingPasswordRepository.deleteByCreatedAtBefore(passwordCutoff);
                         } catch (Exception e) {
                             log.warning("MongoDB cleanup failed: " + e.getMessage());
                         }
@@ -159,7 +155,6 @@ public class AuthController {
         cookie.setPath("/");
         cookie.setMaxAge(86400);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
         response.addCookie(cookie);
     }
 
@@ -322,7 +317,6 @@ public class AuthController {
         cookie.setPath("/");
         cookie.setMaxAge(0);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
         response.addCookie(cookie);
         return ResponseEntity.ok(Map.of("success", true));
     }
