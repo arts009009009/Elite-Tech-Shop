@@ -104,7 +104,7 @@ export default function Home() {
           {isModern && (
             <section className="hero" aria-label="Hero">
               <p className="hero-kicker">VIRTUAL MARKET · {uiStrings["Cyberpunk"]?.[language as Lang] ?? "CYBERPUNK"}</p>
-              <div style={{ textAlign: 'center' }}>
+              <div className="text-center">
                 <h1 className="hero-title">GEAR UP FOR THE GRID</h1>
               </div>
               <p className="hero-sub">
@@ -146,18 +146,17 @@ export default function Home() {
 
             <input
               type="number"
-              className="input"
+              className="input max-w-[150px]"
               placeholder={uiStrings["MaxPrice"][language as Lang] || "Max Price"}
               onChange={(e) => setMaxPrice(e.target.value ? Number(e.target.value) : null)}
               value={maxPrice ?? ""}
-              style={{ maxWidth: 150 }}
               aria-label="Maximum price filter"
             />
           </div>
 
           <div ref={parentRef}>
             {loading ? (
-              <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+              <div className="flex justify-center p-10">
                 <div className="spinner" />
               </div>
             ) : (

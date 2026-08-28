@@ -10,43 +10,21 @@ export default function GlobalError({
   return (
     <html>
       <body>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100vh",
-            background: "#050508",
-            color: "#e0e0e0",
-            fontFamily: "'Courier New', monospace",
-            textAlign: "center",
-            padding: 24,
-          }}
-        >
-          <h1 style={{ color: "#ff0040", fontSize: 48, margin: "0 0 16px", textShadow: "0 0 20px #ff0040" }}>
+        <div className="flex flex-col items-center justify-center h-screen text-center p-6 font-mono bg-[#050508] text-[#e0e0e0]">
+          <h1 className="text-[48px] my-0 mb-4 text-[#ff0040]" style={{ textShadow: "0 0 20px #ff0040" }}>
             SYSTEM CRASH
           </h1>
-          <p style={{ color: "#888", fontSize: 14, margin: "0 0 8px" }}>
+          <p className="text-sm text-[#888] mb-2">
             A critical error occurred. The application needs to restart.
           </p>
           {error.digest && (
-            <p style={{ color: "#555", fontSize: 12, margin: "0 0 24px" }}>
+            <p className="text-xs text-[#555] mb-6">
               Error ID: {error.digest}
             </p>
           )}
           <button
             onClick={() => reset()}
-            style={{
-              padding: "12px 32px",
-              fontSize: 14,
-              fontFamily: "'Courier New', monospace",
-              border: "2px solid #00d4ff",
-              background: "transparent",
-              color: "#00d4ff",
-              cursor: "pointer",
-              borderRadius: 4,
-            }}
+            className="px-8 py-3 text-sm font-mono border-2 border-[#00d4ff] bg-transparent text-[#00d4ff] cursor-pointer rounded"
           >
             RESTART APPLICATION
           </button>
