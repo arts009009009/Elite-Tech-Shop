@@ -6,12 +6,14 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 static PRODUCTS: OnceLock<Vec<RawProduct>> = OnceLock::new();
+static SEARCH_INDEX: OnceLock<HashMap<u32, String>> = OnceLock::new();
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Spec {
@@ -176,6 +178,8 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
     let limit = query.limit.unwrap_or(MAX_LIMIT).min(MAX_LIMIT) as usize;
 
+    let search_lower = query.search.as_ref().map(|s| s.to_lowercase());
+
     let mut filtered: Vec<&RawProduct> = products
         .iter()
         .filter(|p| {
@@ -185,12 +189,12 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
                 .is_none_or(|c| c == &p.category)
         })
         .filter(|p| {
-            query.search.as_ref().is_none_or(|s| {
-                let locale = p.locale_for(&lang);
-                locale
-                    .title
-                    .to_lowercase()
-                    .contains(&s.to_lowercase())
+            search_lower.as_ref().is_none_or(|s| {
+                SEARCH_INDEX
+                    .get()
+                    .and_then(|idx| idx.get(&p.id))
+                    .map(|title| title.contains(s.as_str()))
+                    .unwrap_or(false)
             })
         })
         .filter(|p| {
@@ -264,6 +268,14 @@ async fn main() {
 
     let count = list.products.len();
     let _ = PRODUCTS.set(list.products);
+
+    // Pre-compute lowercase search index for O(1) lookups
+    let products = PRODUCTS.get().unwrap();
+    let mut search_index = HashMap::with_capacity(products.len());
+    for p in products {
+        search_index.insert(p.id, p.en.title.to_lowercase());
+    }
+    let _ = SEARCH_INDEX.set(search_index);
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
