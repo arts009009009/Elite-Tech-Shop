@@ -31,9 +31,10 @@ function FlashSaleBanner({ sales }: { sales: FlashSale[] }) {
 }
 
 function FlashSaleCard({ sale }: { sale: FlashSale }) {
-  const [time, setTime] = useState(() => getTimeLeft(sale.endsAt));
+  const [time, setTime] = useState<{ hours: number; minutes: number; seconds: number; expired: boolean }>({ hours: 0, minutes: 0, seconds: 0, expired: true });
 
   useEffect(() => {
+    setTime(getTimeLeft(sale.endsAt));
     const interval = setInterval(() => setTime(getTimeLeft(sale.endsAt)), 1000);
     return () => clearInterval(interval);
   }, [sale.endsAt]);
@@ -67,9 +68,10 @@ function FlashSaleCard({ sale }: { sale: FlashSale }) {
 }
 
 function FlashBadge({ endsAt }: { endsAt: string }) {
-  const [time, setTime] = useState(() => getTimeLeft(endsAt));
+  const [time, setTime] = useState<{ hours: number; minutes: number; seconds: number; expired: boolean }>({ hours: 0, minutes: 0, seconds: 0, expired: true });
 
   useEffect(() => {
+    setTime(getTimeLeft(endsAt));
     const interval = setInterval(() => setTime(getTimeLeft(endsAt)), 1000);
     return () => clearInterval(interval);
   }, [endsAt]);
