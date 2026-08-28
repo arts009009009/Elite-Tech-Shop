@@ -53,7 +53,7 @@ function OrderCard({ order }: { order: Order }) {
               const itemTotal = item.price * item.quantity;
               const itemLabel = formatCurrency(itemTotal, item.currency || order.currency);
               return (
-                <div key={item.id || idx} className="flex items-center justify-between text-sm" style={{ borderBottomWidth: 1, borderBottomColor: "var(--border, #e5e4e7)", borderBottomStyle: "solid", paddingBottom: 4 }}>
+                  <div key={item.id || idx} className="flex items-center justify-between text-sm border-b pb-1" style={{ borderColor: "var(--border, #e5e4e7)" }}>
                   <p>{item.title} x {item.quantity}</p>
                   <p className="font-semibold">{itemLabel}</p>
                 </div>
@@ -130,7 +130,7 @@ function OrderHistoryContent() {
       <p className="text-sm opacity-60 mb-4">{userOrders.length} order{userOrders.length !== 1 ? "s" : ""} found</p>
 
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <input className="input" placeholder="Search orders..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: 300 }} />
+        <input className="input max-w-[300px]" placeholder="Search orders..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         <select className="select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
           {statuses.map((item) => (
             <option key={item.value} value={item.value}>{item.label}</option>
@@ -157,7 +157,7 @@ export default function OrderHistory() {
   return (
     <>
       <Navbar />
-      <div className="container" style={{ maxWidth: 768, paddingTop: 24, paddingBottom: 24 }}>
+      <div className="container max-w-[768px] py-6">
         <div className="page-card">
           <OrderErrorBoundary fallbackMessage="Order History failed to load. Please try again.">
             <OrderHistoryContent />
