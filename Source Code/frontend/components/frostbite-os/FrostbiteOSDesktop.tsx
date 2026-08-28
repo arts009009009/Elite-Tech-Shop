@@ -33,6 +33,7 @@ const APPS = [
   { id: "media", name: "Media Player", icon: "🎵", color: "#8b5cf6", dock: true },
   { id: "browser", name: "Browser", icon: "🌐", color: "#1a73e8", dock: true },
   { id: "sysmon", name: "System Monitor", icon: "🖥️", color: "#00e5ff", dock: false },
+  { id: "frostcraft", name: "FrostCraft", icon: "⛏️", color: "#3d7a5f", dock: false },
 ];
 
 let winCounter = 0;
@@ -120,9 +121,18 @@ function FrostbiteOSDesktopInner() {
   const openApp = useCallback((appId: string) => {
     const app = APPS.find((a) => a.id === appId);
     if (!app) return;
+    const isFullscreen = appId === "frostcraft";
     setWindows((prev) => {
       const ex = prev.find((w) => w.id === appId);
       if (ex) return prev.map((w) => (w.id === appId ? { ...w, minimized: false } : w));
+      if (isFullscreen) {
+        return [...prev, {
+          id: appId, title: app.name, icon: app.icon,
+          x: 0, y: 36,
+          w: window.innerWidth, h: window.innerHeight - 36,
+          minimized: false, maximized: true, prevRect: null,
+        }];
+      }
       const off = (winCounter++ % 8) * 28;
       const ww = 860, hh = 560;
       return [...prev, {
@@ -152,8 +162,11 @@ function FrostbiteOSDesktopInner() {
   const maximizeWin = useCallback((id: string) => {
     setWindows((prev) => prev.map((w) => {
       if (w.id !== id) return w;
+      const isFullscreen = id === "frostcraft";
+      const fullH = window.innerHeight - 36;
+      const dockH = window.innerHeight - 36 - 84;
       if (w.maximized) return { ...w, maximized: false, x: w.prevRect?.x ?? 100, y: w.prevRect?.y ?? 60, w: w.prevRect?.w ?? 860, h: w.prevRect?.h ?? 560, prevRect: null };
-      return { ...w, maximized: true, prevRect: { x: w.x, y: w.y, w: w.w, h: w.h }, x: 0, y: 36, w: window.innerWidth, h: window.innerHeight - 36 - 84 };
+      return { ...w, maximized: true, prevRect: { x: w.x, y: w.y, w: w.w, h: w.h }, x: 0, y: 36, w: window.innerWidth, h: isFullscreen ? fullH : dockH };
     }));
   }, []);
 
@@ -205,6 +218,7 @@ function FrostbiteOSDesktopInner() {
 
   const dockApps = useMemo(() => APPS.filter((a) => a.dock), []);
   const runningIds = useMemo(() => new Set(windows.map((w) => w.id)), [windows]);
+  const frostcraftFullscreen = useMemo(() => windows.some((w) => w.id === "frostcraft" && w.maximized), [windows]);
 
   return (
     <div className="fs-desktop">
@@ -257,7 +271,7 @@ function FrostbiteOSDesktopInner() {
         return (
           <div
             key={win.id}
-            className={`fs-win ${focusedId === win.id ? "fs-win-focus" : ""} ${win.maximized ? "fs-win-max" : ""}`}
+            className={`fs-win ${focusedId === win.id ? "fs-win-focus" : ""} ${win.maximized ? (win.id === "frostcraft" ? "fs-win-max-full" : "fs-win-max") : ""}`}
             style={{ left: win.x, top: win.y, width: win.w, height: win.h, display: win.minimized ? "none" : "flex", zIndex: focusedId === win.id ? 200 : 100 }}
             onMouseDown={() => focusWin(win.id)}
           >
@@ -277,7 +291,7 @@ function FrostbiteOSDesktopInner() {
       })}
 
       {/* Dock */}
-      <div className="fs-dock">
+      {!frostcraftFullscreen && <div className="fs-dock">
         {dockApps.map((app) => (
           <button
             key={app.id}
@@ -309,6 +323,7 @@ function FrostbiteOSDesktopInner() {
           <span>⏻</span>
         </Link>
       </div>
+      }
 
       {/* Context Menu */}
       <div className="fs-ctx" style={{ display: ctxMenu.show ? "block" : "none", left: ctxMenu.x, top: ctxMenu.y }}>

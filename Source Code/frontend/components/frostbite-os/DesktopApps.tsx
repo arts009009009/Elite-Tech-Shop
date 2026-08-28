@@ -14,6 +14,7 @@ const TasksApp = dynamic(() => import("@/app/frostbite-os/tasks/page"), { ssr: f
 const MediaPlayerApp = dynamic(() => import("@/app/frostbite-os/mediaplayer/page"), { ssr: false });
 const BrowserApp = dynamic(() => import("@/app/frostbite-os/browser/page"), { ssr: false });
 const SystemMonitorApp = dynamic(() => import("./SystemMonitor"), { ssr: false });
+const FrostCraftApp = dynamic(() => import("@/app/frostbite-os/frostcraft/page"), { ssr: false });
 
 function Wrap({ children }: { children: React.ReactNode }) {
   return (
@@ -48,4 +49,5 @@ export const APP_COMPONENTS: Record<string, ComponentType> = {
   media: () => <Wrap><MediaPlayerApp /></Wrap>,
   browser: () => <Wrap><BrowserApp /></Wrap>,
   sysmon: () => <AppWrap><SystemMonitorApp asApp /></AppWrap>,
+  frostcraft: () => <AppWrap><FrostCraftApp /></AppWrap>,
 };
