@@ -39,9 +39,9 @@ export default function AnalyticsPage() {
     return (
       <>
         <Navbar />
-        <div className="container" style={{ padding: 40, textAlign: "center" }}>
+        <div className="container py-10 text-center">
           <h1>Analytics</h1>
-          <p style={{ color: "#888", marginTop: 16 }}>Please log in to view analytics.</p>
+          <p className="text-[#888] mt-4">Please log in to view analytics.</p>
         </div>
       </>
     );
@@ -54,14 +54,14 @@ export default function AnalyticsPage() {
   return (
     <>
       <Navbar />
-      <div className="container" style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Go-Powered Analytics</h1>
+      <div className="container max-w-[900px] py-6">
+        <h1 className="text-2xl font-bold mb-6">Go-Powered Analytics</h1>
 
-        {error && <p style={{ color: "#ff4040" }}>{error}</p>}
+        {error && <p className="text-red-500">{error}</p>}
 
         {data && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 16, marginBottom: 24 }}>
+            <div className="grid gap-4 mb-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
               {[
                 { label: "Total Orders", value: data.total_orders },
                 { label: "Revenue", value: "$" + data.total_revenue.toFixed(2) },
@@ -77,12 +77,12 @@ export default function AnalyticsPage() {
               ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
               <div style={card}>
                 <h3 style={{ fontSize: 16, marginBottom: 12 }}>Orders by Status</h3>
                 {Object.entries(data.orders_by_status).map(([status, count]) => (
-                  <div key={status} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border, #333)", fontSize: 14 }}>
-                    <span style={{ textTransform: "capitalize" }}>{status}</span>
+                  <div key={status} className="flex justify-between py-1.5 border-b text-sm" style={{ borderColor: "var(--border, #333)" }}>
+                    <span className="capitalize">{status}</span>
                     <span style={{ color: "var(--accent, #00d4ff)" }}>{count}</span>
                   </div>
                 ))}
@@ -91,9 +91,9 @@ export default function AnalyticsPage() {
               <div style={card}>
                 <h3 style={{ fontSize: 16, marginBottom: 12 }}>Top Products</h3>
                 {data.top_products.slice(0, 5).map((p) => (
-                  <div key={p.name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border, #333)", fontSize: 14 }}>
+                  <div key={p.name} className="flex justify-between py-1.5 border-b text-sm" style={{ borderColor: "var(--border, #333)" }}>
                     <span>{p.name}</span>
-                    <span style={{ color: "#39FF14" }}>${p.revenue.toFixed(2)}</span>
+                    <span className="text-[#39FF14]">${p.revenue.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
