@@ -79,9 +79,9 @@ export default function ProfilePage() {
     return (
       <>
         <Navbar />
-        <div className="container" style={{ padding: 40, textAlign: "center" }}>
+        <div className="container py-10 text-center">
           <h1>Profile</h1>
-          <p style={{ color: "#888", marginTop: 16 }}>Please log in to view your profile.</p>
+          <p className="text-[#888] mt-4">Please log in to view your profile.</p>
         </div>
       </>
     );
@@ -94,39 +94,39 @@ export default function ProfilePage() {
   return (
     <>
       <Navbar />
-      <div className="container" style={{ padding: 24, maxWidth: 640, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Your Profile</h1>
+      <div className="container max-w-[640px] mx-auto py-6">
+        <h1 className="text-2xl font-bold mb-6">Your Profile</h1>
 
-        <div style={{ ...cardStyle, marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, marginBottom: 16 }}>Profile Settings</h2>
-          <label style={{ display: "block", fontSize: 12, color: "#888", marginBottom: 4 }}>Display Name</label>
-          <input style={inputStyle} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your display name" />
-          <label style={{ display: "block", fontSize: 12, color: "#888", marginTop: 12, marginBottom: 4 }}>Bio</label>
-          <textarea style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell us about yourself" />
-          <label style={{ display: "block", fontSize: 12, color: "#888", marginTop: 12, marginBottom: 4 }}>Avatar URL</label>
-          <input style={inputStyle} value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="https://example.com/avatar.png" />
-          <button onClick={handleSaveProfile} style={{ ...btnStyle, marginTop: 16 }}>Save Profile</button>
-          {message && <p style={{ color: "#39FF14", fontSize: 13, marginTop: 8 }}>{message}</p>}
+        <div className="mb-4 p-6 rounded-lg" style={{ background: "var(--card-bg, #111)", border: "1px solid var(--border, #333)" }}>
+          <h2 className="text-lg mb-4">Profile Settings</h2>
+          <label className="block text-xs text-[#888] mb-1">Display Name</label>
+          <input className="input w-full" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your display name" />
+          <label className="block text-xs text-[#888] mt-3 mb-1">Bio</label>
+          <textarea className="input w-full min-h-[80px] resize-y" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell us about yourself" />
+          <label className="block text-xs text-[#888] mt-3 mb-1">Avatar URL</label>
+          <input className="input w-full" value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="https://example.com/avatar.png" />
+          <button onClick={handleSaveProfile} className="mt-4 px-4 py-2 bg-[var(--accent,#00d4ff)] text-white border-none rounded cursor-pointer text-sm">Save Profile</button>
+          {message && <p className="text-[13px] mt-2 text-[#39FF14]">{message}</p>}
         </div>
 
-        <div style={{ ...cardStyle, marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, marginBottom: 16 }}>Change Password</h2>
-          <label style={{ display: "block", fontSize: 12, color: "#888", marginBottom: 4 }}>Current Password</label>
-          <input style={inputStyle} type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
-          <label style={{ display: "block", fontSize: 12, color: "#888", marginTop: 12, marginBottom: 4 }}>New Password (min 8 chars)</label>
-          <input style={inputStyle} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-          <button onClick={handleChangePassword} style={{ ...btnStyle, marginTop: 16 }}>Change Password</button>
-          {pwMessage && <p style={{ color: pwMessage.includes("changed") ? "#39FF14" : "#ff4040", fontSize: 13, marginTop: 8 }}>{pwMessage}</p>}
+        <div className="mb-4 p-6 rounded-lg" style={{ background: "var(--card-bg, #111)", border: "1px solid var(--border, #333)" }}>
+          <h2 className="text-lg mb-4">Change Password</h2>
+          <label className="block text-xs text-[#888] mb-1">Current Password</label>
+          <input className="input w-full" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
+          <label className="block text-xs text-[#888] mt-3 mb-1">New Password (min 8 chars)</label>
+          <input className="input w-full" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <button onClick={handleChangePassword} className="mt-4 px-4 py-2 bg-[var(--accent,#00d4ff)] text-white border-none rounded cursor-pointer text-sm">Change Password</button>
+          {pwMessage && <p className="text-[13px] mt-2" style={{ color: pwMessage.includes("changed") ? "#39FF14" : "#ff4040" }}>{pwMessage}</p>}
         </div>
 
-        <div style={cardStyle}>
-          <h2 style={{ fontSize: 18, marginBottom: 16 }}>Saved Carts</h2>
-          <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>Save your current cart and restore it later.</p>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={handleSaveCart} style={{ ...btnStyle, background: "#ecc94b", color: "#000" }}>Save Cart</button>
-            <button onClick={handleLoadCart} style={{ ...btnStyle, background: "#48bb78" }}>Load Saved Cart</button>
+        <div className="p-6 rounded-lg" style={{ background: "var(--card-bg, #111)", border: "1px solid var(--border, #333)" }}>
+          <h2 className="text-lg mb-4">Saved Carts</h2>
+          <p className="text-[13px] text-[#888] mb-4">Save your current cart and restore it later.</p>
+          <div className="flex gap-2">
+            <button onClick={handleSaveCart} className="px-4 py-2 text-white border-none rounded cursor-pointer text-sm" style={{ background: "#ecc94b", color: "#000" }}>Save Cart</button>
+            <button onClick={handleLoadCart} className="px-4 py-2 text-white border-none rounded cursor-pointer text-sm bg-[#48bb78]">Load Saved Cart</button>
           </div>
-          {savedCartMsg && <p style={{ color: "#39FF14", fontSize: 13, marginTop: 8 }}>{savedCartMsg}</p>}
+          {savedCartMsg && <p className="text-[13px] mt-2 text-[#39FF14]">{savedCartMsg}</p>}
         </div>
       </div>
     </>
