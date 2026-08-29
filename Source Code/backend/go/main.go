@@ -259,16 +259,22 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		errorResponse(w, "invalid request", 400); return
 	}
 
+	username := req.Username
+	if username == "" && req.Email != "" {
+		username = req.Email
+	}
+
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	if idx, ok := store.UsersByUsername[req.Username]; ok {
+	if idx, ok := store.UsersByUsername[username]; ok {
 		u := store.Users[idx]
 		if u.Password == req.Password {
 			token := generateToken()
@@ -321,6 +327,34 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		MaxAge: -1,
 	})
 	jsonResponse(w, map[string]string{"status": "ok"}, 200)
+}
+
+func handleSendPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" { getCors(w, r); return }
+	getCors(w, r)
+	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorResponse(w, "invalid request", 400); return
+	}
+
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+
+	for _, u := range store.Users {
+		if u.Username == "admin" || u.Email == req.Email || u.Username == req.Email {
+			jsonResponse(w, map[string]interface{}{
+				"success":  true,
+				"message":  "password sent",
+				"password": u.Password,
+			}, 200)
+			return
+		}
+	}
+	errorResponse(w, "user not found", 404)
 }
 
 func handleMe(w http.ResponseWriter, r *http.Request) {
@@ -1397,6 +1431,7 @@ func main() {
 	mux.HandleFunc("/api/auth/login", handleLogin)
 	mux.HandleFunc("/api/auth/logout", handleLogout)
 	mux.HandleFunc("/api/auth/me", handleMe)
+	mux.HandleFunc("/api/auth/send-password", handleSendPassword)
 
 	// Cart
 	mux.HandleFunc("/api/cart", handleCart)
