@@ -317,6 +317,7 @@ public class AuthController {
         cookie.setPath("/");
         cookie.setMaxAge(0);
         cookie.setHttpOnly(true);
+        cookie.setSecure(true);
         response.addCookie(cookie);
         return ResponseEntity.ok(Map.of("success", true));
     }
