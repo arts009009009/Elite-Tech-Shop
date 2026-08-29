@@ -5,8 +5,8 @@ We provide security updates for the following versions of Elite Tech Shop:
 
 | Version | Supported |
 |---------|-----------|
-| 4.x     | ✅ |
-| <4.x    | ❌ |
+| 5.0 LTS , Canary x   | ✅ |
+| <4.x , 5.0 Stable    | ❌ |
 
 ## Reporting a Vulnerability
 If you discover a security issue, please **do not open a public GitHub issue**.  
