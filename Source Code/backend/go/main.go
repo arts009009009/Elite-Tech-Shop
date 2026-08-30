@@ -315,18 +315,20 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		store.mu.Unlock()
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:   "session_token",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
-		Secure: true,
+		Name:     "session_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:   "user_session",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
-		Secure: true,
+		Name:     "user_session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
 	})
 	jsonResponse(w, map[string]string{"status": "ok"}, 200)
 }
