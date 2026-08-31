@@ -1,15 +1,14 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { useUser } from "@/context/UserContext";
 import { formatCurrency } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
+import OptimizedImage from "@/components/OptimizedImage";
 
 export default function CartPage() {
   const cartCtx = useCart();
   const userCtx = useUser();
-
 
   const handleCheckout = (e: React.MouseEvent) => {
     if (!userCtx?.user) {
@@ -21,12 +20,12 @@ export default function CartPage() {
   return (
     <>
       <Navbar />
-      <div className="container py-6">
+      <div className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
         <div className="page-card">
           <h2 className="mb-4">Shopping Cart</h2>
 
           {cartCtx.cart.length === 0 ? (
-            <div className="flex flex-col gap-4 py-12 text-center">
+            <div className="flex flex-col gap-4" style={{ paddingTop: 48, paddingBottom: 48, textAlign: "center" }}>
               <p className="text-lg opacity-60">Your cart is empty</p>
               <Link href="/" className="btn btn-outline-brand">Continue Shopping</Link>
             </div>
@@ -34,10 +33,19 @@ export default function CartPage() {
             <>
               <div className="flex flex-col gap-4 mb-4">
                 {cartCtx.cart.map((item) => (
-                  <div key={item.id} className="card border rounded-lg">
+                  <div key={item.id} className="card" style={{ borderWidth: 1, borderRadius: 8 }}>
                     <div className="flex items-center gap-4 flex-wrap">
                       {item.image && (
-                        <Image src={item.image} alt={item.title} width={80} height={80} className="object-cover rounded-lg" />
+                        <div style={{ width: 80, height: 80, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
+                          <OptimizedImage
+                            src={item.image}
+                            alt={item.title}
+                            width={80}
+                            height={80}
+                            style={{ objectFit: "cover" }}
+                            sizes="80px"
+                          />
+                        </div>
                       )}
                       <div className="flex flex-col gap-1 flex-1 items-start">
                         <p className="font-semibold">{item.title}</p>
@@ -48,7 +56,7 @@ export default function CartPage() {
                         <button className="btn btn-sm btn-outline-brand" aria-label="Decrease quantity"
                           onClick={() => cartCtx.updateQuantity(item.id, item.quantity - 1)}
                         >−</button>
-                        <p className="min-w-[24px] text-center">{item.quantity}</p>
+                        <p style={{ minWidth: 24, textAlign: "center" }}>{item.quantity}</p>
                         <button className="btn btn-sm btn-outline-brand" aria-label="Increase quantity"
                           onClick={() => cartCtx.updateQuantity(item.id, item.quantity + 1)}
                         >+</button>
