@@ -12,6 +12,7 @@ import VoiceSearch from "@/components/VoiceSearch";
 import { FlashSaleBanner } from "@/components/FlashSaleTimer";
 import { apiFetch } from "@/lib/api-fetch";
 import Recommendations from "@/components/Recommendations";
+import EdgeRecommendations from "@/components/EdgeRecommendations";
 
 type Lang = "en" | "ar" | "ru" | "fr" | "es";
 type Product = { id: number; title: string; price: number; currency: string; category: string; description?: string; image?: string };
@@ -104,7 +105,7 @@ export default function Home() {
           {isModern && (
             <section className="hero" aria-label="Hero">
               <p className="hero-kicker">VIRTUAL MARKET · {uiStrings["Cyberpunk"]?.[language as Lang] ?? "CYBERPUNK"}</p>
-              <div className="text-center">
+              <div style={{ textAlign: 'center' }}>
                 <h1 className="hero-title">GEAR UP FOR THE GRID</h1>
               </div>
               <p className="hero-sub">
@@ -146,17 +147,18 @@ export default function Home() {
 
             <input
               type="number"
-              className="input max-w-[150px]"
+              className="input"
               placeholder={uiStrings["MaxPrice"][language as Lang] || "Max Price"}
               onChange={(e) => setMaxPrice(e.target.value ? Number(e.target.value) : null)}
               value={maxPrice ?? ""}
+              style={{ maxWidth: 150 }}
               aria-label="Maximum price filter"
             />
           </div>
 
           <div ref={parentRef}>
             {loading ? (
-              <div className="flex justify-center p-10">
+              <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
                 <div className="spinner" />
               </div>
             ) : (
@@ -181,6 +183,7 @@ export default function Home() {
           )}
 
           <Recommendations />
+          <EdgeRecommendations />
         </div>
       </div>
     </>
