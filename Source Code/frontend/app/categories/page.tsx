@@ -1,6 +1,9 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { apiFetch } from "@/lib/api-fetch";
+import { generateCollectionMetadata } from "@/lib/seo";
+import StructuredData from "@/components/StructuredData";
+import { generateBreadcrumbJsonLd } from "@/lib/seo";
 
 type CategoriesResponse = { categories: string[]; total: number };
 type ProductsResponse = { products: { id: number; category?: string }[]; total: number };
@@ -10,7 +13,13 @@ const categoryEmojis: Record<string, string> = {
   smartphones: "📱",
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
+
+export const metadata = generateCollectionMetadata(
+  "Categories",
+  "Browse products by category. Find the perfect laptop or smartphone.",
+  "/categories"
+);
 
 export default async function CategoriesPage() {
   console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/categories | called`);
@@ -33,9 +42,15 @@ export default async function CategoriesPage() {
     counts[cat] = (counts[cat] || 0) + 1;
   }
 
+  const breadcrumbLd = generateBreadcrumbJsonLd([
+    { name: "Home", url: "/" },
+    { name: "Categories", url: "/categories" },
+  ]);
+
   return (
     <>
       <Navbar />
+      <StructuredData data={breadcrumbLd} />
       <div className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -46,7 +61,7 @@ export default async function CategoriesPage() {
           </div>
 
           <div style={{ fontSize: 12, color: "#888" }}>
-            live from Rust backend • 3 retries • 5s timeout
+            live from Rust backend • ISR enabled (revalidate: 120s)
           </div>
 
           {categories.length === 0 ? (
