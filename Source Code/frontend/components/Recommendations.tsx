@@ -16,7 +16,10 @@ export default function Recommendations() {
       </h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
         {recommendations.map((p) => (
-          <div key={p.id} style={{ border: "1px solid var(--border, #333)", borderRadius: 8, padding: 16, background: "var(--card-bg, #111)" }}>
+          <div key={p.id} style={{ border: "1px solid var(--border, #333)", borderRadius: 10, padding: 16, background: "var(--card-bg, #111)", transition: "transform 0.2s, border-color 0.2s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = "var(--accent)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; e.currentTarget.style.borderColor = "var(--border, #333)"; }}
+          >
             <Link href={`/product/${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{p.title}</h3>
               <p style={{ fontSize: 16, fontWeight: "bold", color: "#39FF14" }}>
@@ -30,7 +33,9 @@ export default function Recommendations() {
             </Link>
             <button
               onClick={() => addToCart(p)}
-              style={{ marginTop: 8, width: "100%", padding: "6px 0", background: "var(--accent, #00d4ff)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12 }}
+              style={{ marginTop: 8, width: "100%", padding: "8px 0", background: "var(--accent, #00d4ff)", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, minHeight: 40, transition: "filter 0.2s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(1.1)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
             >
               Add to Cart
             </button>
