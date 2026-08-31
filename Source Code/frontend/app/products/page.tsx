@@ -1,6 +1,9 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { apiFetch } from "@/lib/api-fetch";
+import { generateCollectionMetadata } from "@/lib/seo";
+import StructuredData from "@/components/StructuredData";
+import { generateBreadcrumbJsonLd } from "@/lib/seo";
 
 type Product = {
   id: number;
@@ -17,7 +20,13 @@ type ProductsApiResponse = {
 
 const FALLBACK_PRODUCTS: Product[] = [];
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+export const metadata = generateCollectionMetadata(
+  "Products",
+  "Browse our full catalog of premium electronics, laptops, and smartphones.",
+  "/products"
+);
 
 export default async function ProductsPage() {
   console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=en | called`);
@@ -28,9 +37,15 @@ export default async function ProductsPage() {
   console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=en | OK`);
   const products = data.products ?? FALLBACK_PRODUCTS;
 
+  const breadcrumbLd = generateBreadcrumbJsonLd([
+    { name: "Home", url: "/" },
+    { name: "Products", url: "/products" },
+  ]);
+
   return (
     <>
       <Navbar />
+      <StructuredData data={breadcrumbLd} />
       <div className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -41,7 +56,7 @@ export default async function ProductsPage() {
           </div>
 
           <div style={{ fontSize: 12, color: "#888" }}>
-            live from Rust backend • 3 retries • 5s timeout
+            live from Rust backend • ISR enabled (revalidate: 60s)
           </div>
 
           {products.length === 0 ? (
