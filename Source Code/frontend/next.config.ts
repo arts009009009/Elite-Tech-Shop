@@ -5,10 +5,8 @@ const nextConfig: NextConfig = {
     root: "../",
   },
 
-  // React Compiler (native Rust in Turbopack, Babel fallback)
   reactCompiler: true,
 
-  // Controls auto-generation of AGENTS.md / CLAUDE.md
   agentRules: true,
 
   images: {
@@ -19,6 +17,10 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 14400,
     maximumResponseBody: 8 * 1024 * 1024,
     maximumDiskCacheSize: 256 * 1024 * 1024,
+    remotePatterns: [
+      { protocol: "https", hostname: "images.ctfassets.net" },
+      { protocol: "https", hostname: "**.contentful.com" },
+    ],
   },
 
   experimental: {
@@ -27,17 +29,13 @@ const nextConfig: NextConfig = {
       allowedOrigins: [],
     },
 
-    // Turbopack memory eviction strategy
     turbopackMemoryEviction: "auto",
 
-    // Persistent filesystem cache between dev sessions
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
 
-    // Native Rust React Compiler — no Babel plugin needed
     turbopackRustReactCompiler: true,
 
-    // Tree-shaking optimizations
     turbopackRemoveUnusedImports: true,
     turbopackRemoveUnusedExports: true,
     turbopackInferModuleSideEffects: true,
