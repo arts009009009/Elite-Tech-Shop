@@ -1,0 +1,38 @@
+# Dependabot configuration for Elite Tech Shop + Frostbite OS
+version: 2
+updates:
+  # Next.js / TypeScript / JavaScript / CSS (npm ecosystem)
+  - package-ecosystem: "npm"
+    directory: "/" # root where package.json and lockfile live
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    open-pull-requests-limit: 10
+
+  # Java / Spring Boot + Loom (Maven ecosystem)
+  - package-ecosystem: "maven"
+    directory: "/" # root where pom.xml lives
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    open-pull-requests-limit: 10
+
+  # Go (Go modules)
+  - package-ecosystem: "gomod"
+    directory: "/" # root where go.mod lives
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    open-pull-requests-limit: 10
+
+  # Rust (Cargo / Axum microservice)
+  - package-ecosystem: "cargo"
+    directory: "/" # root where Cargo.toml lives
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    open-pull-requests-limit: 10
