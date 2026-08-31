@@ -2,6 +2,7 @@
 import { createContext, useState, useEffect, useCallback, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
 import { goFetch } from "@/lib/goFetch";
+import { addToCart as serverAddToCart, removeFromCart as serverRemoveFromCart, updateCartQuantity as serverUpdateQuantity, clearCart as serverClearCart, getCart as serverGetCart } from "@/app/actions/cart";
 
 export type Product = { id: number; title: string; price: number; currency: string; category?: string; description?: string; image?: string };
 export type CartItem = Product & { quantity: number };
@@ -34,7 +35,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
-    goFetch("/api/cart").then(r => r.json()).then((data) => setCart(Array.isArray(data) ? data : [])).catch(() => {});
+    serverGetCart().then((result) => {
+      if (result.success && Array.isArray(result.data)) {
+        setCart(result.data);
+      }
+    }).catch(() => {});
   }, []);
 
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantity, 0), [cart]);
@@ -47,22 +52,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return [...prev, { ...product, quantity: 1 }];
     });
     try {
-      const res = await goFetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product_id: product.id, quantity: 1, price: product.price, name: product.title, image: product.image || "", currency: product.currency }),
-      });
-      const data = await res.json();
-      if (Array.isArray(data)) setCart(data);
+      const result = await serverAddToCart(product);
+      if (result.success && Array.isArray(result.data)) {
+        setCart(result.data);
+      }
     } catch {}
   }, []);
 
   const removeFromCart = useCallback(async (id: number) => {
     setCart(prev => prev.filter(i => i.id !== id));
     try {
-      const res = await goFetch(`/api/cart/${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (Array.isArray(data)) setCart(data);
+      const result = await serverRemoveFromCart(id);
+      if (result.success && Array.isArray(result.data)) {
+        setCart(result.data);
+      }
     } catch {}
   }, []);
 
@@ -70,19 +73,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (qty <= 0) { removeFromCart(id); return; }
     setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
     try {
-      const res = await goFetch(`/api/cart/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: qty }),
-      });
-      const data = await res.json();
-      if (Array.isArray(data)) setCart(data);
+      const result = await serverUpdateQuantity(id, qty);
+      if (result.success && Array.isArray(result.data)) {
+        setCart(result.data);
+      }
     } catch {}
   }, [removeFromCart]);
 
   const clearCart = useCallback(async () => {
     setCart([]);
-    try { await goFetch("/api/cart", { method: "DELETE" }); } catch {}
+    try { await serverClearCart(); } catch {}
   }, []);
 
   const resetCart = useCallback(() => { setCart([]); }, []);
