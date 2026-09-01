@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Product struct {
@@ -80,10 +83,10 @@ type DiscountCode struct {
 }
 
 type User struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	Username     string `json:"username"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"-"`
+	Role         string `json:"role"`
 }
 
 type Session struct {
@@ -122,7 +125,7 @@ var store = &Store{
 	OrdersByUsername: make(map[string][]int),
 	ReviewsByProduct: make(map[int][]int),
 	Users: []User{
-		{Username: "admin", Email: "admin@elite.shop", Password: "admin", Role: "admin"},
+		{Username: "admin", Email: "admin@elite.shop", PasswordHash: hashPassword("admin"), Role: "admin"},
 	},
 	Discounts: []DiscountCode{
 		{Code: "WELCOME10", Percent: 10, MaxUses: 100, ExpiresAt: "2026-12-31"},
@@ -130,6 +133,29 @@ var store = &Store{
 		{Code: "SAVE5", Percent: 5, MaxUses: 999, ExpiresAt: "2027-12-31"},
 	},
 	NextReviewID: 1,
+}
+
+func init() {
+	adminPass := os.Getenv("ADMIN_PASSWORD")
+	if adminPass == "" {
+		adminPass = "admin"
+		log.Printf("[WARN] No ADMIN_PASSWORD env var set, using default password. Set ADMIN_PASSWORD in production!")
+	}
+	store.Users[0].PasswordHash = hashPassword(adminPass)
+}
+
+func hashPassword(password string) string {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("[WARN] bcrypt failed, using insecure fallback: %v", err)
+		return password
+	}
+	return string(hash)
+}
+
+func checkPassword(hashedPassword, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return err == nil
 }
 
 func generateToken() string {
@@ -154,15 +180,20 @@ func generateOrderID() string {
 	return "ORD-" + hex.EncodeToString(b)
 }
 
+var allowedOrigins = map[string]bool{
+	"http://localhost:3000": true,
+	"http://localhost:3001": true,
+	"https://elite-tech.shop": true,
+}
+
 func getCors(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
-	if origin == "" {
-		origin = "http://localhost:3000"
+	if origin != "" && allowedOrigins[origin] {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
-	w.Header().Set("Access-Control-Allow-Origin", origin)
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
 }
 
 func jsonResponse(w http.ResponseWriter, data interface{}, status int) {
@@ -218,10 +249,10 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 
 	idx := len(store.Users)
 	store.Users = append(store.Users, User{
-		Username: req.Username,
-		Email:    req.Email,
-		Password: req.Password,
-		Role:     "user",
+		Username:     req.Username,
+		Email:        req.Email,
+		PasswordHash: hashPassword(req.Password),
+		Role:         "user",
 	})
 	store.UsersByUsername[req.Username] = idx
 
@@ -276,7 +307,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if idx, ok := store.UsersByUsername[username]; ok {
 		u := store.Users[idx]
-		if u.Password == req.Password {
+		if checkPassword(u.PasswordHash, req.Password) {
 			token := generateToken()
 			store.Sessions[token] = &Session{
 				Token:    token,
@@ -345,20 +376,11 @@ func handleSendPassword(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "invalid request", 400); return
 	}
 
-	store.mu.RLock()
-	defer store.mu.RUnlock()
-
-	for _, u := range store.Users {
-		if u.Username == "admin" || u.Email == req.Email || u.Username == req.Email {
-			jsonResponse(w, map[string]interface{}{
-				"success":  true,
-				"message":  "password sent",
-				"password": u.Password,
-			}, 200)
-			return
-		}
-	}
-	errorResponse(w, "user not found", 404)
+	// Always return success to prevent user enumeration
+	jsonResponse(w, map[string]interface{}{
+		"success": true,
+		"message": "If an account exists, a password reset link has been sent",
+	}, 200)
 }
 
 func handleMe(w http.ResponseWriter, r *http.Request) {
@@ -996,7 +1018,6 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":  "ok",
 		"service": "elite-shop-go",
 		"version": "1.7 Feature Freeze",
-		"runtime": runtime.Version(),
 	}, 200)
 }
 
@@ -1102,10 +1123,10 @@ func handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	if idx, ok := store.UsersByUsername[username]; ok {
-		if store.Users[idx].Password != req.OldPassword {
+		if !checkPassword(store.Users[idx].PasswordHash, req.OldPassword) {
 			errorResponse(w, "incorrect current password", 401); return
 		}
-		store.Users[idx].Password = req.NewPassword
+		store.Users[idx].PasswordHash = hashPassword(req.NewPassword)
 		jsonResponse(w, map[string]string{"status": "password updated"}, 200)
 		return
 	}
@@ -1301,19 +1322,6 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 				errorResponse(w, "internal server error", 500)
 			}
 		}()
-		next.ServeHTTP(w, r)
-	})
-}
-
-func csrfMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" || r.Method == "PUT" || r.Method == "DELETE" || r.Method == "PATCH" {
-			token := r.Header.Get("X-CSRF-Token")
-			if token == "" {
-				errorResponse(w, "csrf token required", 403)
-				return
-			}
-		}
 		next.ServeHTTP(w, r)
 	})
 }
