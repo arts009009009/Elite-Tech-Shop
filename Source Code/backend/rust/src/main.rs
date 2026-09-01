@@ -8,7 +8,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
-use tower_http::cors::{Any, CorsLayer};
+use axum::http::{HeaderValue, Method};
+use tower_http::cors::{AllowHeaders, AllowMethods, CorsLayer};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -277,10 +278,16 @@ async fn main() {
     }
     let _ = SEARCH_INDEX.set(search_index);
 
+    let allowed_origins = [
+        "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+        "http://localhost:3001".parse::<HeaderValue>().unwrap(),
+        "https://elite-tech.shop".parse::<HeaderValue>().unwrap(),
+    ];
+
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin(allowed_origins)
+        .allow_methods([Method::GET, Method::OPTIONS])
+        .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     let app = Router::new()
         .route("/", get(index))
