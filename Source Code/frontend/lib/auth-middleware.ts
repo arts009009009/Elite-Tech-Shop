@@ -87,7 +87,9 @@ export function validateSessionFromRequest(request: NextRequest): AuthResult {
     return { authenticated: false, user: null, error: "No session cookie" };
   }
 
-  return { authenticated: true, user: { username: "session_user" } };
+  // Note: For full validation, this should call the backend /api/auth/me endpoint
+  // This is a lightweight check for middleware that can't do async operations
+  return { authenticated: true, user: { username: "" } };
 }
 
 export function jsonUnauthorized(error = "Unauthorized") {
