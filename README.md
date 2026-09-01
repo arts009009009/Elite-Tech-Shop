@@ -233,4 +233,16 @@ First commenter gets immortalized → [Discussion #3](https://github.com/arts009
 © **Elite Tech** 2026 — Chaos Collective Branding
 
 ---
+
+## 🙌 Credits & Licenses
+
+This project integrates community chaos upgrades shared under the MIT License:
+
+- [ScrollStack.js](https://github.com/devgauravjatt/scrollstackjs) — Infinite scroll for product pages.
+- [Block Dark Mode Extensions](https://www.shahriaravi.me/writing/block-dark-mode-extensions) — Prevents forced dark mode from breaking site design.
+- [Oprogress](https://github.com/programming-with-ia/oprogress) — Progress bar enhancements for smoother UI.
+
+All above projects are © their respective authors, licensed under MIT.  
+Elite Tech Shop credits them for powering chaos browsing and resilient UI.
+
 </div>
