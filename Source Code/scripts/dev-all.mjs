@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, execSync } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 
 const ROOT = process.cwd();
@@ -65,24 +65,33 @@ function pmFrontendDev() {
   }
 }
 
+function buildSync(label, cmd, cwd) {
+  console.log(`[dev] Building ${label}...`);
+  try {
+    execSync(cmd, { cwd: cwd || ROOT, stdio: "inherit", timeout: 300000 });
+    console.log(`[dev] ${label} build complete`);
+  } catch {
+    console.error(`[dev] ${label} build failed — skipping`);
+    return false;
+  }
+  return true;
+}
+
 const procs = [];
 
-if (existsSync(join(ROOT, "backend/target/elite-shop-backend-1.7.0.jar"))) {
-  procs.push(pmRun("backend:java"));
-} else {
-  console.log("[dev] Skipping Java backend — JAR not found. Run: cd backend && mvn clean package -DskipTests");
+const javaJarDir = join(ROOT, "backend/target");
+const javaJarExists = existsSync(javaJarDir) && readdirSync(javaJarDir).some(f => f.startsWith("elite-shop-backend-") && f.endsWith(".jar"));
+if (javaJarExists || buildSync("Java backend", "mvn clean package -DskipTests", join(ROOT, "backend"))) {
+  const jarPresent = existsSync(javaJarDir) && readdirSync(javaJarDir).some(f => f.startsWith("elite-shop-backend-") && f.endsWith(".jar"));
+  if (jarPresent) procs.push(pmRun("backend:java"));
 }
 
-if (existsSync(join(ROOT, "backend/rust/target/release/products-service"))) {
-  procs.push(pmRun("backend:rust"));
-} else {
-  console.log("[dev] Skipping Rust backend — binary not found. Run: cd backend/rust && cargo build --release");
+if (existsSync(join(ROOT, "backend/rust/target/release/products-service")) || buildSync("Rust backend", "cargo build --release", join(ROOT, "backend/rust"))) {
+  if (existsSync(join(ROOT, "backend/rust/target/release/products-service"))) procs.push(pmRun("backend:rust"));
 }
 
-if (existsSync(join(ROOT, "backend/go-backend"))) {
-  procs.push(pmRun("backend:go"));
-} else {
-  console.log("[dev] Skipping Go backend — binary not found. Run: cd backend/go && go build -o ../go-backend");
+if (existsSync(join(ROOT, "backend/go-backend")) || (has("go") && buildSync("Go backend", "go build -o ../go-backend", join(ROOT, "backend/go")))) {
+  if (existsSync(join(ROOT, "backend/go-backend"))) procs.push(pmRun("backend:go"));
 }
 
 if (!BACKEND_ONLY) {
