@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     root: "../",
   },
 
-  reactCompiler: true,
+  reactCompiler: false,
 
   agentRules: true,
 
@@ -28,18 +28,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
       allowedOrigins: [],
     },
-
-    turbopackMemoryEviction: "auto",
-
-    turbopackFileSystemCacheForDev: true,
-    turbopackFileSystemCacheForBuild: true,
-
-    turbopackRustReactCompiler: true,
-
-    turbopackRemoveUnusedImports: true,
-    turbopackRemoveUnusedExports: true,
-    turbopackInferModuleSideEffects: true,
-    turbopackScopeHoisting: true,
   },
 
   async rewrites() {
@@ -152,6 +140,8 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:3001 http://localhost:3002 http://localhost:3003; frame-ancestors 'none';" },
         ],
       },
       {
