@@ -16,19 +16,19 @@ const THEME_KEY = "elite_theme_mode";
 const THEME_OPTIONS: ThemeMode[] = ["light-mode", "dark-mode", "cyberpunk-mode"];
 
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
-  const getSystemTheme = (): ThemeMode => {
-    if (typeof window === "undefined") return "dark-mode";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark-mode" : "light-mode";
-  };
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
+  const [theme, setThemeState] = useState<ThemeMode>("dark-mode");
+
+  useEffect(() => {
     try {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(THEME_KEY);
-        if (saved && (THEME_OPTIONS as string[]).includes(saved)) return saved as ThemeMode;
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved && (THEME_OPTIONS as string[]).includes(saved)) {
+        setThemeState(saved as ThemeMode);
+        return;
       }
     } catch {}
-    return getSystemTheme();
-  });
+    const system = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark-mode" : "light-mode";
+    setThemeState(system);
+  }, []);
 
   useEffect(() => {
     const preserved = ["hacker", "developer", "user", "design-system-classic", "high-contrast", "reduced-motion"];
