@@ -74,8 +74,9 @@ export default function RootLayout({
   const orgJsonLd = generateOrganizationJsonLd();
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} darkreader-ignore`} data-darkreader-ignore="" suppressHydrationWarning>
       <head>
+        <meta name="darkreader-lock" />
         <StructuredData data={orgJsonLd} />
       </head>
       <body suppressHydrationWarning>
