@@ -20,14 +20,12 @@ function AdminLoginContent() {
     setLoading(true);
     setErrorMsg("");
     try {
-      console.log(`[BACKEND] ${new Date().toISOString()} | JAVA :3001 | POST /api/auth/send-password | called`);
       const res = await fetch("/api/auth/send-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: "admin" }),
       });
       const data = await res.json();
-      console.log(`[BACKEND] ${new Date().toISOString()} | JAVA :3001 | POST /api/auth/send-password | ${res.ok ? 'OK' : 'FAIL'}`);
       if (data.success) {
         setStep("login");
       } else {
@@ -47,14 +45,12 @@ function AdminLoginContent() {
     const form = new FormData(e.currentTarget);
     const password = form.get("password") as string;
     try {
-      console.log(`[BACKEND] ${new Date().toISOString()} | JAVA :3001 | POST /api/admin/login | called`);
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: "admin", password }),
       });
       const data = await res.json();
-      console.log(`[BACKEND] ${new Date().toISOString()} | JAVA :3001 | POST /api/admin/login | ${res.ok ? 'OK' : 'FAIL'}`);
       if (data.success) {
         router.push(data.redirect || "/admin/dashboard");
       } else {

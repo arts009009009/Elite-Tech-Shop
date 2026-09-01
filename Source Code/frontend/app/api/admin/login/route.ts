@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-const JAVA = "http://localhost:3001";
-const GO = "http://localhost:3003";
+const JAVA_BACKEND = process.env.JAVA_BACKEND_URL || "http://localhost:3001";
 
 export async function POST(request: Request) {
   try {
@@ -13,34 +12,15 @@ export async function POST(request: Request) {
       const form = await request.formData();
       body = Object.fromEntries(form.entries()) as Record<string, string>;
     }
-
-    let res: Response;
-    try {
-      res = await fetch(`${JAVA}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-    } catch {
-      const goBody = { username: body.email || "admin", password: body.password };
-      res = await fetch(`${GO}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(goBody),
-      });
-    }
-
+    const res = await fetch(`${JAVA_BACKEND}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     const data = await res.json();
-    const token = data.token;
-    if (token) {
-      const response = NextResponse.json({
-        success: true,
-        token,
-        username: data.username,
-        role: data.role,
-        redirect: "/admin/dashboard",
-      });
-      response.cookies.set("admin_session", token, {
+    if (data.success && data.token) {
+      const response = NextResponse.json(data);
+      response.cookies.set("admin_session", data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -49,7 +29,7 @@ export async function POST(request: Request) {
       });
       return response;
     }
-    return NextResponse.json({ success: false, error: data.error || "login_failed" }, { status: res.status });
+    return NextResponse.json(data, { status: res.status });
   } catch {
     return NextResponse.json({ success: false, error: "backend_unavailable" }, { status: 503 });
   }

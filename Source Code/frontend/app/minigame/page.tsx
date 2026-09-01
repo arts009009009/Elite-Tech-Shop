@@ -85,10 +85,8 @@ export default function MinigamePage() {
       if (!canvas) return;
       const canvasEl = canvas;
 
-      console.log("[minigame] Loading WASM...");
       const resp = await fetch("/minigame_bg.wasm");
       const bytes = await resp.arrayBuffer();
-      console.log("[minigame] WASM loaded, size:", bytes.byteLength);
 
       const importObject = {
         wbg: {
@@ -103,7 +101,6 @@ export default function MinigamePage() {
       if (destroyed) return;
       const wasm = result.instance.exports as Record<string, (...args: unknown[]) => unknown>;
       const wasmMem = wasm.memory as unknown as WebAssembly.Memory;
-      console.log("[minigame] WASM instantiated, exports:", Object.keys(wasm));
 
       let cachedDV: DataView | null = null;
       function getDataView(): DataView {
@@ -154,7 +151,6 @@ export default function MinigamePage() {
       }
 
       const world = new VoxelWorldImpl(42);
-      console.log("[minigame] Chunks loaded:", world.chunks_loaded());
 
       const gl = (canvasEl.getContext("webgl2") || canvasEl.getContext("webgl")) as WebGLRenderingContext;
       if (!gl) return;
@@ -184,7 +180,6 @@ export default function MinigamePage() {
       let mesh = world.get_mesh(graphicsLevelRef.current);
       const F = 9;
       let verts = mesh.length / F;
-      console.log("[minigame] Mesh vertices:", verts);
 
       const buf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -512,7 +507,7 @@ export default function MinigamePage() {
 
     const cleanupRef = { current: null as (() => void) | null };
 
-    init().catch((e: Error) => console.error("[minigame] ERROR:", e));
+    init().catch(() => {});
     return () => { destroyed = true; cleanupRef.current?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
