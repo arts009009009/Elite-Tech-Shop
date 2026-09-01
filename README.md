@@ -238,7 +238,6 @@ First commenter gets immortalized → [Discussion #3](https://github.com/arts009
 
 This project integrates community chaos upgrades shared under the MIT License:
 
-- [ScrollStack.js](https://github.com/devgauravjatt/scrollstackjs) — Infinite scroll for product pages.
 - [Block Dark Mode Extensions](https://www.shahriaravi.me/writing/block-dark-mode-extensions) — Prevents forced dark mode from breaking site design.
 - [Oprogress](https://github.com/programming-with-ia/oprogress) — Progress bar enhancements for smoother UI.
 
