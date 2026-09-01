@@ -29,12 +29,10 @@ export const metadata = generateCollectionMetadata(
 );
 
 export default async function ProductsPage() {
-  console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=en | called`);
   const data = await apiFetch<ProductsApiResponse>(
     "/api/products?lang=en",
     { timeout: 5000, retries: 3, fallback: { products: FALLBACK_PRODUCTS, total: 0 } },
   );
-  console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=en | OK`);
   const products = data.products ?? FALLBACK_PRODUCTS;
 
   const breadcrumbLd = generateBreadcrumbJsonLd([

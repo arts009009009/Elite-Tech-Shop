@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useReviews } from "@/context/ReviewContext";
@@ -13,10 +13,14 @@ import { trackView } from "@/components/RecentlyViewed";
 import productTranslations from "@/data/products.json";
 import uiStrings from "@/data/navbar-translate.json";
 import { apiFetch } from "@/lib/api-fetch";
+import OptimizedImage from "@/components/OptimizedImage";
+import StickyAddToCart from "@/components/StickyAddToCart";
+import StructuredData from "@/components/StructuredData";
+import { generateProductJsonLd } from "@/lib/seo";
 
 type Lang = "en" | "ar" | "ru" | "fr" | "es";
 
-type Product = { id: number; title: string; price: number; currency?: string; description?: string; [key: string]: unknown };
+type Product = { id: number; title: string; price: number; currency?: string; description?: string; image?: string; category?: string; [key: string]: unknown };
 type RawProduct = {
   id: number;
   category?: string;
@@ -53,6 +57,25 @@ const pageCss = `
     border-radius: 12px;
     background: linear-gradient(135deg, rgba(0,212,255,0.04), transparent 60%);
     pointer-events: none;
+  }
+  .pd-image-gallery {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .pd-image-gallery::-webkit-scrollbar { height: 4px; }
+  .pd-image-gallery::-webkit-scrollbar-track { background: transparent; }
+  .pd-image-gallery::-webkit-scrollbar-thumb { background: var(--border, rgba(255,255,255,0.1)); border-radius: 2px; }
+  .pd-image-main {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 4/3;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg, rgba(0,0,0,0.2));
   }
   .pd-title {
     font-size: 28px;
@@ -190,6 +213,19 @@ const pageCss = `
     font-size: 15px;
   }
   .pd-error { color: #f87171; }
+  .pd-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text, #888);
+  }
+  .pd-breadcrumb a {
+    color: var(--accent, #00d4ff);
+    text-decoration: none;
+  }
+  .pd-breadcrumb a:hover { text-decoration: underline; }
   .light-mode .pd-page { background: rgba(255,255,255,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
   .light-mode .pd-hero,
   .light-mode .pd-section {
@@ -243,9 +279,8 @@ export default function ProductDetails() {
       try {
         setLoading(true);
         setError(null);
-        const data = await apiFetch<{ id: number; title: string; price: number; currency: string; description?: string }>(`/api/products/${id}?lang=${language}`, { timeout: 5000, retries: 2, fallback: null });
-        console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products/${id}?lang=${language} | OK`);
-        setProduct({ id: data.id, title: data.title, price: data.price, currency: data.currency, description: data.description || "" });
+        const data = await apiFetch<{ id: number; title: string; price: number; currency: string; description?: string; image?: string; category?: string }>(`/api/products/${id}?lang=${language}`, { timeout: 5000, retries: 2, fallback: null });
+        setProduct({ id: data.id, title: data.title, price: data.price, currency: data.currency, description: data.description || "", image: data.image, category: data.category });
         trackView({ id: data.id, title: data.title, price: data.price, currency: data.currency });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load product");
@@ -253,6 +288,14 @@ export default function ProductDetails() {
     };
     if (id) fetchProduct();
   }, [id, language]);
+
+  const handleAddToCart = useCallback(() => {
+    if (cartCtx?.addToCart && product) {
+      cartCtx.addToCart({ id: product.id, title: product.title, price: product.price, currency: product.currency || "USD" });
+    } else {
+      window.dispatchEvent(new CustomEvent("notify", { detail: "Cart not available. Please refresh." }));
+    }
+  }, [cartCtx, product]);
 
   if (loading) return (
     <>
@@ -272,30 +315,54 @@ export default function ProductDetails() {
     }
   };
 
-  const handleAddToCart = () => {
-    if (cartCtx?.addToCart && product) {
-      cartCtx.addToCart({ id: product.id, title: product.title, price: product.price, currency: product.currency || "USD" });
-    } else {
-      window.dispatchEvent(new CustomEvent("notify", { detail: "Cart not available. Please refresh." }));
-    }
-  };
-
-  const allProducts = productTranslations.products.map((p: RawProduct) => ({
+  const allProducts = useMemo(() => productTranslations.products.map((p: RawProduct) => ({
     id: p.id,
     title: (p as unknown as Record<string, { title: string }>)[language]?.title ?? p.en.title,
     price: (p as unknown as Record<string, { price: number }>)[language]?.price ?? p.en.price,
     currency: (p as unknown as Record<string, { currency: string }>)[language]?.currency ?? p.en.currency,
-  }));
+  })), [language]);
+
+  const jsonLd = generateProductJsonLd({
+    id: product.id,
+    title: product.title,
+    description: product.description as string,
+    price: product.price,
+    currency: product.currency || "USD",
+    image: product.image as string,
+    category: product.category as string,
+  });
 
   return (
     <>
       <Navbar />
       <style>{pageCss}</style>
+      <StructuredData data={jsonLd} />
       <div className="pd-page">
         <div className="pd-container">
+          <nav className="pd-breadcrumb" aria-label="Breadcrumb">
+            <a href="/">Home</a>
+            <span>/</span>
+            <a href="/products">Products</a>
+            <span>/</span>
+            <span>{product.title}</span>
+          </nav>
+
           <div className="pd-hero">
+            {product.image && (
+              <div className="pd-image-gallery">
+                <div className="pd-image-main">
+                  <OptimizedImage
+                    src={product.image}
+                    alt={product.title}
+                    fill
+                    priority
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
+              </div>
+            )}
             <h2 className="pd-title">{product.title}</h2>
-            {product.description && <p className="pd-desc">{product.description}</p>}
+            {product.description && <p className="pd-desc">{product.description as string}</p>}
             <p className="pd-price">{formatCurrency(product.price, product.currency || "USD")}</p>
             <button className="pd-add-btn" onClick={handleAddToCart}>
               {uiStrings["AddToCart"]?.[language as Lang] ?? "Add to Cart"}
@@ -331,6 +398,13 @@ export default function ProductDetails() {
           </div>
         </div>
       </div>
+
+      <StickyAddToCart
+        productTitle={product.title}
+        price={product.price}
+        currency={product.currency || "USD"}
+        onAddToCart={handleAddToCart}
+      />
     </>
   );
 }

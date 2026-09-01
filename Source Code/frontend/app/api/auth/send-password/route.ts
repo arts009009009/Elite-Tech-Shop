@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 
+const JAVA_BACKEND = process.env.JAVA_BACKEND_URL || "http://localhost:3001";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log(`[BACKEND] ${new Date().toISOString()} | JAVA :3001 | POST /api/auth/send-password | calling`);
-    const res = await fetch("http://localhost:3001/api/auth/send-password", {
+    const res = await fetch(`${JAVA_BACKEND}/api/auth/send-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    console.log(`[BACKEND] ${new Date().toISOString()} | JAVA :3001 | POST /api/auth/send-password | ${res.ok ? 'OK' : 'FAIL'}`);
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {

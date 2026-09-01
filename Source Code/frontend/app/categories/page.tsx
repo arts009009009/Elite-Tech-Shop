@@ -22,8 +22,6 @@ export const metadata = generateCollectionMetadata(
 );
 
 export default async function CategoriesPage() {
-  console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/categories | called`);
-  console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=en | called`);
   const [catData, prodData] = await Promise.all([
     apiFetch<CategoriesResponse>("/api/categories", {
       timeout: 5000, retries: 3, fallback: { categories: [], total: 0 },
@@ -32,8 +30,6 @@ export default async function CategoriesPage() {
       timeout: 5000, retries: 3, fallback: { products: [], total: 0 },
     }),
   ]);
-  console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/categories | OK`);
-  console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=en | OK`);
 
   const categories = catData.categories ?? [];
   const counts: Record<string, number> = {};

@@ -133,10 +133,8 @@ export default function AdminDashboard() {
       const form = new FormData();
       form.set("password", clearPw);
       form.set("generated_password", clearPwGenerated);
-      console.log(`[BACKEND] ${new Date().toISOString()} | JAVA :3001 | POST /api/admin/login | called`);
       const res = await fetch("/api/admin/login", { method: "POST", body: form });
       const data = await res.json();
-      console.log(`[BACKEND] ${new Date().toISOString()} | JAVA :3001 | POST /api/admin/login | ${res.ok ? 'OK' : 'FAIL'}`);
       if (data.success) {
         if (typeof window !== "undefined") {
           localStorage.clear();

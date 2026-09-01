@@ -43,7 +43,16 @@ export default function WordPage() {
   const handleOpen = async () => {
     const result = await openFile(".txt,.html");
     if (result) {
-      if (editorRef.current) editorRef.current.innerHTML = result.content;
+      if (editorRef.current) {
+        // Sanitize: only allow safe HTML tags for a word processor
+        const sanitized = result.content
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+          .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+          .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "")
+          .replace(/<embed\b[^>]*>/gi, "")
+          .replace(/on\w+\s*=/gi, "data-blocked=");
+        editorRef.current.innerHTML = sanitized;
+      }
       setFilename(result.name);
       setTimeout(updateCounts, 50);
     }
