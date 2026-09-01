@@ -898,6 +898,19 @@ body.high-contrast {
   backdrop-filter: blur(8px);
 }
 
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.items-stretch { align-items: stretch; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.gap-4 { gap: 16px; }
+.w-full { width: 100%; }
+.text-center { text-align: center; }
+.text-sm { font-size: 14px; }
+.opacity-60 { opacity: 0.6; }
+
 /* ── Fluid Typography ── */
 :root { font-size: clamp(14px, 1.2vw, 18px); }
 
@@ -1817,4 +1830,46 @@ html[data-perf="low"] .theme-animated-pulse {
 }
 html[data-perf="low"] body.reduced-motion {
   animation: none !important;
+}
+
+/* ═══════════════════════════════════════════
+   Anti-Dark-Mode Extension Shield
+   ═══════════════════════════════════════════ */
+
+:root {
+  color-scheme: only dark;
+}
+
+.light-mode,
+body.light-mode {
+  color-scheme: only light;
+}
+
+[data-darkreader-inline-bgcolor],
+[data-darkreader-inline-bgimage],
+[data-darkreader-inline-color],
+[data-darkreader-inline-border],
+[data-darkreader-inline-border-bottom],
+[data-darkreader-inline-border-left],
+[data-darkreader-inline-border-right],
+[data-darkreader-inline-border-top],
+[data-darkreader-inline-boxshadow],
+[data-darkreader-inline-fill],
+[data-darkreader-inline-invert],
+[data-darkreader-inline-outline],
+[data-darkreader-inline-stroke] {
+  background-color: initial !important;
+  background-image: initial !important;
+  color: initial !important;
+  border-color: initial !important;
+  box-shadow: initial !important;
+  fill: initial !important;
+  outline-color: initial !important;
+  stroke: initial !important;
+}
+
+html[data-darkreader-mode],
+html[data-darkreader-scheme] {
+  background-color: initial !important;
+  color: initial !important;
 }
