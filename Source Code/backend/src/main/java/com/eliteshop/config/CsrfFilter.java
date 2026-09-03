@@ -52,7 +52,8 @@ public class CsrfFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (PUBLIC_PATHS.contains(request.getRequestURI())) {
+        String requestUri = request.getRequestURI();
+        if (requestUri != null && PUBLIC_PATHS.contains(requestUri)) {
             filterChain.doFilter(request, response);
             return;
         }
