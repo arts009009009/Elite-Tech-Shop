@@ -8,6 +8,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("null")
 class GlobalExceptionHandlerTest {
 
     private GlobalExceptionHandler handler;
