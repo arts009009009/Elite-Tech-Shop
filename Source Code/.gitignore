@@ -2,7 +2,6 @@
 
 # dependencies
 /node_modules
-frontend/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -33,7 +32,6 @@ pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-!.envrc
 
 # vercel
 .vercel
@@ -50,7 +48,3 @@ next-env.d.ts
 
 # Rust
 /backend/rust/target/
-
-# Nix
-result
-result-*
