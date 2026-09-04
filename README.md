@@ -223,7 +223,7 @@ docker-compose up --build
 
 ## 🏆 Hall of Fame
 
-First commenter gets immortalized → [Discussion #3](https://github.com/arts009009009/Elite-Tech-Shop/discussions/3)
+First commenter gets immortalized → [Hall of Fame](https://github.com/arts009009009/Elite-Tech-Shop/discussions/11)
 
 ---
 
