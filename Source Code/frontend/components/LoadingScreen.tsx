@@ -2,9 +2,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 export default function LoadingScreen({ minimumLoad = 1500 }: { minimumLoad?: number }) {
-  const [visible, setVisible] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(0);
   const done = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setVisible(true);
+  }, []);
 
   const finish = useCallback(() => {
     if (done.current) return;
@@ -35,7 +41,7 @@ export default function LoadingScreen({ minimumLoad = 1500 }: { minimumLoad?: nu
     return () => clearInterval(interval);
   }, []);
 
-  if (!visible) return null;
+  if (!mounted || !visible) return null;
 
   return (
     <div
