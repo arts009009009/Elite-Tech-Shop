@@ -1,12 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: "../",
-  },
 
-  reactCompiler: false,
+  // React Compiler (native Rust in Turbopack, Babel fallback)
+  reactCompiler: true,
 
+  // Controls auto-generation of AGENTS.md / CLAUDE.md
   agentRules: true,
 
   images: {
@@ -17,10 +16,6 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 14400,
     maximumResponseBody: 8 * 1024 * 1024,
     maximumDiskCacheSize: 256 * 1024 * 1024,
-    remotePatterns: [
-      { protocol: "https", hostname: "images.ctfassets.net" },
-      { protocol: "https", hostname: "**.contentful.com" },
-    ],
   },
 
   experimental: {
@@ -28,6 +23,22 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
       allowedOrigins: [],
     },
+
+    // Turbopack memory eviction strategy
+    turbopackMemoryEviction: "auto",
+
+    // Persistent filesystem cache between dev sessions
+    turbopackFileSystemCacheForDev: true,
+    turbopackFileSystemCacheForBuild: true,
+
+    // Native Rust React Compiler — no Babel plugin needed
+    turbopackRustReactCompiler: true,
+
+    // Tree-shaking optimizations
+    turbopackRemoveUnusedImports: true,
+    turbopackRemoveUnusedExports: true,
+    turbopackInferModuleSideEffects: true,
+    turbopackScopeHoisting: true,
   },
 
   async rewrites() {
@@ -140,8 +151,6 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
-          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:3001 http://localhost:3002 http://localhost:3003; frame-ancestors 'none';" },
         ],
       },
       {
