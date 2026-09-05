@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@oprogress/next": "^0.0.1",
-    "next": "16.4.0-canary.17",
+    "next": "16.4.0-canary.18",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "3.10.0",
@@ -22,7 +22,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.4.0-canary.17",
+    "eslint-config-next": "16.4.0-canary.18",
     "tailwindcss": "^4.3.3",
     "typescript": "7.0.2"
   }
