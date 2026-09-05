@@ -1,6 +1,14 @@
 package com.eliteshop;
 
-
+import com.eliteshop.controller.AuthController;
+import com.eliteshop.config.CsrfFilter;
+import com.eliteshop.repository.UserRepository;
+import com.eliteshop.repository.SessionRepository;
+import com.eliteshop.repository.PendingPasswordRepository;
+import com.eliteshop.model.UserDocument;
+import com.eliteshop.model.SessionDocument;
+import com.eliteshop.model.PendingPasswordDocument;
+import com.eliteshop.model.RegisterRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
