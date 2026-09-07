@@ -12,22 +12,43 @@ import VoiceSearch from "@/components/VoiceSearch";
 import { FlashSaleBanner } from "@/components/FlashSaleTimer";
 import { apiFetch } from "@/lib/api-fetch";
 import Recommendations from "@/components/Recommendations";
-import EdgeRecommendations from "@/components/EdgeRecommendations";
 
-type Lang = "en" | "ar" | "ru" | "fr" | "es";
-type Product = { id: number; title: string; price: number; currency: string; category: string; description?: string; image?: string };
+type Lang = "en" | "ar" | "ru" | "fr" | "es" | "de" | "zh" | "ja" | "pt" | "hi";
+type Product = {
+  id: number;
+  title: string;
+  price: number;
+  currency: string;
+  category: string;
+  description?: string;
+  image?: string;
+};
 
 const categories = [
-  { label: "All", value: "" },
-  { label: "Smartphones", value: "smartphones" },
-  { label: "Laptops", value: "laptops" },
+  { key: "All", value: "" },
+  { key: "Smartphones", value: "smartphones" },
+  { key: "Laptops", value: "laptops" },
 ];
 
-const gridItemStyle: React.CSSProperties = { flex: "1 1 23%", minWidth: 200, display: "flex" };
+const gridItemStyle: React.CSSProperties = {
+  flex: "1 1 23%",
+  minWidth: 200,
+  display: "flex",
+};
 
 const flashSales = [
-  { id: "flash-1", title: "MacBook Air M4 — Limited Time", discount: 15, endsAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() },
-  { id: "flash-2", title: "ROG Zephyrus G16 Deal", discount: 10, endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() },
+  {
+    id: "flash-1",
+    title: "MacBook Air M4 — Limited Time",
+    discount: 15,
+    endsAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: "flash-2",
+    title: "ROG Zephyrus G16 Deal",
+    discount: 10,
+    endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+  },
 ];
 
 export default function Home() {
@@ -45,17 +66,28 @@ export default function Home() {
   useEffect(() => {
     try {
       const cached = sessionStorage.getItem("products");
-      if (cached) { setProducts(JSON.parse(cached)); setLoading(false); return; }
+      if (cached) {
+        setProducts(JSON.parse(cached));
+        setLoading(false);
+        return;
+      }
     } catch {}
   }, []);
 
   const fetchProducts = useCallback(async (lang: string) => {
     try {
       setLoading(true);
-      const data = await apiFetch<{ products: Product[]; total: number }>(`/api/products?lang=${lang}`, { timeout: 5000, retries: 2, fallback: { products: [], total: 0 } });
-      console.log(`[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=${lang} | OK`);
+      const data = await apiFetch<{ products: Product[]; total: number }>(
+        `/api/products?lang=${lang}`,
+        { timeout: 5000, retries: 2, fallback: { products: [], total: 0 } },
+      );
+      console.log(
+        `[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=${lang} | OK`,
+      );
       setProducts(data.products || []);
-      try { sessionStorage.setItem("products", JSON.stringify(data.products || [])); } catch {}
+      try {
+        sessionStorage.setItem("products", JSON.stringify(data.products || []));
+      } catch {}
     } catch (err) {
       console.error("Failed to fetch products:", err);
     } finally {
@@ -78,60 +110,103 @@ export default function Home() {
       .filter((p) => p.title.toLowerCase().includes(q))
       .filter((p) => !category || p.category === category)
       .filter((p) => !maxPrice || p.price <= maxPrice);
-     
   }, [products, search, category, maxPrice]);
 
-  const containerStyle = useMemo(() => ({
-    paddingTop: 24,
-    paddingBottom: 24,
-    ...(isModern && theme !== 'light-mode' ? {
-      background: 'rgba(6, 6, 12, 0.92)',
-      borderRadius: 'var(--v2-radius, 14px)',
-      border: '1px solid var(--v2-border, rgba(120,200,255,0.14))',
-    } : {}),
-    ...(isModern && theme === 'light-mode' ? {
-      background: 'rgba(255, 255, 255, 0.95)',
-      borderRadius: 'var(--v2-radius, 14px)',
-      border: '1px solid rgba(0, 0, 0, 0.08)',
-    } : {}),
-  }), [isModern, theme]);
+  const containerStyle = useMemo(
+    () => ({
+      paddingTop: 24,
+      paddingBottom: 24,
+      ...(isModern && theme !== "light-mode"
+        ? {
+            background: "rgba(6, 6, 12, 0.92)",
+            borderRadius: "var(--v2-radius, 14px)",
+            border: "1px solid var(--v2-border, rgba(120,200,255,0.14))",
+          }
+        : {}),
+      ...(isModern && theme === "light-mode"
+        ? {
+            background: "rgba(255, 255, 255, 0.95)",
+            borderRadius: "var(--v2-radius, 14px)",
+            border: "1px solid rgba(0, 0, 0, 0.08)",
+          }
+        : {}),
+    }),
+    [isModern, theme],
+  );
 
   return (
     <>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}.spinner{width:40px;height:40px;border:4px solid #e2e8f0;border-top-color:var(--accent,#00d4ff);border-radius:50%;animation:spin .8s linear infinite}`}</style>
       <Navbar />
-      <div className={`container${theme === 'light-mode' ? ' light-mode-container' : ''}`} style={containerStyle}>
+      <div
+        className={`container${theme === "light-mode" ? " light-mode-container" : ""}`}
+        style={containerStyle}
+      >
         <div className="flex flex-col gap-4">
           {isModern && (
             <section className="hero" aria-label="Hero">
-              <p className="hero-kicker">VIRTUAL MARKET · {uiStrings["Cyberpunk"]?.[language as Lang] ?? "CYBERPUNK"}</p>
-              <div style={{ textAlign: 'center' }}>
-                <h1 className="hero-title">GEAR UP FOR THE GRID</h1>
+              <p className="hero-kicker">
+                VIRTUAL MARKET ·{" "}
+                {uiStrings["Cyberpunk"]?.[language as Lang] ?? "CYBERPUNK"}
+              </p>
+              <div style={{ textAlign: "center" }}>
+                <h1 className="hero-title">
+                  {uiStrings["GearUpForTheGrid"]?.[language as Lang] ?? "GEAR UP FOR THE GRID"}
+                </h1>
               </div>
               <p className="hero-sub">
-                {uiStrings["Products"]?.[language as Lang] ?? "Products"} — {uiStrings["Smartphones"]?.[language as Lang] ?? "Smartphones"} &amp; {uiStrings["Laptops"]?.[language as Lang] ?? "Laptops"}. 100 SKUs, 5 languages, specs on everything.
+                {uiStrings["HeroSubtitle"]?.[language as Lang] ?? "Products — Smartphones & Laptops. 100 SKUs, 5 languages, specs on everything."}
               </p>
               <div className="hero-cta">
-                <button className="btn btn-brand btn-lg" onClick={() => setCategory("smartphones")}>
-                  {uiStrings["Smartphones"]?.[language as Lang] ?? "Smartphones"}
+                <button
+                  className="btn btn-brand btn-lg"
+                  onClick={() => setCategory("smartphones")}
+                >
+                  {uiStrings["Smartphones"]?.[language as Lang] ??
+                    "Smartphones"}
                 </button>
-                <button className="btn btn-outline-brand btn-lg" onClick={() => setCategory("laptops")}>
+                <button
+                  className="btn btn-outline-brand btn-lg"
+                  onClick={() => setCategory("laptops")}
+                >
                   {uiStrings["Laptops"]?.[language as Lang] ?? "Laptops"}
                 </button>
               </div>
               <div className="hero-stats">
-                <div><strong>100</strong><span>Products</span></div>
-                <div><strong>5</strong><span>Languages</span></div>
-                <div><strong>3</strong><span>Slot Compare</span></div>
-                <div><strong>24/7</strong><span>Deals</span></div>
+                <div>
+                  <strong>100</strong>
+                  <span>{uiStrings["Products"]?.[language as Lang] ?? "Products"}</span>
+                </div>
+                <div>
+                  <strong>10</strong>
+                  <span>{uiStrings["Languages"]?.[language as Lang] ?? "Languages"}</span>
+                </div>
+                <div>
+                  <strong>3</strong>
+                  <span>{uiStrings["SlotCompare"]?.[language as Lang] ?? "Slot Compare"}</span>
+                </div>
+                <div>
+                  <strong>24/7</strong>
+                  <span>{uiStrings["Deals"]?.[language as Lang] ?? "Deals"}</span>
+                </div>
               </div>
             </section>
           )}
 
-          <div className={isModern ? "section-head" : "flex items-center justify-between flex-wrap gap-4"}>
+          <div
+            className={
+              isModern
+                ? "section-head"
+                : "flex items-center justify-between flex-wrap gap-4"
+            }
+          >
             <h2>{uiStrings["Products"][language as Lang] || "Products"}</h2>
             <div className="flex items-center gap-2">
-              <LiveSearch onSearch={(q) => setSearch(q ?? "")} results={liveResults} loading={isSearching} />
+              <LiveSearch
+                onSearch={(q) => setSearch(q ?? "")}
+                results={liveResults}
+                loading={isSearching}
+              />
               <VoiceSearch onResult={(text) => setSearch(text)} />
             </div>
           </div>
@@ -139,17 +214,28 @@ export default function Home() {
           <FlashSaleBanner sales={flashSales} />
 
           <div className="flex items-center gap-4 flex-wrap">
-            <select className="select" value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Filter by category">
+            <select
+              className="select"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              aria-label="Filter by category"
+            >
               {categories.map((item) => (
-                <option key={item.value} value={item.value}>{item.label}</option>
+                <option key={item.value} value={item.value}>
+                  {uiStrings[item.key]?.[language as Lang] ?? item.key}
+                </option>
               ))}
             </select>
 
             <input
               type="number"
               className="input"
-              placeholder={uiStrings["MaxPrice"][language as Lang] || "Max Price"}
-              onChange={(e) => setMaxPrice(e.target.value ? Number(e.target.value) : null)}
+              placeholder={
+                uiStrings["MaxPrice"][language as Lang] || "Max Price"
+              }
+              onChange={(e) =>
+                setMaxPrice(e.target.value ? Number(e.target.value) : null)
+              }
               value={maxPrice ?? ""}
               style={{ maxWidth: 150 }}
               aria-label="Maximum price filter"
@@ -158,17 +244,32 @@ export default function Home() {
 
           <div ref={parentRef}>
             {loading ? (
-              <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  padding: "40px",
+                }}
+              >
                 <div className="spinner" />
               </div>
             ) : (
               <div className="flex items-stretch gap-4 flex-wrap justify-center stagger-children">
                 {filteredProducts.map((product) => (
-                  <div key={product.id} className="w-full" style={gridItemStyle}>
+                  <div
+                    key={product.id}
+                    className="w-full"
+                    style={gridItemStyle}
+                  >
                     <ProductCard
                       product={product}
-                      addToCartLabel={uiStrings["AddToCart"][language as Lang] || "Add to Cart"}
-                      wishlistLabel={uiStrings["Wishlist"][language as Lang] || "Wishlist"}
+                      addToCartLabel={
+                        uiStrings["AddToCart"][language as Lang] ||
+                        "Add to Cart"
+                      }
+                      wishlistLabel={
+                        uiStrings["Wishlist"][language as Lang] || "Wishlist"
+                      }
                     />
                   </div>
                 ))}
@@ -178,12 +279,13 @@ export default function Home() {
 
           {!loading && (
             <p className="text-sm text-center opacity-60">
-              {uiStrings["Showing"][language as Lang] || "Showing"} <strong>{filteredProducts.length}</strong> {uiStrings["Products"][language as Lang] || "Products"}
+              {uiStrings["Showing"][language as Lang] || "Showing"}{" "}
+              <strong>{filteredProducts.length}</strong>{" "}
+              {uiStrings["Products"][language as Lang] || "Products"}
             </p>
           )}
 
           <Recommendations />
-          <EdgeRecommendations />
         </div>
       </div>
     </>

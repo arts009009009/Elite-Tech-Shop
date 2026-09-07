@@ -1,9 +1,11 @@
+"use client";
 import Link from "next/link";
+import { useEffect, useState, useMemo } from "react";
 import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/context/LanguageContext";
 import { apiFetch } from "@/lib/api-fetch";
-import { generateCollectionMetadata } from "@/lib/seo";
-import StructuredData from "@/components/StructuredData";
-import { generateBreadcrumbJsonLd } from "@/lib/seo";
+
+type Lang = "en" | "ar" | "ru" | "fr" | "es" | "de" | "zh" | "ja" | "pt" | "hi";
 
 type CategoriesResponse = { categories: string[]; total: number };
 type ProductsResponse = { products: { id: number; category?: string }[]; total: number };
@@ -13,57 +15,58 @@ const categoryEmojis: Record<string, string> = {
   smartphones: "📱",
 };
 
-export const revalidate = 120;
+export default function CategoriesPage() {
+  const { language } = useLanguage();
+  const [categories, setCategories] = useState<string[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
 
-export const metadata = generateCollectionMetadata(
-  "Categories",
-  "Browse products by category. Find the perfect laptop or smartphone.",
-  "/categories"
-);
+  const ui = useMemo(() => {
+    const strings = require("@/data/navbar-translate.json") as Record<string, Record<string, string>>;
+    return (key: string) => strings[key]?.[language] ?? key;
+  }, [language]);
 
-export default async function CategoriesPage() {
-  const [catData, prodData] = await Promise.all([
-    apiFetch<CategoriesResponse>("/api/categories", {
-      timeout: 5000, retries: 3, fallback: { categories: [], total: 0 },
-    }),
-    apiFetch<ProductsResponse>("/api/products?lang=en", {
-      timeout: 5000, retries: 3, fallback: { products: [], total: 0 },
-    }),
-  ]);
-
-  const categories = catData.categories ?? [];
-  const counts: Record<string, number> = {};
-  for (const p of prodData.products ?? []) {
-    const cat = (p.category as string) || "uncategorized";
-    counts[cat] = (counts[cat] || 0) + 1;
-  }
-
-  const breadcrumbLd = generateBreadcrumbJsonLd([
-    { name: "Home", url: "/" },
-    { name: "Categories", url: "/categories" },
-  ]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [catData, prodData] = await Promise.all([
+          apiFetch<CategoriesResponse>("/api/categories", { timeout: 5000, retries: 3, fallback: { categories: [], total: 0 } }),
+          apiFetch<ProductsResponse>(`/api/products?lang=${language}`, { timeout: 5000, retries: 3, fallback: { products: [], total: 0 } }),
+        ]);
+        const cats = catData.categories ?? [];
+        setCategories(cats);
+        const c: Record<string, number> = {};
+        for (const p of prodData.products ?? []) {
+          const cat = (p.category as string) || "uncategorized";
+          c[cat] = (c[cat] || 0) + 1;
+        }
+        setCounts(c);
+      } catch {} finally { setLoading(false); }
+    };
+    load();
+  }, [language]);
 
   return (
     <>
       <Navbar />
-      <StructuredData data={breadcrumbLd} />
       <div className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <h2>Categories ({categories.length})</h2>
+            <h2>{ui("Categories")} ({categories.length})</h2>
             <Link href="/products" prefetch style={{ color: "var(--accent, #00d4ff)", textDecoration: "underline", fontSize: 14 }}>
-              All Products →
+              {ui("AllProducts")}
             </Link>
           </div>
 
-          <div style={{ fontSize: 12, color: "#888" }}>
-            live from Rust backend • ISR enabled (revalidate: 120s)
-          </div>
-
-          {categories.length === 0 ? (
+          {loading ? (
             <div style={{ textAlign: "center", padding: 40, color: "#888" }}>
-              <p>No categories available. The Rust backend may be starting up.</p>
-              <p style={{ fontSize: 12, marginTop: 8 }}>Try refreshing in a few seconds.</p>
+              <p>{ui("TryRefreshing")}</p>
+            </div>
+          ) : categories.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "#888" }}>
+              <p>{ui("NoCategoriesAvailable")}</p>
+              <p style={{ fontSize: 12, marginTop: 8 }}>{ui("TryRefreshing")}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -86,8 +89,8 @@ export default async function CategoriesPage() {
                 >
                   <span style={{ fontSize: 32 }}>{categoryEmojis[cat] || "📦"}</span>
                   <div>
-                    <h3 style={{ fontSize: 18, fontWeight: 600, textTransform: "capitalize" }}>{cat}</h3>
-                    <p style={{ fontSize: 14, color: "#888" }}>{counts[cat] || 0} products</p>
+                    <h3 style={{ fontSize: 18, fontWeight: 600, textTransform: "capitalize" }}>{ui(cat)}</h3>
+                    <p style={{ fontSize: 14, color: "#888" }}>{ui("XProducts").replace("{count}", String(counts[cat] || 0))}</p>
                   </div>
                 </Link>
               ))}
