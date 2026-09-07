@@ -164,7 +164,7 @@ export default function ThemeCustomizer() {
             <p style={{ fontSize: "12px", fontWeight: 600, textTransform: "uppercase", margin: "0 0 10px 0", opacity: 0.7, letterSpacing: "0.08em" }}>
               {t("Profile")}
             </p>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               {(["default", "hacker", "developer", "user"] as ThemeProfile[]).map((p) => {
                 const isActive = profile === p;
                 const pt = PROFILE_THEMES[p];
@@ -173,12 +173,11 @@ export default function ThemeCustomizer() {
                     key={p}
                     onClick={() => setProfile(p)}
                     style={{
-                      flex: 1,
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
                       gap: "4px",
-                      padding: "10px 6px",
+                      padding: "12px 8px",
                       border: isActive ? `2px solid ${pt.accentColor}` : "1px solid rgba(255,255,255,0.12)",
                       borderRadius: "12px",
                       background: isActive ? `linear-gradient(135deg, ${pt.backgroundColor}, rgba(0,0,0,0.6))` : "rgba(255,255,255,0.03)",
@@ -190,12 +189,12 @@ export default function ThemeCustomizer() {
                     }}
                   >
                     {p === "default" ? (
-                      <Image src="/elitetech.png" alt="Default" width={20} height={20} style={{ objectFit: "contain" }} />
+                      <Image src="/elitetech.png" alt="Default" width={24} height={24} style={{ objectFit: "contain" }} />
                     ) : (
-                      <span style={{ fontSize: "20px" }}>{PROFILE_ICONS[p]}</span>
+                      <span style={{ fontSize: "24px" }}>{PROFILE_ICONS[p]}</span>
                     )}
-                    <span style={{ fontWeight: 600, fontSize: "12px" }}>{t(PROFILE_NAME_KEYS[p])}</span>
-                    <span style={{ fontSize: "9px", opacity: 0.6, lineHeight: 1.2 }}>{t(PROFILE_DESC_KEYS[p])}</span>
+                    <span style={{ fontWeight: 600, fontSize: "12px", letterSpacing: "0.04em" }}>{t(PROFILE_NAME_KEYS[p])}</span>
+                    <span style={{ fontSize: "10px", opacity: 0.55, lineHeight: 1.3, textAlign: "center" }}>{t(PROFILE_DESC_KEYS[p])}</span>
                   </button>
                 );
               })}
