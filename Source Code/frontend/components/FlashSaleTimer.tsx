@@ -1,5 +1,9 @@
 "use client";
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, useMemo } from "react";
+import { useLanguage } from "@/context/LanguageContext";
+import uiStringsJson from "@/data/navbar-translate.json";
+
+const uiStrings = uiStringsJson as Record<string, Record<string, string>>;
 
 type FlashSale = {
   id: string;
@@ -31,6 +35,8 @@ function FlashSaleBanner({ sales }: { sales: FlashSale[] }) {
 }
 
 function FlashSaleCard({ sale }: { sale: FlashSale }) {
+  const { language } = useLanguage();
+  const offLabel = useMemo(() => uiStrings["OFF"]?.[language] ?? "OFF", [language]);
   const [time, setTime] = useState<{ hours: number; minutes: number; seconds: number; expired: boolean }>({ hours: 0, minutes: 0, seconds: 0, expired: true });
 
   useEffect(() => {
@@ -53,7 +59,7 @@ function FlashSaleCard({ sale }: { sale: FlashSale }) {
       gap: 6,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontWeight: 700, fontSize: 14, color: "#ff0064" }}>⚡ {sale.discount}% OFF</span>
+        <span style={{ fontWeight: 700, fontSize: 14, color: "#ff0064" }}>⚡ {sale.discount}% {offLabel}</span>
       </div>
       <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>{sale.title}</p>
       <div style={{ display: "flex", gap: 4, fontSize: 12, fontWeight: 700 }}>

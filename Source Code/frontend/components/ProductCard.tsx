@@ -7,7 +7,6 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useThemeCustomizer } from "@/context/ThemeCustomizerContext";
 import uiStringsJson from "@/data/navbar-translate.json";
 import { formatCurrency } from "@/lib/utils";
-import OptimizedImage from "@/components/OptimizedImage";
 
 const uiStrings = uiStringsJson as Record<string, Record<string, string>>;
 
@@ -67,30 +66,31 @@ function ProductCardComponent({ product, addToCartLabel, wishlistLabel }: Props)
 
   const priceColor = isClassic ? "#39FF14" : "var(--v2-green, #39FF14)";
   const cartBtnStyle = isClassic
-    ? { padding: "4px 12px", fontSize: 14, border: "1px solid var(--accent, #A020F0)", background: "var(--accent, #A020F0)", color: "#fff", borderRadius: 6, cursor: "pointer" as const, fontWeight: 500 }
-    : { padding: "4px 12px", fontSize: 14, border: "1px solid var(--accent, #00d4ff)", background: "var(--accent, #00d4ff)", color: "#0a0a0f", borderRadius: 8, cursor: "pointer" as const, fontWeight: 500 };
+    ? { padding: "4px 12px", fontSize: 14, border: "1px solid var(--accent, #A020F0)", background: "var(--accent, #A020F0)", color: "#fff", borderRadius: 6, cursor: "pointer" as const, fontWeight: 500, whiteSpace: "nowrap" as const }
+    : { padding: "4px 12px", fontSize: 14, border: "1px solid var(--accent, #00d4ff)", background: "var(--accent, #00d4ff)", color: "#0a0a0f", borderRadius: 8, cursor: "pointer" as const, fontWeight: 500, whiteSpace: "nowrap" as const };
   const wishBtnStyle = isClassic
-    ? { padding: "4px 12px", fontSize: 14, border: "1px solid var(--accent, #A020F0)", background: "transparent", color: "var(--accent, #A020F0)", borderRadius: 6, cursor: "pointer" as const }
-    : { padding: "4px 12px", fontSize: 14, border: "1px solid var(--accent, #00d4ff)", background: "transparent", color: "var(--accent, #00d4ff)", borderRadius: 8, cursor: "pointer" as const };
+    ? { padding: "4px 12px", fontSize: 14, border: "1px solid var(--accent, #A020F0)", background: "transparent", color: "var(--accent, #A020F0)", borderRadius: 6, cursor: "pointer" as const, whiteSpace: "nowrap" as const }
+    : { padding: "4px 12px", fontSize: 14, border: "1px solid var(--accent, #00d4ff)", background: "transparent", color: "var(--accent, #00d4ff)", borderRadius: 8, cursor: "pointer" as const, whiteSpace: "nowrap" as const };
 
   return (
     <div className={isClassic ? "contain-content" : "hover-lift contain-content"} style={cardStyle}>
       <div style={{ padding: 16, display: "flex", flexDirection: "column", flex: 1 }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, flex: 1 }}>
-          {product.image && (
-            <div style={{ width: "100%", height: 128, borderRadius: 8, overflow: "hidden" }}>
-              <OptimizedImage
-                src={product.image}
-                alt={product.title}
-                width={300}
-                height={128}
-                style={{ objectFit: "cover", width: "100%", height: "100%" }}
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              />
-            </div>
-          )}
           <p style={{ fontWeight: 700, fontSize: 16, margin: 0, color: "var(--v2-text, #ffffff)" }}>{product.title}</p>
           <p className={isClassic ? "" : "animate-neon-pulse"} style={{ color: priceColor, fontWeight: 600, margin: 0, textShadow: isClassic ? "none" : undefined }}>{formattedPrice}</p>
+          {product.image && (
+            <div
+              style={{
+                width: "100%",
+                height: 128,
+                background: "#f7fafc",
+                borderRadius: 8,
+                backgroundImage: product.image.startsWith("http") ? `url(${product.image})` : "none",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            />
+          )}
           <div style={{ display: "flex", flexDirection: "row", gap: 8, width: "100%", marginTop: "auto" }}>
             <button
               onClick={() => addToCart(product)}
@@ -107,17 +107,18 @@ function ProductCardComponent({ product, addToCartLabel, wishlistLabel }: Props)
             <button
               onClick={addToCompare}
               style={{
-                padding: "4px 8px",
+                padding: "4px 10px",
                 fontSize: 12,
                 border: `1px solid ${isClassic ? "var(--accent, #A020F0)" : "#A020F0"}`,
                 background: "transparent",
                 color: isClassic ? "var(--accent, #A020F0)" : "#A020F0",
                 borderRadius: 6,
                 cursor: "pointer",
+                whiteSpace: "nowrap",
               }}
               title={ui("Compare")}
             >
-              vs
+              {ui("Vs")}
             </button>
           </div>
         </div>
