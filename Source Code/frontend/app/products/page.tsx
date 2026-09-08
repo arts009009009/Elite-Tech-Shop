@@ -1,9 +1,11 @@
+"use client";
 import Link from "next/link";
+import { useEffect, useState, useMemo } from "react";
 import Navbar from "@/components/Navbar";
+import { useLanguage } from "@/context/LanguageContext";
 import { apiFetch } from "@/lib/api-fetch";
-import { generateCollectionMetadata } from "@/lib/seo";
-import StructuredData from "@/components/StructuredData";
-import { generateBreadcrumbJsonLd } from "@/lib/seo";
+
+type Lang = "en" | "ar" | "ru" | "fr" | "es" | "de" | "zh" | "ja" | "pt" | "hi";
 
 type Product = {
   id: number;
@@ -18,49 +20,50 @@ type ProductsApiResponse = {
   total: number;
 };
 
-const FALLBACK_PRODUCTS: Product[] = [];
+export default function ProductsPage() {
+  const { language } = useLanguage();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export const revalidate = 60;
+  const ui = useMemo(() => {
+    const strings = require("@/data/navbar-translate.json") as Record<string, Record<string, string>>;
+    return (key: string) => strings[key]?.[language] ?? key;
+  }, [language]);
 
-export const metadata = generateCollectionMetadata(
-  "Products",
-  "Browse our full catalog of premium electronics, laptops, and smartphones.",
-  "/products"
-);
-
-export default async function ProductsPage() {
-  const data = await apiFetch<ProductsApiResponse>(
-    "/api/products?lang=en",
-    { timeout: 5000, retries: 3, fallback: { products: FALLBACK_PRODUCTS, total: 0 } },
-  );
-  const products = data.products ?? FALLBACK_PRODUCTS;
-
-  const breadcrumbLd = generateBreadcrumbJsonLd([
-    { name: "Home", url: "/" },
-    { name: "Products", url: "/products" },
-  ]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await apiFetch<ProductsApiResponse>(
+          `/api/products?lang=${language}`,
+          { timeout: 5000, retries: 3, fallback: { products: [], total: 0 } },
+        );
+        setProducts(data.products ?? []);
+      } catch {} finally { setLoading(false); }
+    };
+    load();
+  }, [language]);
 
   return (
     <>
       <Navbar />
-      <StructuredData data={breadcrumbLd} />
       <div className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <h2>Products ({products.length})</h2>
+            <h2>{ui("Products")} ({products.length})</h2>
             <Link href="/categories" prefetch style={{ color: "var(--accent, #00d4ff)", textDecoration: "underline", fontSize: 14 }}>
-              Browse Categories →
+              {ui("BrowseCategories")}
             </Link>
           </div>
 
-          <div style={{ fontSize: 12, color: "#888" }}>
-            live from Rust backend • ISR enabled (revalidate: 60s)
-          </div>
-
-          {products.length === 0 ? (
+          {loading ? (
             <div style={{ textAlign: "center", padding: 40, color: "#888" }}>
-              <p>No products available. The Rust backend may be starting up.</p>
-              <p style={{ fontSize: 12, marginTop: 8 }}>Try refreshing in a few seconds.</p>
+              <p>{ui("TryRefreshing")}</p>
+            </div>
+          ) : products.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "#888" }}>
+              <p>{ui("NoProductsAvailable")}</p>
+              <p style={{ fontSize: 12, marginTop: 8 }}>{ui("TryRefreshing")}</p>
             </div>
           ) : (
             <div className="flex items-stretch gap-4 flex-wrap justify-center">
@@ -89,7 +92,7 @@ export default async function ProductsPage() {
                   </p>
                   {p.category && (
                     <span style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
-                      {p.category}
+                      {ui(p.category)}
                     </span>
                   )}
                 </Link>
