@@ -63,7 +63,10 @@ export async function removeFromWishlist(productId: number): Promise<ServerActio
   }
 
   try {
-    const res = await fetch(`${GO_BACKEND}/api/wishlist/${productId}`, {
+    const endpoint = new URL("/api/wishlist/", GO_BACKEND);
+    endpoint.pathname = `${endpoint.pathname.replace(/\/$/, "")}/${String(productId)}`;
+
+    const res = await fetch(endpoint.toString(), {
       method: "DELETE",
     });
 
