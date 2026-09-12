@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 const GO_BACKEND = process.env.GO_BACKEND_URL || "http://localhost:3003";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
+function isSafeOrderId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(value);
+}
+
 export async function POST(request: Request) {
   if (!STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
@@ -36,8 +40,8 @@ export async function POST(request: Request) {
         const paymentIntent = event.data.object;
         const orderId = paymentIntent.metadata?.orderId;
 
-        if (orderId) {
-          await fetch(`${GO_BACKEND}/api/orders/${orderId}`, {
+        if (isSafeOrderId(orderId)) {
+          await fetch(`${GO_BACKEND}/api/orders/${encodeURIComponent(orderId)}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -53,8 +57,8 @@ export async function POST(request: Request) {
         const failedIntent = event.data.object;
         const failOrderId = failedIntent.metadata?.orderId;
 
-        if (failOrderId) {
-          await fetch(`${GO_BACKEND}/api/orders/${failOrderId}`, {
+        if (isSafeOrderId(failOrderId)) {
+          await fetch(`${GO_BACKEND}/api/orders/${encodeURIComponent(failOrderId)}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: "payment_failed" }),
