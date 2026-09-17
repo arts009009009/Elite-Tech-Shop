@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import { useRef, useState, useCallback } from "react";
@@ -14,7 +13,7 @@ export default function WordPage() {
   const [fontSize, setFontSize] = useState(16);
 
   // ============================================================
-  // WORD / CHARACTER COUNTER
+  // WORD / CHARACTER COUNT
   // ============================================================
 
   const updateCounts = useCallback(() => {
@@ -40,103 +39,124 @@ export default function WordPage() {
   // HTML SANITIZATION
   // ============================================================
   //
-  // Do NOT use regular expressions to parse/remove HTML.
+  // IMPORTANT:
+  // Do not use regular expressions to parse or sanitize HTML.
   //
-  // DOMParser lets the browser parse the HTML properly, after which
-  // dangerous elements and attributes can be removed safely.
+  // DOMParser creates a real DOM tree. Dangerous elements and
+  // attributes are removed from the parsed DOM before the content
+  // is inserted into the contentEditable editor.
   //
   // ============================================================
 
   const sanitizeHtml = (html: string): string => {
     const parser = new DOMParser();
 
-    const document = parser.parseFromString(
+    const parsedDocument = parser.parseFromString(
       html,
       "text/html"
     );
 
     // ----------------------------------------------------------
-    // Remove dangerous HTML elements
+    // Remove elements that can execute JavaScript or introduce
+    // active/external content.
     // ----------------------------------------------------------
 
-    const dangerousElements = document.querySelectorAll(
-      [
-        "script",
-        "iframe",
-        "object",
-        "embed",
-        "applet",
-        "form",
-        "base",
-        "meta",
-        "link",
-        "style",
-        "noscript",
-      ].join(",")
-    );
+    const dangerousTags = [
+      "script",
+      "iframe",
+      "object",
+      "embed",
+      "applet",
+      "form",
+      "base",
+      "meta",
+      "link",
+      "style",
+      "noscript",
+      "template",
+    ];
 
-    dangerousElements.forEach((element) => {
-      element.remove();
-    });
+    const selector = dangerousTags.join(",");
+
+    parsedDocument
+      .querySelectorAll(selector)
+      .forEach((element) => {
+        element.remove();
+      });
 
     // ----------------------------------------------------------
-    // Remove dangerous attributes
+    // Remove dangerous attributes from remaining elements.
     // ----------------------------------------------------------
 
-    const allElements = document.querySelectorAll("*");
+    parsedDocument
+      .querySelectorAll("*")
+      .forEach((element) => {
+        const attributes = Array.from(element.attributes);
 
-    allElements.forEach((element) => {
-      const attributes = Array.from(element.attributes);
+        attributes.forEach((attribute) => {
+          const name = attribute.name.toLowerCase();
+          const value = attribute.value.trim();
 
-      attributes.forEach((attribute) => {
-        const attributeName = attribute.name.toLowerCase();
-        const attributeValue = attribute.value.trim();
+          // Remove inline event handlers such as:
+          // onclick
+          // onerror
+          // onload
+          // onmouseover
+          // onfocus
+          // etc.
+          if (name.startsWith("on")) {
+            element.removeAttribute(attribute.name);
+            return;
+          }
 
-        // ------------------------------------------------------
-        // Remove inline JavaScript event handlers:
-        //
-        // onclick
-        // onerror
-        // onload
-        // onmouseover
-        // onfocus
-        // etc.
-        // ------------------------------------------------------
+          // ----------------------------------------------------
+          // Remove dangerous URL schemes.
+          // ----------------------------------------------------
 
-        if (attributeName.startsWith("on")) {
-          element.removeAttribute(attribute.name);
-          return;
-        }
-
-        // ------------------------------------------------------
-        // Remove dangerous URL schemes.
-        // ------------------------------------------------------
-
-        if (
-          [
+          const urlAttributes = new Set([
             "href",
             "src",
             "action",
             "formaction",
             "poster",
             "background",
-          ].includes(attributeName)
-        ) {
-          if (/^(javascript|vbscript|data):/i.test(attributeValue)) {
-            element.removeAttribute(attribute.name);
-          }
-        }
-      });
-    });
+          ]);
 
-    return document.body.innerHTML;
+          if (urlAttributes.has(name)) {
+            try {
+              const url = new URL(
+                value,
+                window.location.origin
+              );
+
+              const protocol = url.protocol.toLowerCase();
+
+              if (
+                protocol === "javascript:" ||
+                protocol === "vbscript:" ||
+                protocol === "data:"
+              ) {
+                element.removeAttribute(attribute.name);
+              }
+            } catch {
+              // Invalid URLs are safer to remove.
+              element.removeAttribute(attribute.name);
+            }
+          }
+        });
+      });
+
+    return parsedDocument.body.innerHTML;
   };
 
   // ============================================================
-  // EXECUTE EDITOR COMMAND
+  // EDITOR COMMAND
   // ============================================================
 
-  const execCmd = (command: string, value?: string) => {
+  const execCmd = (
+    command: string,
+    value?: string
+  ) => {
     const editor = editorRef.current;
 
     if (!editor) {
@@ -145,7 +165,11 @@ export default function WordPage() {
 
     editor.focus();
 
-    document.execCommand(command, false, value);
+    document.execCommand(
+      command,
+      false,
+      value
+    );
 
     updateCounts();
   };
@@ -157,9 +181,7 @@ export default function WordPage() {
   const handleKeyDown = (
     event: React.KeyboardEvent<HTMLDivElement>
   ) => {
-    const modifier = event.ctrlKey || event.metaKey;
-
-    if (!modifier) {
+    if (!event.ctrlKey && !event.metaKey) {
       return;
     }
 
@@ -204,11 +226,10 @@ export default function WordPage() {
         return;
       }
 
-      // --------------------------------------------------------
-      // Sanitize imported HTML before inserting it into the DOM.
-      // --------------------------------------------------------
-
-      const sanitizedHtml = sanitizeHtml(result.content);
+      // Safely parse and sanitize imported HTML.
+      const sanitizedHtml = sanitizeHtml(
+        result.content
+      );
 
       editor.innerHTML = sanitizedHtml;
 
@@ -216,7 +237,10 @@ export default function WordPage() {
 
       updateCounts();
     } catch (error) {
-      console.error("Failed to open file:", error);
+      console.error(
+        "Failed to open file:",
+        error
+      );
     }
   };
 
@@ -231,10 +255,11 @@ export default function WordPage() {
       return;
     }
 
-    const name = filename || "document.html";
+    const documentName =
+      filename || "document.html";
 
     saveFile(
-      name,
+      documentName,
       editor.innerHTML,
       "text/html"
     );
@@ -251,9 +276,9 @@ export default function WordPage() {
 
     setFontSize(size);
 
-    // document.execCommand("fontSize") uses values 1-7
-    // rather than pixel values.
-    let commandSize = "7";
+    // document.execCommand("fontSize") uses
+    // legacy values from 1 to 7.
+    let commandSize = "4";
 
     switch (size) {
       case 12:
@@ -281,7 +306,10 @@ export default function WordPage() {
         break;
     }
 
-    execCmd("fontSize", commandSize);
+    execCmd(
+      "fontSize",
+      commandSize
+    );
   };
 
   // ============================================================
@@ -293,7 +321,7 @@ export default function WordPage() {
     : "Untitled - Word";
 
   // ============================================================
-  // UI
+  // RENDER
   // ============================================================
 
   return (
@@ -303,8 +331,10 @@ export default function WordPage() {
           display: "flex",
           flexDirection: "column",
           height: "100%",
-          background: "var(--bg, #0a0a0f)",
-          color: "var(--text, #e0e0e0)",
+          background:
+            "var(--bg, #0a0a0f)",
+          color:
+            "var(--text, #e0e0e0)",
         }}
       >
         {/* ================================================== */}
@@ -317,7 +347,8 @@ export default function WordPage() {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "6px 12px",
-            background: "var(--card-bg, #111)",
+            background:
+              "var(--card-bg, #111)",
             borderBottom:
               "1px solid var(--border, #333)",
           }}
@@ -365,7 +396,8 @@ export default function WordPage() {
             alignItems: "center",
             gap: 8,
             padding: "4px 12px",
-            background: "var(--card-bg, #111)",
+            background:
+              "var(--card-bg, #111)",
             borderBottom:
               "1px solid var(--border, #333)",
           }}
@@ -435,16 +467,30 @@ export default function WordPage() {
               fontSize: 12,
             }}
           >
-            <option value={12}>12px</option>
-            <option value={16}>16px</option>
-            <option value={20}>20px</option>
-            <option value={24}>24px</option>
-            <option value={32}>32px</option>
+            <option value={12}>
+              12px
+            </option>
+
+            <option value={16}>
+              16px
+            </option>
+
+            <option value={20}>
+              20px
+            </option>
+
+            <option value={24}>
+              24px
+            </option>
+
+            <option value={32}>
+              32px
+            </option>
           </select>
         </div>
 
         {/* ================================================== */}
-        {/* EDITOR AREA */}
+        {/* EDITOR */}
         {/* ================================================== */}
 
         <div
@@ -462,6 +508,7 @@ export default function WordPage() {
             onInput={updateCounts}
             role="textbox"
             aria-label="Document editor"
+            aria-multiline="true"
             spellCheck
             style={{
               minHeight: 400,
@@ -516,9 +563,12 @@ export default function WordPage() {
 // ============================================================
 
 const btnStyle: React.CSSProperties = {
-  background: "var(--bg, #0a0a0f)",
-  color: "var(--text, #e0e0e0)",
-  border: "1px solid var(--border, #333)",
+  background:
+    "var(--bg, #0a0a0f)",
+  color:
+    "var(--text, #e0e0e0)",
+  border:
+    "1px solid var(--border, #333)",
   borderRadius: 4,
   padding: "3px 12px",
   fontSize: 12,
@@ -527,8 +577,10 @@ const btnStyle: React.CSSProperties = {
 
 const toolBtn: React.CSSProperties = {
   background: "transparent",
-  color: "var(--text, #e0e0e0)",
-  border: "1px solid var(--border, #333)",
+  color:
+    "var(--text, #e0e0e0)",
+  border:
+    "1px solid var(--border, #333)",
   borderRadius: 4,
   width: 28,
   height: 28,
@@ -538,43 +590,3 @@ const toolBtn: React.CSSProperties = {
   cursor: "pointer",
   fontSize: 13,
 };
-```
-
-### The important fix
-
-Your old code was doing HTML sanitization with:
-
-```tsx
-.replace(/<script.../)
-.replace(/<iframe.../)
-.replace(/<object.../)
-```
-
-That is what CodeQL was complaining about.
-
-The new version parses the document:
-
-```tsx
-const parser = new DOMParser();
-
-const document = parser.parseFromString(
-  html,
-  "text/html"
-);
-```
-
-and then removes the dangerous nodes:
-
-```tsx
-document
-  .querySelectorAll(
-    "script, iframe, object, embed, applet, form, base, meta, link, style, noscript"
-  )
-  .forEach((element) => element.remove());
-```
-
-It also removes event handlers such as `onclick`, `onerror`, and `onload`, plus dangerous `javascript:`/`data:` URLs.
-
-**So this should address the specific CodeQL `Bad HTML filtering regexp` finding without changing your Next.js `.tsx` architecture.**
-
-One thing to keep in mind: if this project is intended to accept **arbitrary HTML from untrusted users**, I'd recommend using a dedicated sanitizer such as DOMPurify rather than maintaining your own allow/block list.
