@@ -25,6 +25,11 @@ export async function POST(request: Request) {
       return jsonBadRequest("Order ID is required");
     }
 
+    const normalizedOrderId = orderId.trim();
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(normalizedOrderId)) {
+      return jsonBadRequest("Invalid order ID format");
+    }
+
     const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
     if (STRIPE_SECRET_KEY) {
@@ -64,7 +69,11 @@ export async function POST(request: Request) {
     const demoPaymentId = `demo_pay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     try {
-      await fetch(`${GO_BACKEND}/api/orders/${orderId}`, {
+      const orderUpdateUrl = new URL(
+        `/api/orders/${encodeURIComponent(normalizedOrderId)}`,
+        GO_BACKEND
+      );
+      await fetch(orderUpdateUrl.toString(), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "paid", paymentId: demoPaymentId }),

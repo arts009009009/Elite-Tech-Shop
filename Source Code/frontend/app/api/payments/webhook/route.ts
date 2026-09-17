@@ -23,14 +23,20 @@ export async function POST(request: Request) {
     // Verify Stripe signature using timing-safe comparison
     const expectedSig = STRIPE_WEBHOOK_SECRET;
     if (!expectedSig) {
-      return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Webhook secret not configured" },
+        { status: 500 }
+      );
     }
 
     // In production, use stripe.webhooks.constructEvent for full verification
     // const event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
     // For now, verify the signature format at minimum
     if (!signature.startsWith("v1=")) {
-      return NextResponse.json({ error: "Invalid signature format" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid signature format" },
+        { status: 400 }
+      );
     }
 
     const event = JSON.parse(body);
@@ -41,7 +47,11 @@ export async function POST(request: Request) {
         const orderId = paymentIntent.metadata?.orderId;
 
         if (isValidOrderId(orderId)) {
-          const backendUrl = new URL(`/api/orders/${encodeURIComponent(orderId)}`, GO_BACKEND);
+          const backendUrl = new URL(
+            `/api/orders/${encodeURIComponent(orderId)}`,
+            GO_BACKEND
+          );
+
           await fetch(backendUrl.toString(), {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -51,6 +61,7 @@ export async function POST(request: Request) {
             }),
           });
         }
+
         break;
       }
 
@@ -59,13 +70,20 @@ export async function POST(request: Request) {
         const failOrderId = failedIntent.metadata?.orderId;
 
         if (isValidOrderId(failOrderId)) {
-          const backendUrl = new URL(`/api/orders/${encodeURIComponent(failOrderId)}`, GO_BACKEND);
+          const backendUrl = new URL(
+            `/api/orders/${encodeURIComponent(failOrderId)}`,
+            GO_BACKEND
+          );
+
           await fetch(backendUrl.toString(), {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "payment_failed" }),
+            body: JSON.stringify({
+              status: "payment_failed",
+            }),
           });
         }
+
         break;
       }
 
@@ -75,6 +93,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true });
   } catch {
-    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Webhook processing failed" },
+      { status: 500 }
+    );
   }
 }
