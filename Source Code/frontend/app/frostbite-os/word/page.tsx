@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import { useRef, useState, useCallback } from "react";
@@ -43,9 +42,9 @@ export default function WordPage() {
   // IMPORTANT:
   // Do not use regular expressions to parse or sanitize HTML.
   //
-  // DOMParser creates a real DOM tree. We then explicitly remove
-  // dangerous elements and attributes before inserting the result
-  // into the contentEditable editor.
+  // DOMParser creates a real DOM tree. Dangerous elements and
+  // attributes are removed from the parsed DOM before the content
+  // is inserted into the contentEditable editor.
   //
   // ============================================================
 
@@ -77,9 +76,7 @@ export default function WordPage() {
       "template",
     ];
 
-    const selector = dangerousTags
-      .map((tag) => tag)
-      .join(",");
+    const selector = dangerousTags.join(",");
 
     parsedDocument
       .querySelectorAll(selector)
@@ -88,7 +85,7 @@ export default function WordPage() {
       });
 
     // ----------------------------------------------------------
-    // Remove dangerous attributes from every remaining element.
+    // Remove dangerous attributes from remaining elements.
     // ----------------------------------------------------------
 
     parsedDocument
@@ -100,16 +97,13 @@ export default function WordPage() {
           const name = attribute.name.toLowerCase();
           const value = attribute.value.trim();
 
-          // Remove every inline event handler:
-          //
+          // Remove inline event handlers such as:
           // onclick
           // onerror
           // onload
           // onmouseover
           // onfocus
-          // onmouseenter
           // etc.
-          //
           if (name.startsWith("on")) {
             element.removeAttribute(attribute.name);
             return;
@@ -191,7 +185,9 @@ export default function WordPage() {
       return;
     }
 
-    switch (event.key.toLowerCase()) {
+    const key = event.key.toLowerCase();
+
+    switch (key) {
       case "b":
         event.preventDefault();
         execCmd("bold");
@@ -230,10 +226,7 @@ export default function WordPage() {
         return;
       }
 
-      // --------------------------------------------------------
       // Safely parse and sanitize imported HTML.
-      // --------------------------------------------------------
-
       const sanitizedHtml = sanitizeHtml(
         result.content
       );
@@ -320,7 +313,7 @@ export default function WordPage() {
   };
 
   // ============================================================
-  // WINDOW TITLE
+  // TITLE
   // ============================================================
 
   const title = filename
@@ -345,7 +338,7 @@ export default function WordPage() {
         }}
       >
         {/* ================================================== */}
-        {/* FILE BAR */}
+        {/* TOP BAR */}
         {/* ================================================== */}
 
         <div
@@ -394,7 +387,7 @@ export default function WordPage() {
         </div>
 
         {/* ================================================== */}
-        {/* FORMATTING BAR */}
+        {/* FORMATTING TOOLBAR */}
         {/* ================================================== */}
 
         <div
@@ -413,9 +406,7 @@ export default function WordPage() {
 
           <button
             type="button"
-            onClick={() =>
-              execCmd("bold")
-            }
+            onClick={() => execCmd("bold")}
             style={toolBtn}
             title="Bold (Ctrl+B)"
             aria-label="Bold"
@@ -427,9 +418,7 @@ export default function WordPage() {
 
           <button
             type="button"
-            onClick={() =>
-              execCmd("italic")
-            }
+            onClick={() => execCmd("italic")}
             style={toolBtn}
             title="Italic (Ctrl+I)"
             aria-label="Italic"
@@ -441,9 +430,7 @@ export default function WordPage() {
 
           <button
             type="button"
-            onClick={() =>
-              execCmd("underline")
-            }
+            onClick={() => execCmd("underline")}
             style={toolBtn}
             title="Underline (Ctrl+U)"
             aria-label="Underline"
@@ -466,9 +453,7 @@ export default function WordPage() {
 
           <select
             value={fontSize}
-            onChange={
-              handleFontSizeChange
-            }
+            onChange={handleFontSizeChange}
             aria-label="Font size"
             style={{
               background:
@@ -605,61 +590,3 @@ const toolBtn: React.CSSProperties = {
   cursor: "pointer",
   fontSize: 13,
 };
-```
-
-### Why CodeQL should stop flagging this
-
-The old vulnerability was caused by:
-
-```tsx
-.replace(/<script.../)
-```
-
-and similar regular expressions. CodeQL correctly points out that a regex-based filter can leave something like:
-
-```html
-<script>
-```
-
-or a variant such as:
-
-```html
-<script    >
-```
-
-in the string.
-
-The new code **contains no HTML-removal regex at all**.
-
-Instead:
-
-```tsx
-const parsedDocument = parser.parseFromString(
-  html,
-  "text/html"
-);
-```
-
-creates an actual HTML document, and then:
-
-```tsx
-parsedDocument
-  .querySelectorAll(selector)
-  .forEach((element) => {
-    element.remove();
-  });
-```
-
-removes the dangerous nodes.
-
-It also removes event attributes structurally:
-
-```tsx
-if (name.startsWith("on")) {
-  element.removeAttribute(attribute.name);
-}
-```
-
-So things such as `onclick`, `onerror`, `onload`, etc. aren't left in the HTML.
-
-**Important:** don't keep any of the old `.replace(/<script.../)` sanitization code alongside this. Delete the old regex sanitizer completely.
