@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.lang.NonNull;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -22,16 +23,21 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@SuppressWarnings("null")
 class CsrfFilterTest {
 
     private CsrfFilter csrfFilter;
 
     @Mock
+    @NonNull
+    @SuppressWarnings("null")
     private HttpServletRequest request;
     @Mock
+    @NonNull
+    @SuppressWarnings("null")
     private HttpServletResponse response;
     @Mock
+    @NonNull
+    @SuppressWarnings("null")
     private FilterChain filterChain;
 
     private StringWriter responseWriter;
