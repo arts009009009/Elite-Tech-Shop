@@ -25,9 +25,10 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleAll(exception);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals("error", response.getBody().get("status"));
-        assertEquals("Internal server error", response.getBody().get("message"));
+        Map<String, Object> body = response.getBody();
+        assertNotNull(body);
+        assertEquals("error", body.get("status"));
+        assertEquals("Internal server error", body.get("message"));
     }
 
     @Test
@@ -35,8 +36,10 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleAll(new NullPointerException());
 
         assertEquals(500, response.getStatusCode().value());
-        assertFalse(response.getBody().containsKey("exception"));
-        assertEquals("Internal server error", response.getBody().get("message"));
+        Map<String, Object> body = response.getBody();
+        assertNotNull(body);
+        assertFalse(body.containsKey("exception"));
+        assertEquals("Internal server error", body.get("message"));
     }
 
     @Test
@@ -44,7 +47,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleAll(
                 new RuntimeException("DB connection failed at localhost:27017"));
 
-        assertFalse(response.getBody().containsValue("DB connection failed at localhost:27017"));
-        assertEquals("Internal server error", response.getBody().get("message"));
+        Map<String, Object> body = response.getBody();
+        assertNotNull(body);
+        assertFalse(body.containsValue("DB connection failed at localhost:27017"));
+        assertEquals("Internal server error", body.get("message"));
     }
 }

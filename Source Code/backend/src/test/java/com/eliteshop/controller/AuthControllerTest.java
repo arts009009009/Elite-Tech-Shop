@@ -42,16 +42,18 @@ class AuthControllerTest {
     // --- sendPassword tests ---
 
     @Test
+    @SuppressWarnings("null")
     void sendPassword_withValidEmail_returnsSuccess() {
         when(pendingPasswordRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
-        when(pendingPasswordRepository.save(any())).thenReturn(null);
 
         Map<String, String> body = Map.of("email", "test@example.com");
         ResponseEntity<Map<String, Object>> response = controller.sendPassword(body);
 
         assertEquals(200, response.getStatusCode().value());
-        assertTrue((Boolean) response.getBody().get("success"));
-        assertEquals("test@example.com", response.getBody().get("email"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertTrue((Boolean) responseBody.get("success"));
+        assertEquals("test@example.com", responseBody.get("email"));
         verify(pendingPasswordRepository).save(any());
     }
 
@@ -61,8 +63,10 @@ class AuthControllerTest {
         ResponseEntity<Map<String, Object>> response = controller.sendPassword(body);
 
         assertEquals(400, response.getStatusCode().value());
-        assertFalse((Boolean) response.getBody().get("success"));
-        assertEquals("email_required", response.getBody().get("error"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertFalse((Boolean) responseBody.get("success"));
+        assertEquals("email_required", responseBody.get("error"));
     }
 
     @Test
@@ -71,24 +75,27 @@ class AuthControllerTest {
         ResponseEntity<Map<String, Object>> response = controller.sendPassword(body);
 
         assertEquals(400, response.getStatusCode().value());
-        assertFalse((Boolean) response.getBody().get("success"));
-        assertEquals("email_required", response.getBody().get("error"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertFalse((Boolean) responseBody.get("success"));
+        assertEquals("email_required", responseBody.get("error"));
     }
 
     // --- register tests ---
 
     @Test
+    @SuppressWarnings("null")
     void register_withValidData_returnsSuccess() {
         when(userRepository.existsByUsername("alice")).thenReturn(false);
-        when(userRepository.save(any())).thenReturn(null);
-        when(sessionRepository.save(any())).thenReturn(null);
 
         RegisterRequest req = new RegisterRequest("alice@example.com", "password123", "alice");
         ResponseEntity<Map<String, Object>> response = controller.register(req);
 
         assertEquals(200, response.getStatusCode().value());
-        assertTrue((Boolean) response.getBody().get("success"));
-        assertNotNull(response.getBody().get("token"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertTrue((Boolean) responseBody.get("success"));
+        assertNotNull(responseBody.get("token"));
         verify(userRepository).save(any());
         verify(sessionRepository).save(any());
     }
@@ -99,8 +106,10 @@ class AuthControllerTest {
         ResponseEntity<Map<String, Object>> response = controller.register(req);
 
         assertEquals(400, response.getStatusCode().value());
-        assertFalse((Boolean) response.getBody().get("success"));
-        assertEquals("password_too_short", response.getBody().get("error"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertFalse((Boolean) responseBody.get("success"));
+        assertEquals("password_too_short", responseBody.get("error"));
     }
 
     @Test
@@ -109,7 +118,9 @@ class AuthControllerTest {
         ResponseEntity<Map<String, Object>> response = controller.register(req);
 
         assertEquals(400, response.getStatusCode().value());
-        assertEquals("username_required", response.getBody().get("error"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertEquals("username_required", responseBody.get("error"));
     }
 
     @Test
@@ -120,20 +131,22 @@ class AuthControllerTest {
         ResponseEntity<Map<String, Object>> response = controller.register(req);
 
         assertEquals(409, response.getStatusCode().value());
-        assertFalse((Boolean) response.getBody().get("success"));
-        assertEquals("username_exists", response.getBody().get("error"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertFalse((Boolean) responseBody.get("success"));
+        assertEquals("username_exists", responseBody.get("error"));
     }
 
     @Test
     void register_withNullEmail_usesDefaultEmail() {
         when(userRepository.existsByUsername("charlie")).thenReturn(false);
-        when(userRepository.save(any())).thenReturn(null);
-        when(sessionRepository.save(any())).thenReturn(null);
 
         RegisterRequest req = new RegisterRequest(null, "password123", "charlie");
         ResponseEntity<Map<String, Object>> response = controller.register(req);
 
         assertEquals(200, response.getStatusCode().value());
-        assertTrue((Boolean) response.getBody().get("success"));
+        Map<String, Object> responseBody = response.getBody();
+        assertNotNull(responseBody);
+        assertTrue((Boolean) responseBody.get("success"));
     }
 }
