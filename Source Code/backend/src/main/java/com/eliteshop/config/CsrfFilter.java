@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -43,8 +44,8 @@ public class CsrfFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         String method = request.getMethod();
         if ("GET".equalsIgnoreCase(method) || "OPTIONS".equalsIgnoreCase(method)) {
@@ -52,7 +53,8 @@ public class CsrfFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (PUBLIC_PATHS.contains(request.getRequestURI())) {
+        String requestUri = request.getRequestURI();
+        if (requestUri != null && PUBLIC_PATHS.contains(requestUri)) {
             filterChain.doFilter(request, response);
             return;
         }
