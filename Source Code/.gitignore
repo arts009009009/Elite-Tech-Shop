@@ -48,3 +48,7 @@ next-env.d.ts
 
 # Rust
 /backend/rust/target/
+
+# frontend generated files
+/frontend/node_modules/
+/frontend/.next/
