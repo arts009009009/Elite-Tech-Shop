@@ -222,7 +222,7 @@ export default function Home() {
             >
               {categories.map((item) => (
                 <option key={item.value} value={item.value}>
-                  {uiStrings[item.key]?.[language as Lang] ?? item.key}
+                  {uiStrings[item.key as keyof typeof uiStrings]?.[language as Lang] ?? item.key}
                 </option>
               ))}
             </select>

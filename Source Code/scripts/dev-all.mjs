@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync, execSync } from "child_process";
-import { existsSync, symlinkSync } from "fs";
+import { existsSync, readdirSync, symlinkSync } from "fs";
 import { join } from "path";
 
 const ROOT = process.cwd();
@@ -102,8 +102,11 @@ function buildRust() {
 }
 
 function buildJava() {
-  const jar = join(ROOT, "backend/target/elite-shop-backend-1.8.0.jar");
-  if (existsSync(jar)) {
+  const targetDir = join(ROOT, "backend/target");
+  const jar =
+    existsSync(targetDir) &&
+    readdirSync(targetDir).find((f) => f.startsWith("elite-shop-backend-") && f.endsWith(".jar"));
+  if (jar) {
     console.log("[dev] Java backend JAR found.");
     return true;
   }

@@ -1,0 +1,30 @@
+@theme {
+  --color-primary: var(--custom-primary, #A020F0);
+  --color-secondary: var(--custom-secondary, #ff00ff);
+  --color-accent: var(--custom-accent, #ffff00);
+  --color-bg: var(--bg, #0a0a0a);
+  --color-card-bg: var(--card-bg, rgba(255, 255, 255, 0.05));
+  --color-text: var(--text, #ffffff);
+  --color-text-heading: var(--text-h, #ffffff);
+  --color-border: var(--border, #2e303a);
+  --color-neon-blue: var(--neon-blue, #00d4ff);
+  --color-neon-pink: var(--neon-pink, #aa3bff);
+  --color-neon-purple: var(--neon-purple, #b300ff);
+  --color-neon-green: var(--neon-green, #00ff41);
+  --color-neon-yellow: var(--neon-yellow, #fff700);
+
+  --font-sans: var(--sans, "Geist", Arial, sans-serif);
+  --font-heading: var(--heading, "Geist", Arial, sans-serif);
+  --font-mono: var(--mono, "Geist Mono", monospace);
+
+  --z-dropdown: 100;
+  --z-tooltip: 200;
+  --z-modal-backdrop: 1000;
+  --z-modal: 1100;
+  --z-toast: 2000;
+  --z-navbar: 3000;
+  --z-offcanvas: 4000;
+  --z-customizer: 5000;
+  --z-loading: 9999;
+  --z-recovery: 99999;
+}
