@@ -1,0 +1,204 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/cyan?text=Neo+X1",
+      "en": { "title": "Neo X1", "price": 899, "currency": "USD", "description": "Flagship smartphone with cyberpunk design and holographic display." },
+      "ar": { "title": "نيو X1", "price": 899, "currency": "USD", "description": "هاتف رائد بتصميم سايبربنك وعرض هولوغرافي." },
+      "ru": { "title": "Neo X1", "price": 899, "currency": "USD", "description": "Флагманский смартфон в киберпанк-стиле с голографическим дисплеем." },
+      "fr": { "title": "Neo X1", "price": 899, "currency": "USD", "description": "Smartphone haut de gamme avec design cyberpunk et écran holographique." },
+      "es": { "title": "Neo X1", "price": 899, "currency": "USD", "description": "Smartphone insignia con diseño cyberpunk y pantalla holográfica." }
+    },
+    {
+      "id": 2,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/magenta?text=Volt+9",
+      "en": { "title": "Volt 9", "price": 749, "currency": "USD", "description": "Ultra-fast 5G smartphone with neural processing unit." },
+      "ar": { "title": "فولت 9", "price": 749, "currency": "USD", "description": "هاتف فائق السرعة بدعم 5G ووحدة معالجة عصبية." },
+      "ru": { "title": "Volt 9", "price": 749, "currency": "USD", "description": "Ультрабыстрый 5G смартфон с нейронным процессором." },
+      "fr": { "title": "Volt 9", "price": 749, "currency": "USD", "description": "Smartphone ultra-rapide 5G avec unité de traitement neural." },
+      "es": { "title": "Volt 9", "price": 749, "currency": "USD", "description": "Smartphone ultrarrápido 5G con unidad de procesamiento neural." }
+    },
+    {
+      "id": 3,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/lime?text=Prism+7",
+      "en": { "title": "Prism 7", "price": 599, "currency": "USD", "description": "Mid-range powerhouse with prismatic camera array." },
+      "ar": { "title": "بريزم 7", "price": 599, "currency": "USD", "description": "جهاز متوسط المدى بقوة كبيرة ومصفوفة كاميرا منشورية." },
+      "ru": { "title": "Prism 7", "price": 599, "currency": "USD", "description": "Мощный смартфон среднего класса с призматической камерой." },
+      "fr": { "title": "Prism 7", "price": 599, "currency": "USD", "description": "Mid-range puissant avec matrice caméra prismatique." },
+      "es": { "title": "Prism 7", "price": 599, "currency": "USD", "description": "Gama media potente con matriz de cámara prismática." }
+    },
+    {
+      "id": 4,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/orange?text=Ember+Lite",
+      "en": { "title": "Ember Lite", "price": 399, "currency": "USD", "description": "Budget-friendly phone with premium build quality." },
+      "ar": { "title": "إمبر لايت", "price": 399, "currency": "USD", "description": "هاتف بسعر معقول وجودة بناء ممتازة." },
+      "ru": { "title": "Ember Lite", "price": 399, "currency": "USD", "description": "Доступный телефон с премиальным качеством сборки." },
+      "fr": { "title": "Ember Lite", "price": 399, "currency": "USD", "description": "Téléphone abordable avec qualité de fabrication premium." },
+      "es": { "title": "Ember Lite", "price": 399, "currency": "USD", "description": "Teléfono asequible con calidad de construcción premium." }
+    },
+    {
+      "id": 5,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/purple?text=Synth+Pro",
+      "en": { "title": "Synth Pro", "price": 1099, "currency": "USD", "description": "Pro-grade smartphone with AI-powered camera and titanium frame." },
+      "ar": { "title": "سينث برو", "price": 1099, "currency": "USD", "description": "هاتف احترافي بكاميرا مدعومة بالذكاء الاصطناعي وهيكل تيتانيوم." },
+      "ru": { "title": "Synth Pro", "price": 1099, "currency": "USD", "description": "Профессиональный смартфон с ИИ-камерой и титановой рамкой." },
+      "fr": { "title": "Synth Pro", "price": 1099, "currency": "USD", "description": "Smartphone professionnel avec caméra IA et châssis titane." },
+      "es": { "title": "Synth Pro", "price": 1099, "currency": "USD", "description": "Smartphone profesional con cámara IA y marco de titanio." }
+    },
+    {
+      "id": 6,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/red?text=Crimson+SE",
+      "en": { "title": "Crimson SE", "price": 699, "currency": "USD", "description": "Stunning crimson design with edge-to-edge AMOLED display." },
+      "ar": { "title": "كرمسون SE", "price": 699, "currency": "USD", "description": "تصميم كرمسوني مذهل مع شاشة AMOLED من حافة إلى حافة." },
+      "ru": { "title": "Crimson SE", "price": 699, "currency": "USD", "description": "Потрясающий бордовый дизайн с AMOLED-дисплеем от края до края." },
+      "fr": { "title": "Crimson SE", "price": 699, "currency": "USD", "description": "Design cramoisi saisissant avec écran AMOLED bord à bord." },
+      "es": { "title": "Crimson SE", "price": 699, "currency": "USD", "description": "Diseño carmesí impresionante con pantalla AMOLED de borde a borde." }
+    },
+    {
+      "id": 7,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/teal?text=Aqua+Z",
+      "en": { "title": "Aqua Z", "price": 549, "currency": "USD", "description": "Water-resistant smartphone with underwater photography mode." },
+      "ar": { "title": "أكوا Z", "price": 549, "currency": "USD", "description": "هاتف مقاوم للماء مع وضع التصوير تحت الماء." },
+      "ru": { "title": "Aqua Z", "price": 549, "currency": "USD", "description": "Водонепроницаемый смартфон с режимом подводной съёмки." },
+      "fr": { "title": "Aqua Z", "price": 549, "currency": "USD", "description": "Smartphone étanche avec mode photo sous-marine." },
+      "es": { "title": "Aqua Z", "price": 549, "currency": "USD", "description": "Smartphone resistente al agua con modo de fotografía submarina." }
+    },
+    {
+      "id": 8,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/yellow?text=Zenith+5",
+      "en": { "title": "Zenith 5", "price": 449, "currency": "USD", "description": "All-day battery life with rapid 120W charging." },
+      "ar": { "title": "زينيث 5", "price": 449, "currency": "USD", "description": "عمر بطارية طوال اليوم مع شحن سريع 120 واط." },
+      "ru": { "title": "Zenith 5", "price": 449, "currency": "USD", "description": "Аккумулятор на весь день с быстрой зарядкой 120 Вт." },
+      "fr": { "title": "Zenith 5", "price": 449, "currency": "USD", "description": "Autonomie complète avec charge rapide 120W." },
+      "es": { "title": "Zenith 5", "price": 449, "currency": "USD", "description": "Batería de todo el día con carga rápida de 120W." }
+    },
+    {
+      "id": 9,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/white?text=Pulse+Zero",
+      "en": { "title": "Pulse Zero", "price": 299, "currency": "USD", "description": "Entry-level smartphone with impressive camera for the price." },
+      "ar": { "title": "بولس زيرو", "price": 299, "currency": "USD", "description": "هاتف اقتصادي بكاميرا مبهرة بالنسبة لسعره." },
+      "ru": { "title": "Pulse Zero", "price": 299, "currency": "USD", "description": "Бюджетный смартфон с впечатляющей камерой за свою цену." },
+      "fr": { "title": "Pulse Zero", "price": 299, "currency": "USD", "description": "Smartphone d'entrée de gamme avec caméra impressionnante." },
+      "es": { "title": "Pulse Zero", "price": 299, "currency": "USD", "description": "Smartphone de gama baja con cámara impresionante por su precio." }
+    },
+    {
+      "id": 10,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/gold?text=Lux+One",
+      "en": { "title": "Lux One", "price": 1299, "currency": "USD", "description": "Luxury smartphone with sapphire glass and 24K gold accents." },
+      "ar": { "title": "لكس ون", "price": 1299, "currency": "USD", "description": "هاتف فاخر بزجاج الياقوت وتفاصيل ذهب عيار 24." },
+      "ru": { "title": "Lux One", "price": 1299, "currency": "USD", "description": "Люксовый смартфон с сапфировым стеклом и акцентами из золота 24К." },
+      "fr": { "title": "Lux One", "price": 1299, "currency": "USD", "description": "Smartphone de luxe en verre saphir avec accents or 24K." },
+      "es": { "title": "Lux One", "price": 1299, "currency": "USD", "description": "Smartphone de lujo con cristal de zafiro y detalles en oro de 24K." }
+    },
+    {
+      "id": 11,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/cyan?text=Phantom+16",
+      "en": { "title": "Phantom 16", "price": 1899, "currency": "USD", "description": "Ultra-thin gaming laptop with RTX 5090 and 240Hz display." },
+      "ar": { "title": "فانتوم 16", "price": 1899, "currency": "USD", "description": "لابتوب ألعاب فائق النحافة مع RTX 5090 وشاشة 240Hz." },
+      "ru": { "title": "Phantom 16", "price": 1899, "currency": "USD", "description": "Ультратонкий игровой ноутбук с RTX 5090 и 240Hz дисплеем." },
+      "fr": { "title": "Phantom 16", "price": 1899, "currency": "USD", "description": "Ordinateur gaming ultramince avec RTX 5090 et écran 240Hz." },
+      "es": { "title": "Phantom 16", "price": 1899, "currency": "USD", "description": "Portátil gaming ultradelgado con RTX 5090 y pantalla 240Hz." }
+    },
+    {
+      "id": 12,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/magenta?text=Nova+Pro",
+      "en": { "title": "Nova Pro", "price": 2499, "currency": "USD", "description": "Professional workstation with M4 Ultra chip and 64GB RAM." },
+      "ar": { "title": "نوفا برو", "price": 2499, "currency": "USD", "description": "محطة عمل احترافية بشريحة M4 Ultra و 64 جيجا رام." },
+      "ru": { "title": "Nova Pro", "price": 2499, "currency": "USD", "description": "Профессиональная рабочая станция с чипом M4 Ultra и 64 ГБ ОЗУ." },
+      "fr": { "title": "Nova Pro", "price": 2499, "currency": "USD", "description": "Station de travail professionnelle avec puce M4 Ultra et 64 Go RAM." },
+      "es": { "title": "Nova Pro", "price": 2499, "currency": "USD", "description": "Estación de trabajo profesional con chip M4 Ultra y 64GB de RAM." }
+    },
+    {
+      "id": 13,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/lime?text=Volt+Book",
+      "en": { "title": "Volt Book", "price": 1199, "currency": "USD", "description": "All-rounder laptop with 14-hour battery and vibrant OLED." },
+      "ar": { "title": "فولت بوك", "price": 1199, "currency": "USD", "description": "جهاز متعدد الاستخدامات ببطارية 14 ساعة وشاشة OLED نابضة بالحياة." },
+      "ru": { "title": "Volt Book", "price": 1199, "currency": "USD", "description": "Универсальный ноутбук с 14-часовой батареей и ярким OLED." },
+      "fr": { "title": "Volt Book", "price": 1199, "currency": "USD", "description": "Ordinateur polyvalent avec 14h d'autonomie et OLED éclatant." },
+      "es": { "title": "Volt Book", "price": 1199, "currency": "USD", "description": "Portátil versátil con 14 horas de batería y OLED vibrante." }
+    },
+    {
+      "id": 14,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/orange?text=Ember+Air",
+      "en": { "title": "Ember Air", "price": 899, "currency": "USD", "description": "Ultra-portable at just 980g with fanless design." },
+      "ar": { "title": "إمبر إير", "price": 899, "currency": "USD", "description": "فائق الخفة بوزن 980 جرام فقط بتصميم بدون مروحة." },
+      "ru": { "title": "Ember Air", "price": 899, "currency": "USD", "description": "Ультрапортативный весом всего 980г с бесшумным дизайном." },
+      "fr": { "title": "Ember Air", "price": 899, "currency": "USD", "description": "Ultra-portable à seulement 980g avec design sans ventilateur." },
+      "es": { "title": "Ember Air", "price": 899, "currency": "USD", "description": "Ultraportátil de solo 980g con diseño sin ventilador." }
+    },
+    {
+      "id": 15,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/purple?text=Synth+Desk",
+      "en": { "title": "Synth Desk", "price": 1599, "currency": "USD", "description": "Desktop replacement with 17-inch 4K touchscreen." },
+      "ar": { "title": "سينث ديسك", "price": 1599, "currency": "USD", "description": "بديل سطح المكتب بشاشة لمس 4K بحجم 17 بوصة." },
+      "ru": { "title": "Synth Desk", "price": 1599, "currency": "USD", "description": "Замена десктопа с 17-дюймовым 4K тачскрином." },
+      "fr": { "title": "Synth Desk", "price": 1599, "currency": "USD", "description": "Remplacement de PC de bureau avec écran tactile 4K 17 pouces." },
+      "es": { "title": "Synth Desk", "price": 1599, "currency": "USD", "description": "Reemplazo de escritorio con pantalla táctil 4K de 17 pulgadas." }
+    },
+    {
+      "id": 16,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/red?text=Crimson+Note",
+      "en": { "title": "Crimson Note", "price": 1349, "currency": "USD", "description": "Creator laptop with color-accurate display and stylus support." },
+      "ar": { "title": "كرمسون نوت", "price": 1349, "currency": "USD", "description": "لابتوب للمبدعين بدقة ألوان عالية ودعم القلم." },
+      "ru": { "title": "Crimson Note", "price": 1349, "currency": "USD", "description": "Ноутбук для создателей с точным цветом и поддержкой стилуса." },
+      "fr": { "title": "Crimson Note", "price": 1349, "currency": "USD", "description": "Laptop créateur avec écran précise et support stylet." },
+      "es": { "title": "Crimson Note", "price": 1349, "currency": "USD", "description": "Portátil para creadores con pantalla precisa y soporte de stylus." }
+    },
+    {
+      "id": 17,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/teal?text=Aqua+Tab",
+      "en": { "title": "Aqua Tab Pro", "price": 799, "currency": "USD", "description": "2-in-1 detachable tablet with keyboard and pen included." },
+      "ar": { "title": "أكوا تاب برو", "price": 799, "currency": "USD", "description": "جهاز لوحي قابل للفصل 2 في 1 مع لوحة مفاتيح وقلم." },
+      "ru": { "title": "Aqua Tab Pro", "price": 799, "currency": "USD", "description": "2-в-1 отсоединяемый планшет с клавиатурой и стилусом." },
+      "fr": { "title": "Aqua Tab Pro", "price": 799, "currency": "USD", "description": "Tablette détachable 2-en-1 avec clavier et stylet inclus." },
+      "es": { "title": "Aqua Tab Pro", "price": 799, "currency": "USD", "description": "Tableta desmontable 2-en-1 con teclado y bolígrafo incluidos." }
+    },
+    {
+      "id": 18,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/yellow?text=Zenith+Edge",
+      "en": { "title": "Zenith Edge", "price": 1099, "currency": "USD", "description": "Business ultrabook with enterprise security features." },
+      "ar": { "title": "زينيث إيدج", "price": 1099, "currency": "USD", "description": "جهاز اقتصادي للأعمال مع ميزات أمان المؤسسات." },
+      "ru": { "title": "Zenith Edge", "price": 1099, "currency": "USD", "description": "Бизнес-ультрабук с корпоративными функциями безопасности." },
+      "fr": { "title": "Zenith Edge", "price": 1099, "currency": "USD", "description": "Ultrabook d'entreprise avec fonctionnalités de sécurité." },
+      "es": { "title": "Zenith Edge", "price": 1099, "currency": "USD", "description": "Ultrabook empresarial con funciones de seguridad." }
+    },
+    {
+      "id": 19,
+      "category": "laptops",
+      "image": "https://placehold.co/600x400/0a0a0f/gold?text=Lux+Studio",
+      "en": { "title": "Lux Studio", "price": 3299, "currency": "USD", "description": "Top-tier creative workstation with dual GPU and 128GB RAM." },
+      "ar": { "title": "لكس ستوديو", "price": 3299, "currency": "USD", "description": "محطة عمل إبداعية فاخرة بمعالج رسومي مزدوج و 128 جيجا رام." },
+      "ru": { "title": "Lux Studio", "price": 3299, "currency": "USD", "description": "Топовая творческая станция с двойным GPU и 128 ГБ ОЗУ." },
+      "fr": { "title": "Lux Studio", "price": 3299, "currency": "USD", "description": "Station de travail créative haut de gamme avec double GPU et 128 Go RAM." },
+      "es": { "title": "Lux Studio", "price": 3299, "currency": "USD", "description": "Estación de trabajo creativa de gama alta con GPU dual y 128GB de RAM." }
+    },
+    {
+      "id": 20,
+      "category": "smartphones",
+      "image": "https://placehold.co/600x400/0a0a0f/blue?text=Drift+S",
+      "en": { "title": "Drift S", "price": 649, "currency": "USD", "description": "Sleek mid-ranger with 120Hz display and 50MP camera." },
+      "ar": { "title": "دريفت S", "price": 649, "currency": "USD", "description": "جهاز متوسط أنيق بشاشة 120Hz وكاميرا 50 ميجابكسل." },
+      "ru": { "title": "Drift S", "price": 649, "currency": "USD", "description": "Стильный среднебюджетник с 120Hz дисплеем и 50МП камерой." },
+      "fr": { "title": "Drift S", "price": 649, "currency": "USD", "description": "Mid-range élégant avec écran 120Hz et caméra 50MP." },
+      "es": { "title": "Drift S", "price": 649, "currency": "USD", "description": "Gama media elegante con pantalla 120Hz y cámara de 50MP." }
+    }
+  ]
+}

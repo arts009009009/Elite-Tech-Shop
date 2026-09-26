@@ -1,0 +1,54 @@
+/* Light Mode Clean Override */
+body.light-mode {
+  background-color: var(--bg, #ffffff) !important;
+  color: #000000 !important;
+}
+
+/* Force all text to black */
+body.light-mode * {
+  color: #000000 !important;
+  text-shadow: none !important;
+}
+
+/* Panels & UI elements */
+body.light-mode .navbar,
+body.light-mode .card,
+body.light-mode .page-card,
+body.light-mode .product-card,
+body.light-mode .footer,
+body.light-mode .notification,
+body.light-mode .notify-toast,
+body.light-mode .hero,
+body.light-mode .section-head,
+body.light-mode .checkout,
+body.light-mode .admin-login {
+  background-color: #ffffff !important;
+  border: 1px solid #e0e0e0 !important;
+  box-shadow: none !important;
+  color: #000000 !important;
+}
+
+/* Inputs & buttons */
+body.light-mode input,
+body.light-mode select,
+body.light-mode textarea,
+body.light-mode button {
+  background-color: #ffffff !important;
+  border: 1px solid #cccccc !important;
+  color: #000000 !important;
+  box-shadow: none !important;
+}
+
+/* Links */
+body.light-mode a {
+  color: #000000 !important;
+  text-decoration: underline !important;
+}
+
+/* Tables */
+body.light-mode th,
+body.light-mode td {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #e0e0e0 !important;
+}
