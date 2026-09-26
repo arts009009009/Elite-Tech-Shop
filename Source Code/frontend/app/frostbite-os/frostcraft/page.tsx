@@ -87,6 +87,7 @@ export default function FrostCraftPage() {
     dashTimer: 0,
     lives: 3,
     combo: 0,
+    score: 0,
   });
   const selectedRef = useRef(0);
   const graphicsLevelRef = useRef(1);
@@ -195,7 +196,7 @@ export default function FrostCraftPage() {
       const result = await WebAssembly.instantiate(bytes, importObject);
       if (destroyed) return;
       const wasm = result.instance.exports as Record<string, (...args: unknown[]) => unknown>;
-      wasmMem = wasm.memory as WebAssembly.Memory;
+      wasmMem = wasm.memory as unknown as WebAssembly.Memory;
       wasmMemRef.current = wasmMem;
 
       class VoxelWorldImpl {
@@ -212,10 +213,10 @@ export default function FrostCraftPage() {
         get_mesh(subdiv: number): Float32Array {
           const retptr = (wasm.__wbindgen_add_to_stack_pointer as (n: number) => number)(-16);
           (wasm.voxelworld_get_mesh as (r: number, p: number, s: number) => void)(retptr, this.ptr, subdiv);
-          const dv = new DataView(wasmMem.buffer);
+          const dv = new DataView(wasmMem!.buffer);
           const ptr = dv.getInt32(retptr + 0, true) >>> 0;
           const len = dv.getInt32(retptr + 4, true);
-          const f32 = new Float32Array(wasmMem.buffer, ptr, len).slice();
+          const f32 = new Float32Array(wasmMem!.buffer, ptr, len).slice();
           (wasm.__wbindgen_add_to_stack_pointer as (n: number) => number)(16);
           return f32;
         }
@@ -228,10 +229,10 @@ export default function FrostCraftPage() {
         raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, max: number): Float32Array {
           const retptr = (wasm.__wbindgen_add_to_stack_pointer as (n: number) => number)(-16);
           (wasm.voxelworld_raycast as (r: number, p: number, ...args: unknown[]) => void)(retptr, this.ptr, ox, oy, oz, dx, dy, dz, max);
-          const dv = new DataView(wasmMem.buffer);
+          const dv = new DataView(wasmMem!.buffer);
           const ptr = dv.getInt32(retptr + 0, true) >>> 0;
           const len = dv.getInt32(retptr + 4, true);
-          const f32 = new Float32Array(wasmMem.buffer, ptr, len).slice();
+          const f32 = new Float32Array(wasmMem!.buffer, ptr, len).slice();
           (wasm.__wbindgen_add_to_stack_pointer as (n: number) => number)(16);
           return f32;
         }
@@ -273,6 +274,7 @@ export default function FrostCraftPage() {
       rebuildRef.current = (subdiv: number) => {
         mesh = world.get_mesh(subdiv);
         verts = mesh.length / F;
+        if (!gl) return;
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.STATIC_DRAW);
       };
@@ -320,6 +322,7 @@ export default function FrostCraftPage() {
       }
 
       function onMouseDown(e: MouseEvent) {
+        if (!gl) return;
         if (document.pointerLockElement !== canvasEl) {
           canvasEl?.requestPointerLock();
           return;
@@ -497,6 +500,7 @@ export default function FrostCraftPage() {
       // Main render loop
       function frame() {
         if (destroyed) { cleanup(); return; }
+        if (!gl || !canvasEl) return;
         const now = performance.now();
         const dt = Math.min((now - lastTime) / 1000, 0.1);
         lastTime = now;

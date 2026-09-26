@@ -13,7 +13,7 @@
 
     <groupId>com.eliteshop</groupId>
     <artifactId>elite-shop-backend</artifactId>
-    <version>1.8.0</version>
+    <version>5.1 Canary 8</version>
     <name>Elite Shop Backend</name>
     <description>Spring Boot backend for Elite Shop</description>
 

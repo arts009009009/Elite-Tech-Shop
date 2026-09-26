@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 const BLOCK_NAMES = ["Air","Grass","Dirt","Stone","Bedrock","Wood","Sand","Water","Leaves","Coal Ore","Iron Ore","Gold Ore","Diamond Ore","Gravel","Snow","Clay"];
 const BLOCK_COLORS: [number,number,number][] = [
@@ -9,6 +10,15 @@ const BLOCK_COLORS: [number,number,number][] = [
   [0.45,0.4,0.35],[0.95,0.95,0.95],[0.6,0.55,0.45],
 ];
 const HOTBAR_BLOCKS = [1, 2, 3, 5, 6, 8, 9, 10, 12];
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _VoxelWorld {
+  get_mesh(subdiv: number): Float32Array;
+  chunks_loaded(): number;
+  set_block(x: number, y: number, z: number, block: number): void;
+  get_block_at(x: number, y: number, z: number): number;
+  raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, max: number): Float32Array;
+}
 
 function drawBlockPreview(ctx: CanvasRenderingContext2D, blockId: number, size: number) {
   const c = BLOCK_COLORS[blockId] || [0.5, 0.5, 0.5];
@@ -31,10 +41,11 @@ function drawBlockPreview(ctx: CanvasRenderingContext2D, blockId: number, size: 
   ctx.strokeRect(ox, oy, s, s);
 }
 
-export default function FrostCraftPage() {
-  const containerRef = useRef<HTMLDivElement>(null);
+export default function MinigamePage() {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hotbar] = useState(HOTBAR_BLOCKS);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [hotbar, setHotbar] = useState(HOTBAR_BLOCKS);
   const [selected, setSelected] = useState(0);
   const [pointerLocked, setPointerLocked] = useState(false);
   const [graphicsLevel, setGraphicsLevel] = useState<1 | 4 | 16>(1);
@@ -71,14 +82,13 @@ export default function FrostCraftPage() {
     async function init() {
       if (destroyed) return;
       const canvas = canvasRef.current;
-      const container = containerRef.current;
-      if (!canvas || !container) return;
+      if (!canvas) return;
       const canvasEl = canvas;
 
-      console.log("[frostcraft] Loading WASM...");
+      console.log("[minigame] Loading WASM...");
       const resp = await fetch("/minigame_bg.wasm");
       const bytes = await resp.arrayBuffer();
-      console.log("[frostcraft] WASM loaded, size:", bytes.byteLength);
+      console.log("[minigame] WASM loaded, size:", bytes.byteLength);
 
       const importObject = {
         wbg: {
@@ -93,7 +103,7 @@ export default function FrostCraftPage() {
       if (destroyed) return;
       const wasm = result.instance.exports as Record<string, (...args: unknown[]) => unknown>;
       const wasmMem = wasm.memory as unknown as WebAssembly.Memory;
-      console.log("[frostcraft] WASM instantiated, exports:", Object.keys(wasm));
+      console.log("[minigame] WASM instantiated, exports:", Object.keys(wasm));
 
       let cachedDV: DataView | null = null;
       function getDataView(): DataView {
@@ -144,7 +154,7 @@ export default function FrostCraftPage() {
       }
 
       const world = new VoxelWorldImpl(42);
-      console.log("[frostcraft] Chunks loaded:", world.chunks_loaded());
+      console.log("[minigame] Chunks loaded:", world.chunks_loaded());
 
       const gl = (canvasEl.getContext("webgl2") || canvasEl.getContext("webgl")) as WebGLRenderingContext;
       if (!gl) return;
@@ -174,7 +184,7 @@ export default function FrostCraftPage() {
       let mesh = world.get_mesh(graphicsLevelRef.current);
       const F = 9;
       let verts = mesh.length / F;
-      console.log("[frostcraft] Mesh vertices:", verts);
+      console.log("[minigame] Mesh vertices:", verts);
 
       const buf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -211,20 +221,19 @@ export default function FrostCraftPage() {
       const EYE_HEIGHT = 2.8;
       const PLAYER_W = 0.3;
       const PLAYER_H = 3.0;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const SPAWN_X = 24, SPAWN_Y = 50, SPAWN_Z = 40;
       const keys: Record<string, boolean> = {};
       const fov = 70 * Math.PI / 180;
 
       function resize() {
-        const rect = container!.getBoundingClientRect();
         const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-        canvasEl.width = rect.width * dpr;
-        canvasEl.height = rect.height * dpr;
+        canvasEl.width = window.innerWidth * dpr;
+        canvasEl.height = window.innerHeight * dpr;
         gl.viewport(0, 0, canvasEl.width, canvasEl.height);
       }
       resize();
-      const resizeObs = new ResizeObserver(resize);
-      resizeObs.observe(container);
+      window.addEventListener("resize", resize);
 
       let mouseDX = 0, mouseDY = 0;
       function onMouse(e: MouseEvent) {
@@ -366,6 +375,7 @@ export default function FrostCraftPage() {
         return false;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       function pushOut(px: number, py: number, pz: number): [number, number, number] {
         const x = px;
         let y = py;
@@ -391,7 +401,7 @@ export default function FrostCraftPage() {
 
       let last = performance.now();
       function cleanup() {
-        resizeObs.disconnect();
+        window.removeEventListener("resize", resize);
         document.removeEventListener("mousemove", onMouse);
         canvasEl.removeEventListener("click", onClick);
         canvasEl.removeEventListener("mousedown", onMouseDown);
@@ -502,40 +512,37 @@ export default function FrostCraftPage() {
 
     const cleanupRef = { current: null as (() => void) | null };
 
-    init().catch((e: Error) => console.error("[frostcraft] ERROR:", e));
+    init().catch((e: Error) => console.error("[minigame] ERROR:", e));
     return () => { destroyed = true; cleanupRef.current?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", background: "#000" }}>
-      <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+    <>
+      <canvas ref={canvasRef} style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", zIndex: pointerLocked ? 50 : 1 }} />
 
-      {/* Crosshair */}
-      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 10, pointerEvents: "none" }}>
+      <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 100, pointerEvents: "none" }}>
         <div style={{ width: 24, height: 24, position: "relative" }}>
           <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 2, background: "rgba(255,255,255,0.8)", transform: "translateY(-50%)", boxShadow: "0 0 2px rgba(0,0,0,0.5)" }} />
           <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, background: "rgba(255,255,255,0.8)", transform: "translateX(-50%)", boxShadow: "0 0 2px rgba(0,0,0,0.5)" }} />
         </div>
       </div>
 
-      {/* HUD */}
-      <div style={{ position: "absolute", top: 8, left: 8, zIndex: 10, color: "white", fontFamily: "monospace", fontSize: 12, pointerEvents: "none", textShadow: "1px 1px 2px #000" }}>
-        <div style={{ fontSize: 16, fontWeight: "bold", marginBottom: 4 }}>FrostCraft</div>
-        <div>WASD Move | Space Jump</div>
+      <div style={{ position: "fixed", top: 12, left: 12, zIndex: 100, color: "white", fontFamily: "monospace", fontSize: 13, pointerEvents: "none", textShadow: "1px 1px 2px #000" }}>
+        <div style={{ fontSize: 18, fontWeight: "bold", marginBottom: 4 }}>Minecraft Alpha</div>
+        <div>WASD/Arrows Move | Space Jump</div>
         <div>Left Click Mine | Right Click Place</div>
         <div>1-9 or Scroll Select Block</div>
       </div>
 
-      {/* Hotbar */}
-      <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", zIndex: 10, display: "flex", gap: 4, background: "rgba(0,0,0,0.5)", padding: 6, borderRadius: 8 }}>
+      <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 100, display: "flex", gap: 4, background: "rgba(0,0,0,0.5)", padding: 6, borderRadius: 8 }}>
         {hotbar.map((blockId, i) => (
-          <div key={i} style={{ position: "relative", width: 48, height: 48, border: i === selected ? "3px solid #fff" : "2px solid rgba(255,255,255,0.3)", borderRadius: 4, background: "rgba(0,0,0,0.4)" }}>
+          <div key={i} style={{ position: "relative", width: 52, height: 52, border: i === selected ? "3px solid #fff" : "2px solid rgba(255,255,255,0.3)", borderRadius: 4, background: "rgba(0,0,0,0.4)" }}>
             <canvas
               ref={(el) => { hotbarCanvasRefs.current[i] = el; }}
-              width={44}
-              height={44}
-              style={{ width: 44, height: 44, display: "block", margin: "auto", marginTop: i === selected ? 0 : 2 }}
+              width={48}
+              height={48}
+              style={{ width: 48, height: 48, display: "block", margin: "auto", marginTop: i === selected ? 0 : 2 }}
             />
             <div style={{ position: "absolute", bottom: 1, right: 3, color: "rgba(255,255,255,0.6)", fontSize: 10, fontFamily: "monospace" }}>
               {i + 1}
@@ -544,23 +551,38 @@ export default function FrostCraftPage() {
         ))}
       </div>
 
-      {/* Block name */}
-      <div style={{ position: "absolute", bottom: 72, left: "50%", transform: "translateX(-50%)", zIndex: 10, color: "white", fontFamily: "monospace", fontSize: 11, pointerEvents: "none", textShadow: "1px 1px 2px #000", textAlign: "center" }}>
+      <div style={{ position: "fixed", bottom: 78, left: "50%", transform: "translateX(-50%)", zIndex: 100, color: "white", fontFamily: "monospace", fontSize: 12, pointerEvents: "none", textShadow: "1px 1px 2px #000", textAlign: "center" }}>
         {BLOCK_NAMES[hotbar[selected]]}
       </div>
 
-      {/* Pause overlay */}
       {!pointerLocked && (
-        <div onClick={() => canvasRef.current?.requestPointerLock()} style={{ position: "absolute", inset: 0, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}>
-          <div style={{ color: "white", fontFamily: "monospace", fontSize: 22, fontWeight: "bold", marginBottom: 20, textShadow: "2px 2px 4px #000" }}>FrostCraft Paused</div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <div onClick={() => canvasRef.current?.requestPointerLock()} style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}>
+          <div style={{ color: "white", fontFamily: "monospace", fontSize: 24, fontWeight: "bold", marginBottom: 24, textShadow: "2px 2px 4px #000" }}>Game Paused</div>
+          <button
+            onClick={(e) => { e.stopPropagation(); router.push("/"); }}
+            style={{
+              padding: "14px 32px",
+              fontSize: 16,
+              fontFamily: "monospace",
+              fontWeight: "bold",
+              color: "white",
+              background: "rgba(220,38,38,0.8)",
+              border: "2px solid #ef4444",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Exit Game
+          </button>
+          <div style={{ color: "rgba(255,255,255,0.6)", fontFamily: "monospace", fontSize: 12, marginTop: 20, marginBottom: 6 }}>Graphics</div>
+          <div style={{ display: "flex", gap: 8 }}>
             {([1, 4, 16] as const).map((level) => (
               <button
                 key={level}
                 onClick={(e) => { e.stopPropagation(); setGraphicsLevel(level); }}
                   style={{
-                    padding: "6px 14px",
-                    fontSize: 12,
+                    padding: "8px 16px",
+                    fontSize: 13,
                     fontFamily: "monospace",
                     fontWeight: graphicsLevel === level ? "bold" : "normal",
                     color: graphicsLevel === level ? "#fff" : "rgba(255,255,255,0.6)",
@@ -574,9 +596,9 @@ export default function FrostCraftPage() {
               </button>
             ))}
           </div>
-          <div style={{ color: "rgba(255,255,255,0.5)", fontFamily: "monospace", fontSize: 12 }}>Click anywhere to resume</div>
+          <div style={{ color: "rgba(255,255,255,0.5)", fontFamily: "monospace", fontSize: 13, marginTop: 16 }}>Click anywhere to resume</div>
         </div>
       )}
-    </div>
+    </>
   );
 }
