@@ -1052,7 +1052,7 @@ func handleLanding(w http.ResponseWriter, r *http.Request) {
     <div class="card">
         <h1>Elite Shop — Go Service</h1>
         <div class="label">Version</div>
-        <div class="version">5.1 Canary 8</div>
+        <div class="version">5.1 Canary 9</div>
         <div class="status">&#x25cf; Running</div>
         <div class="info">
             Go / net-http<br>
