@@ -130,6 +130,22 @@ function buildGo() {
   return buildSync("Go backend", "go", ["build", "-o", "../go-backend"], join(ROOT, "backend/go"));
 }
 
+function buildCalc() {
+  const dir = join(ROOT, "backend/cpp-backend");
+  const bin = join(dir, "build/calc_server");
+  if (existsSync(bin)) {
+    console.log("[dev] Calculator backend binary found.");
+    return true;
+  }
+  if (!has("cmake")) {
+    console.log("[dev] Skipping Calculator backend — cmake not installed.");
+    return false;
+  }
+  const ok = buildSync("Calculator backend", "cmake", ["-B", "build"], dir)
+    && buildSync("Calculator backend", "cmake", ["--build", "build", "-j"], dir);
+  return ok;
+}
+
 // ── Ensure Rust products.json ──
 
 function ensureRustProductsJson() {
@@ -215,6 +231,7 @@ async function main() {
   const rustOk = buildRust();
   const javaOk = buildJava();
   const goOk = buildGo();
+  const calcOk = buildCalc();
 
   // Step 2: Prepare Rust products.json symlink
   if (rustOk) ensureRustProductsJson();
@@ -238,6 +255,11 @@ async function main() {
   if (goOk) {
     console.log("[dev] Starting Go backend → http://localhost:3003");
     procs.push(pmRun("backend:go"));
+  }
+
+  if (calcOk) {
+    console.log("[dev] Starting Calculator backend → http://localhost:8084");
+    procs.push(run("./build/calc_server", [], { cwd: join(ROOT, "backend/cpp-backend") }));
   }
 
   if (!BACKEND_ONLY) {

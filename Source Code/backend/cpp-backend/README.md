@@ -16,7 +16,7 @@ Requirements: a C++17 compiler and CMake >= 3.16. Internet access is required th
 first time CMake runs so it can download Crow and Asio.
 
 ```bash
-cd "elite-shop/Source Code/cpp-backend"
+cd "elite-shop/Source Code/backend/cpp-backend"
 cmake -B build
 cmake --build build -j 4
 ```
@@ -35,6 +35,30 @@ The server logs:
 [INFO] Elite Tech Shop calculator backend listening on http://127.0.0.1:8084
 [INFO] Crow/master server is running at http://127.0.0.1:8084 using 12 threads
 ```
+
+## Frontend integration
+
+The Next.js app (port 3000) proxies the service through a rewrite so the browser
+only talks to its own origin (CSP `connect-src 'self'` stays satisfied):
+
+```
+/api/calc/:path*  →  http://127.0.0.1:8084/api/calc/:path*
+```
+
+Declared in `Source Code/frontend/next.config.ts`. The Frostbite OS Calculator
+app (`Source Code/frontend/app/frostbite-os/calculator/page.tsx`) uses it for its
+Evaluate, Derivative and Graph modes; the desktop 🧮 Calculator icon launches it.
+
+`Source Code/scripts/dev-all.mjs` builds and starts this service together with
+the Java, Go, Rust and frontend processes:
+
+```bash
+cd "elite-shop/Source Code"
+node scripts/dev-all.mjs
+```
+
+End-to-end coverage lives in `Source Code/tests/frostbite-calculator.spec.ts`
+(`npx playwright test tests/frostbite-calculator.spec.ts`).
 
 ## API
 
