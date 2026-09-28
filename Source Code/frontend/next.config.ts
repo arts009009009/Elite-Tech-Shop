@@ -45,6 +45,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/api/calc/:path*",
+        destination: "http://127.0.0.1:8084/api/calc/:path*",
+      },
+      {
         source: "/api/products/:path*",
         destination: "http://localhost:3002/api/products/:path*",
       },

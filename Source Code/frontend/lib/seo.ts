@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://elite-tech.shop";
 const SITE_NAME = "Elite Tech Shop";
-const DEFAULT_OG_IMAGE = "/elitetech.png";
+const DEFAULT_OG_IMAGE = "/elitetech.webp";
 
 type ProductSEO = {
   id: number | string;
@@ -119,7 +119,7 @@ export function generateOrganizationJsonLd() {
     "@type": "Organization",
     name: SITE_NAME,
     url: SITE_URL,
-    logo: `${SITE_URL}/elitetech.png`,
+    logo: `${SITE_URL}/elitetech.webp`,
     sameAs: [],
     contactPoint: {
       "@type": "ContactPoint",

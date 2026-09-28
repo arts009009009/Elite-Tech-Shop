@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     description: "Discover cutting-edge laptops, smartphones, and gaming gear at Elite Tech Shop.",
     images: [
       {
-        url: "/elitetech.png",
+        url: "/elitetech.webp",
         width: 1200,
         height: 630,
         alt: "Elite Tech Shop",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Elite Tech Shop — Premium Cyberpunk Electronics",
     description: "Discover cutting-edge laptops, smartphones, and gaming gear.",
-    images: ["/elitetech.png"],
+    images: ["/elitetech.webp"],
   },
   robots: {
     index: true,
