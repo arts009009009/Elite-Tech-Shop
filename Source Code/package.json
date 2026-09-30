@@ -12,15 +12,11 @@
     "backend": "node scripts/dev-all.mjs --backend-only",
     "backend:java": "cd backend && JAVA_HOME=/home/adam/Downloads/OpenJDK26U-jdk_x64_linux_hotspot_26.0.2_10/jdk-26.0.2+10 PATH=/home/adam/Downloads/OpenJDK26U-jdk_x64_linux_hotspot_26.0.2_10/jdk-26.0.2+10/bin:$PATH java -jar \"$(ls -t target/elite-shop-backend-*.jar | head -n1)\"",
     "backend:rust": "cd backend/rust && ./target/release/products-service products.json",
-    "backend:go": "backend/go-backend"
+    "backend:go": "backend/go-backend",
+    "backend:calc": "cd backend/cpp-backend && cmake -B build && cmake --build build -j && ./build/calc_server"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1"
   },
-  "packageManager": "yarn@4.18.1",
-  "dependencies": {
-    "next": "^16.3.6",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
-  }
+  "packageManager": "yarn@4.18.1"
 }

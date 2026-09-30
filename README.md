@@ -2,11 +2,11 @@
 
 # ⚡ Elite Tech Shop
 
-### *The Triple Backend Fusion — Rust × Java × Go*
+### *The Triple Backend Fusion — Rust × Java × Go — plus a C++17 Calc Microservice*
 
 **A full‑stack demo e‑commerce application with a neon‑dark Elite Tech vibe.**
 
-React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minigame · 10‑language i18n
+React 19 · **Triple Backend** (Rust + Java + Go) · **C++ Calculator** · Minecraft Alpha Voxel Minigame · 10‑language i18n
 
 > **Elite Tech Philosophy:** Crafting software that is rare, polished, and driven by pure chaos vibes — free from corporate locks and standard grind energy. Representing invention, the future, and relentless experimentation.
 
@@ -17,7 +17,7 @@ React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minig
 [![Discussions](https://img.shields.io/badge/Discussions-💬-gray?style=for-the-badge&logo=github)](https://github.com/arts009009009/Elite-Tech-Shop/discussions)
 [![Hall of Fame](https://img.shields.io/badge/Hall_of_Fame-🏆-ff6f00?style=for-the-badge)](https://github.com/arts009009009/Elite-Tech-Shop/discussions/11)
 [![License: MIT](https://img.shields.io/badge/License-MIT-CE412B?style=for-the-badge&logo=open-source-initiative&logoColor=white)](https://github.com/arts009009009/Elite-Tech-Shop/blob/main/Source%20Code/LICENSE)
-[![Release](https://img.shields.io/badge/release-5.0_Stable-3178C6?style=for-the-badge)](https://github.com/arts009009009/Elite-Tech-Shop/releases)
+[![Release](https://img.shields.io/badge/release-5.2_Canary_10-3178C6?style=for-the-badge)](https://github.com/arts009009009/Elite-Tech-Shop/releases)
 
 </div>
 
@@ -27,11 +27,11 @@ React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minig
 
 - [🛠 Tech Stack](#-tech-stack)
 - [📂 Source Code](#-source-code)
-- [🚀 Release Summary](#-release-summary--50-stable)
+- [🚀 Release Summary](#️-release-summary--52-canary-10)
 - [📸 Showcase](#-showcase)
 - [✨ Features](#-features)
 - [🏗️ Architecture](#️-architecture)
-- [📦 Installation & Setup](#-installation--setup)
+- [📦 Installation & Setup](#installation--setup)
 - [🔧 Infrastructure](#-infrastructure)
 - [🧪 Quality](#-quality)
 - [🏆 Hall of Fame](#-hall-of-fame)
@@ -58,7 +58,14 @@ React 19 · **Triple Backend** (Rust + Java + Go) · Minecraft Alpha Voxel Minig
 <p align="center">
 <a href="https://www.rust-lang.org/"><img alt="Rust / Axum" src="https://img.shields.io/badge/Rust_Axum-CE412B?style=for-the-badge&logo=rust&logoColor=white" /></a>
 <a href="https://spring.io/"><img alt="Java / Spring" src="https://img.shields.io/badge/Java_21_Spring-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" /></a>
-<a href="https://golang.org/"><img alt="Go" src="https://img.shields.io/badge/Go_1.24-00ADD8?style=for-the-badge&logo=go&logoColor=white" /></a>
+<a href="https://golang.org/"><img alt="Go" src="https://img.shields.io/badge/Go_1.25-00ADD8?style=for-the-badge&logo=go&logoColor=white" /></a>
+</p>
+
+**Calculator Microservice**
+
+<p align="center">
+<a href="https://isocpp.org/"><img alt="C++17" src="https://img.shields.io/badge/C%2B%2B17-00599C?style=for-the-badge&logo=cplusplus&logoColor=white" /></a>
+<a href="https://cmake.org/"><img alt="CMake" src="https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white" /></a>
 </p>
 
 **Platform & Tooling**
@@ -104,19 +111,21 @@ The **`/Source Code`** folder is **always up to date**. Every commit reflects th
 - 🔄 **Continuous updates** — bug fixes, features and experiments land here first
 - 🕹️ **Direct viewable code** — browse backend, frontend and configs without cloning
 - 🛠️ **Pull requests welcome** — edit files, upload replacements, or propose changes directly
-- 🏷️ **Releases are snapshots** — tagged versions (like **5.0 Stable**) are milestones, but `/Source Code` may be ahead
+- 🏷️ **Releases are snapshots** — tagged versions (like **5.2 Canary 10**) are milestones, but `/Source Code` may be ahead
 
 > ⚠️ Only **Stable** and **Canary** releases are supported (no LTS).
 
 ---
 
-## 🚀 Release Summary — 5.0 Stable
+## 🚀 Release Summary — 5.2 Canary 10
 
 | Feature | Detail |
 |---------|--------|
-| Package managers | npm, pnpm, yarn, bun, deno |
-| Frontend | Next.js 16 · React 19.2 · TypeScript 7 |
-| Backends | Rust/Axum · Java/Spring · Go |
+| Package managers | yarn 4 (npm / pnpm / bun / deno compatible) |
+| Frontend | Next.js 16 · React 19.2 · TypeScript 7 · Tailwind 4 |
+| Backends | Rust/Axum · Java/Spring · Go — plus C++17 calculator |
+| Services | `:3000` · `:3001` · `:3002` · `:3003` · `:8084` |
+| Testing | Playwright — 24/24 E2E green |
 | Platforms | Linux, macOS, Windows, WSL |
 | Browsers | Firefox + Chrome verified |
 | Extensions | uBlock Origin tested |
@@ -173,7 +182,7 @@ The **`/Source Code`** folder is **always up to date**. Every commit reflects th
 <details>
 <summary><b>💻 Frostbite OS</b></summary>
 
-Browser-based mini desktop: calculator, notepad, spreadsheet, presentation, word processor, media player, paint, task manager, web browser, WASM minigame
+Browser-based mini desktop: **scientific & symbolic calculator** (desktop icon wired to the C++ service — evaluate, differentiate and plot), notepad, spreadsheet, presentation, word processor, media player, paint, task manager, web browser, WASM minigame
 </details>
 
 <details>
@@ -189,24 +198,31 @@ Browser-based mini desktop: calculator, notepad, spreadsheet, presentation, word
 ## 🏗️ Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                 Browser · http://localhost:3000             │
-│              Next.js 16 · React 19 Frontend                │
-└───────────┬──────────────────┬──────────────────┬───────────┘
-            │                  │                  │
-            ▼                  ▼                  ▼
-   ┌────────────────┐ ┌────────────────┐ ┌─────────────────┐
-   │  Rust / Axum   │ │ Java / Spring  │ │  Go / net-http  │
-   │     :3002      │ │     :3001      │ │      :3003      │
-   ├────────────────┤ ├────────────────┤ ├─────────────────┤
-   │ Products       │ │ Auth           │ │ Cart            │
-   │ Catalog        │ │ Users          │ │ Orders          │
-   │ WASM minigame  │ │ Sessions       │ │ Reviews         │
-   │                │ │                │ │ Rewards · PDF   │
-   └────────────────┘ └────────────────┘ └─────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                   Browser · http://localhost:3000                 │
+│              Next.js 16 · React 19 Frontend (Turbopack)           │
+└─────────┬────────────────┬────────────────┬───────────────────────┘
+          │                │                │
+          ▼                ▼                ▼                ▼
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐ ┌────────────────────┐
+│  Rust / Axum   │ │ Java / Spring  │ │  Go / net-http  │ │  C++17 Calculator   │
+│     :3002      │ │     :3001      │ │      :3003      │ │       :8084         │
+├────────────────┤ ├────────────────┤ ├────────────────┤ ├────────────────────┤
+│ Products       │ │ Auth           │ │ Cart            │ │ evaluate            │
+│ Catalog        │ │ Users          │ │ Orders          │ │ differentiate       │
+│ Categories     │ │ Sessions       │ │ Reviews         │ │ plot                │
+│ Health         │ │ Health         │ │ Rewards · PDF   │ │ symbolic math       │
+└────────────────┘ └────────────────┘ └────────────────┘ └────────────────────┘
 ```
 
-**Request flow:** `Browser → Next.js API Routes (proxy) → Backend Service → JSON response`
+**Request flow:** `Browser → Next.js rewrites (frontend/next.config.ts) → Backend Service → JSON response`
+
+| Route prefix | Service |
+|--------------|---------|
+| `/api/products`, `/api/categories`, `/api/health` | Rust `:3002` |
+| `/api/auth` | Java `:3001` |
+| `/api/cart`, `/api/wishlist`, `/api/orders`, `/api/reviews`, `/api/rewards` | Go `:3003` |
+| `/api/calc` (`evaluate`, `differentiate`, `plot`) | C++ `:8084` |
 
 All backend calls are logged with a `[BACKEND]` prefix for debugging.
 
@@ -214,8 +230,9 @@ All backend calls are logged with a `[BACKEND]` prefix for debugging.
 |---------|:----:|----------------|
 | Next.js frontend | `3000` | UI, SSR, API proxy |
 | Java / Spring | `3001` | Auth, users, sessions |
-| Rust / Axum | `3002` | Products, catalog, WASM |
+| Rust / Axum | `3002` | Products, catalog |
 | Go / net-http | `3003` | Cart, orders, reviews, rewards, PDF |
+| C++17 calculator | `8084` | Scientific & symbolic math for Frostbite OS |
 
 ---
 
@@ -226,45 +243,61 @@ All backend calls are logged with a `[BACKEND]` prefix for debugging.
 | Tool | Version | Notes |
 |------|---------|-------|
 | Node.js | 22+ | Frontend runtime |
-| Rust | stable | WASM + Rust backend |
-| Java | 21+ (compile) / 26+ (run) | Spring Boot |
-| Go | 1.24+ | Orders / cart |
+| Yarn | 4.x (`corepack enable`) | Pinned via `packageManager` |
+| Rust | stable | Products API |
+| Java | 21+ (compile) / 26+ (run) | Spring Boot auth service |
+| Go | 1.25+ | Cart / orders API |
+| CMake | 3.16+ | C++ calculator (plus a C++17 compiler) |
 | [Nix](https://nixos.org/download.html) | optional | Reproducible dev shell (recommended) |
 
 ### Quick Start
 
-**Option 1 — Nix (recommended, all deps auto-installed)**
+**Option 1 — Nix (recommended, toolchain auto-provided)**
 
 ```bash
 nix develop
-pnpm install
-pnpm dev
 ```
 
 **Option 2 — Manual**
 
 ```bash
 git clone https://github.com/arts009009009/Elite-Tech-Shop.git
-cd Elite-Tech-Shop
+cd Elite-Tech-Shop/"Source Code"
 
-pnpm install    # or: npm install / yarn install / bun install
-pnpm dev        # or: npm run dev / yarn dev / bun dev
+corepack enable      # once — provides the pinned Yarn 4
+yarn install:all     # installs root (Playwright) + frontend dependencies
+yarn dev             # builds the C++ calc and starts all five services
 ```
 
-### Start Backends
+`yarn dev` boots everything: Next.js `:3000`, Java `:3001`, Rust `:3002`, Go `:3003`, C++ calculator `:8084`.
+
+### Start Services Individually
 
 ```bash
-pnpm backend          # all backends
-pnpm backend:rust     # Rust API  → :3002
-pnpm backend:java     # Java Auth → :3001
-pnpm backend:go       # Go Orders/Cart → :3003
+yarn backend          # all backends (Rust + Java + Go + C++ calc)
+yarn backend:rust     # Rust API       → :3002
+yarn backend:java     # Java Auth      → :3001
+yarn backend:go       # Go Orders/Cart → :3003
+yarn backend:calc     # C++ Calculator → :8084 (CMake build + run)
+```
+
+### Testing
+
+```bash
+yarn dev              # keep all services running
+yarn test             # Playwright — 24 E2E tests across 7 specs
 ```
 
 ### Production Build
 
 ```bash
-cd frontend && pnpm build
-cd backend/rust && wasm-pack build --target web
+yarn build                                    # Next.js production bundle
+cd backend && mvn package                     # Spring Boot jar
+cd backend/rust && cargo build --release      # products-service
+cd backend/go && go build -o ../go-backend .  # go-backend
+cd backend/cpp-backend && cmake -B build && cmake --build build -j
+
+# optional container workflow
 docker-compose up --build
 ```
 
@@ -274,10 +307,10 @@ docker-compose up --build
 
 | Component | Tool |
 |-----------|------|
-| Package management | pnpm workspace (npm / yarn / bun / deno compatible) |
+| Package management | Yarn 4 (node-modules linker) — npm / pnpm / bun / deno compatible |
 | Dev builds | Turbopack |
 | Compiler | Experimental React Compiler (Rust-native in Turbopack) |
-| E2E testing | Playwright |
+| E2E testing | Playwright (Chromium) |
 | Containers | Docker & Docker Compose |
 | Dev environment | Nix flakes (cross-platform) |
 
@@ -287,11 +320,14 @@ docker-compose up --build
 
 | Check | Status |
 |-------|--------|
-| TypeScript strict mode | ✅ 0 errors |
-| ESLint | ✅ 0 errors (1 acceptable warning: `eval` in calculator) |
-| Hydration | ✅ SSR-safe, no mismatches |
+| E2E (Playwright) | ✅ 24/24 passing — auth, cart, calculator, home, navigation, products, push |
+| TypeScript strict mode | ✅ `tsc --noEmit` clean |
+| Calculator backend | ✅ 73 parser + 34 derivative + 390 fuzz cases; HTTP 400 error contract |
+| Push notifications | ✅ Service worker push + notificationclick, flight-request bypass |
+| Version sync | ✅ 5.2 Canary 10 across navbar, health endpoints, pom, Cargo, CMake, package.json |
 | Auth Flow | ✅ Java-backed register / login / logout |
-| i18n | ✅ 130 translation keys, 10 languages |
+| Hydration | ✅ SSR-safe, no mismatches |
+| i18n | ✅ 130 translation keys, 10 languages + RTL |
 
 ---
 

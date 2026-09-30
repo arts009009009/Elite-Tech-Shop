@@ -1,11 +1,17 @@
 import { test, expect } from "@playwright/test";
+import { settle } from "./helpers";
+
+function uniqueUser(prefix: string) {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+}
 
 test.describe("Authentication", () => {
   test("signup flow", async ({ page }) => {
     await page.goto("/signup");
+    await settle(page);
     await expect(page.locator("h2")).toHaveText("Signup");
 
-    await page.locator('input[placeholder="Username"]').fill("testuser");
+    await page.locator('input[placeholder="Username"]').fill(uniqueUser("testuser"));
     await page.locator('input[placeholder="Email"]').fill("test@example.com");
     await page.locator('input[placeholder="Password"]').fill("password123");
     await page.locator('input[placeholder="Confirm Password"]').fill("password123");
@@ -25,6 +31,7 @@ test.describe("Authentication", () => {
 
   test("login with invalid credentials shows error", async ({ page }) => {
     await page.goto("/login");
+    await settle(page);
 
     await page.locator('input[placeholder="Username"]').fill("nonexistent");
     await page.locator('input[type="password"]').fill("wrongpassword");
@@ -35,7 +42,8 @@ test.describe("Authentication", () => {
 
   test("logout clears session", async ({ page }) => {
     await page.goto("/signup");
-    await page.locator('input[placeholder="Username"]').fill("logtestuser");
+    await settle(page);
+    await page.locator('input[placeholder="Username"]').fill(uniqueUser("logtestuser"));
     await page.locator('input[placeholder="Email"]').fill("logtest@example.com");
     await page.locator('input[placeholder="Password"]').fill("password123");
     await page.locator('input[placeholder="Confirm Password"]').fill("password123");

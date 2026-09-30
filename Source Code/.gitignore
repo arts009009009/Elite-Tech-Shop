@@ -52,3 +52,16 @@ next-env.d.ts
 # frontend generated files
 /frontend/node_modules/
 /frontend/.next/
+
+# playwright output (regenerated every test run)
+/test-results/
+
+# yarn berry install state (regenerated on install)
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+# rust service product data (bootstrapped by `yarn dev`)
+/backend/rust/products.json

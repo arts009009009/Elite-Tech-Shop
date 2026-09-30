@@ -8,6 +8,8 @@ type TranslationEntry = Partial<Record<Lang, string>>;
 type TranslationMap = Record<string, TranslationEntry>;
 const typedTranslations: TranslationMap = translations;
 
+const NOTIFICATION_ICON = "/elitetech.webp";
+
 export default function PushNotificationManager() {
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [isTesting, setIsTesting] = useState(false);
@@ -18,43 +20,86 @@ export default function PushNotificationManager() {
     return (key: string) => typedTranslations[key]?.[lang] ?? key;
   }, [language]);
 
-  useEffect(() => {
-    if ("Notification" in window) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration: read browser API on mount
+  const refreshPermission = useCallback(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
       setPermission(window.Notification.permission);
     }
   }, []);
 
-  const requestPermission = useCallback(async () => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    try { const result = await Notification.requestPermission();   window.dispatchEvent(new StorageEvent("storage", { key: "notification-permission", newValue: result })); }
-    catch (error) { console.error("Notification permission error:", error); }
-  }, []);
+  useEffect(() => {
+    refreshPermission();
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker
+      .register("/sw.js")
+      .catch((error) => console.error("Service worker registration failed:", error));
+  }, [refreshPermission]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    const handler = () => { /* no-op */ };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, []);
+    const onVisible = () => refreshPermission();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshPermission]);
 
-  const sendNotification = useCallback(() => {
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const requestPermission = useCallback(async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
     try {
-      const notification = new Notification(t("NotificationTitle"), { body: t("NotificationBody"), icon: "/favicon.svg", requireInteraction: true });
-      notification.onclick = () => { window.focus(); window.location.href = "/"; notification.close(); }; // eslint-disable-line @next/next/no-location-assign-relative-destination
-    } catch (error) { console.error("Failed to send notification:", error); }
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      if (result === "granted") {
+        if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+          await navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+        }
+      }
+    } catch (error) {
+      console.error("Notification permission error:", error);
+      refreshPermission();
+    }
+  }, [refreshPermission]);
+
+  const sendNotification = useCallback(async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (window.Notification.permission !== "granted") return;
+    const title = t("NotificationTitle");
+    const options: NotificationOptions = {
+      body: t("NotificationBody"),
+      icon: NOTIFICATION_ICON,
+      badge: NOTIFICATION_ICON,
+      requireInteraction: true,
+      tag: "elite-shop-test",
+    };
+    try {
+      if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.showNotification(title, options);
+          return;
+        }
+      }
+      const notification = new Notification(title, options);
+      notification.onclick = () => {
+        window.focus();
+        window.location.href = "/";
+        notification.close();
+      }; // eslint-disable-line @next/next/no-location-assign-relative-destination
+    } catch (error) {
+      console.error("Failed to send notification:", error);
+    }
   }, [t]);
 
   useEffect(() => {
     if (isTesting) {
-      sendNotification();
-      intervalRef.current = setInterval(sendNotification, 3000);
+      void sendNotification();
+      intervalRef.current = setInterval(() => void sendNotification(), 3000);
     } else if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [isTesting, sendNotification]);
 
   const toggleTest = useCallback(() => setIsTesting((prev) => !prev), []);
@@ -87,7 +132,7 @@ export default function PushNotificationManager() {
 
   return (
     <button
-      onClick={requestPermission}
+      onClick={() => void requestPermission()}
       style={{
         fontSize: 12,
         padding: "4px 8px",
