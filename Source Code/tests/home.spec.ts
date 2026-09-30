@@ -17,6 +17,6 @@ test.describe("Home page", () => {
 
   test("shows version info", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("text=Build 566")).toBeVisible();
+    await expect(page.locator("text=5.2 Canary 10")).toBeVisible();
   });
 });

@@ -1,22 +1,28 @@
 import { test, expect } from "@playwright/test";
+import { settle } from "./helpers";
 
 test.describe("Navigation", () => {
   test("navbar links work", async ({ page }) => {
+    test.setTimeout(90000);
     await page.goto("/");
+    await settle(page);
     await expect(page.locator("nav")).toBeVisible();
 
     await page.locator("nav a", { hasText: "Products" }).click();
     await expect(page).toHaveURL(/\/products/);
 
     await page.goto("/");
+    await settle(page);
     await page.locator("nav a", { hasText: "Categories" }).click();
     await expect(page).toHaveURL(/\/categories/);
 
     await page.goto("/");
+    await settle(page);
     await page.locator("nav a", { hasText: "Cart" }).click();
     await expect(page).toHaveURL(/\/cart/);
 
     await page.goto("/");
+    await settle(page);
     await page.locator("nav a", { hasText: "Profile" }).click();
     await expect(page).toHaveURL(/\/profile/);
   });

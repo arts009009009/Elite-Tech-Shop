@@ -1,6 +1,6 @@
 [package]
 name = "products-service"
-version = "1.8.0"
+version = "5.2.0-canary.10"
 edition = "2021"
 description = "Elite Shop Products Catalog Service"
 license = "MIT"

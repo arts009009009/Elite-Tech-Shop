@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 // ============================================
-// FROSTCRAFT - Minecraft Beta Inspired (5.1 Canary 5)
+// FROSTCRAFT - Minecraft Beta Inspired (5.2 Canary 10)
 // Features: Polished Textures, HUD, Difficulty, Double Jump, Dash, 60 FPS
 // ============================================
 

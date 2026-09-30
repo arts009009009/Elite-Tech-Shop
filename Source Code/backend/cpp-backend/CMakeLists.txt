@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(elite_shop_cpp_backend
-    VERSION 1.0.0
+    VERSION 5.2.10
     DESCRIPTION "Scientific & Symbolic Calculator microservice for Elite Tech Shop (Frostbite OS)"
     LANGUAGES CXX
 )
