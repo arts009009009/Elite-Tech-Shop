@@ -12,7 +12,7 @@ React 19 · **Triple Backend** (Rust + Java + Go) · **C++ Calculator** · Minec
 
 *Built for chaos, speed, and full‑stack grind energy.*
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-🟢_Visit-00c853?style=for-the-badge&logo=vercel&logoColor=white)](https://elite-shop-50-731fukl1n-arts009009009-1652s-projects.vercel.app/)
+[![Live Demo]([https://img.shields.io/badge/Live_Demo-🟢_Visit-00c853?style=for-the-badge&logo=vercel&logoColor=white)](https://elite-shop-50-731fukl1n-arts009009009-1652s-projects.vercel.app/](https://elite-shop-50-lts.vercel.app/))
 [![GitHub Stars](https://img.shields.io/github/stars/arts009009009/Elite-Tech-Shop?style=for-the-badge&logo=github&color=f5c518)](https://github.com/arts009009009/Elite-Tech-Shop)
 [![Discussions](https://img.shields.io/badge/Discussions-💬-gray?style=for-the-badge&logo=github)](https://github.com/arts009009009/Elite-Tech-Shop/discussions)
 [![Hall of Fame](https://img.shields.io/badge/Hall_of_Fame-🏆-ff6f00?style=for-the-badge)](https://github.com/arts009009009/Elite-Tech-Shop/discussions/11)
