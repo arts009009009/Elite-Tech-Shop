@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useState, useCallback, useContext, useEffect, useMemo, ReactNode } from "react";
+import { createContext, useState, useCallback, useEffect, useMemo, ReactNode } from "react";
 
 interface Badge {
   id: string;
@@ -272,13 +272,3 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
     </AchievementContext.Provider>
   );
 }
-
-export function useAchievements(): AchievementContextType {
-  const context = useContext(AchievementContext);
-  if (context === undefined) {
-    throw new Error("useAchievements must be used within an AchievementProvider");
-  }
-  return context;
-}
-
-export default AchievementContext;

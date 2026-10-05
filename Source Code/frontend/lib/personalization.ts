@@ -101,23 +101,3 @@ export function scoreProducts(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
-
-export function determineSegment(data: {
-  orderCount?: number;
-  lastOrderDays?: number;
-  totalSpent?: number;
-}): UserSegment {
-  if (!data.orderCount || data.orderCount === 0) return "new";
-  if (data.totalSpent && data.totalSpent > 500) return "high-value";
-  if (data.lastOrderDays && data.lastOrderDays > 60) return "at-risk";
-  return "returning";
-}
-
-export function getPersonalizationHeaders(context: PersonalizationContext): Record<string, string> {
-  return {
-    "x-user-segment": context.segment,
-    "x-browse-history": context.browseHistory.join(","),
-    "x-cart-items": context.cartItems.join(","),
-    "x-experiment-group": context.experimentGroup,
-  };
-}

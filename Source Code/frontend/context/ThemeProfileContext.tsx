@@ -46,13 +46,6 @@ export const PROFILE_THEMES: Record<ThemeProfile, CustomTheme> = {
   },
 };
 
-const PROFILE_LABELS: Record<ThemeProfile, string> = {
-  default: "Default",
-  hacker: "Hacker",
-  developer: "Developer",
-  user: "User",
-};
-
 export function ThemeProfileProvider({ children }: { children: ReactNode }) {
   const { setCustomTheme } = useThemeCustomizer();
   const [profile, setProfileState] = useState<ThemeProfile>(() => {
@@ -90,5 +83,3 @@ export function useThemeProfile() {
   if (!ctx) return { profile: "default" as ThemeProfile, setProfile: () => {} };
   return ctx;
 }
-
-export { PROFILE_LABELS };

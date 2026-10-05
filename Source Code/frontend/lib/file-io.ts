@@ -58,17 +58,6 @@ export function saveFile(filename: string, content: string, mime = "text/plain")
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
-export function saveBinaryFile(filename: string, data: Blob | ArrayBuffer, mime = "application/octet-stream") {
-  const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 export function saveDataURL(filename: string, dataUrl: string) {
   const a = document.createElement("a");
   a.href = dataUrl;

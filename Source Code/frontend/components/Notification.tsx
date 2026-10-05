@@ -1,12 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 
-let notifyFn: (msg: string) => void = () => {};
-
-export function notify(message: string) {
-  notifyFn(message);
-}
-
 export default function Notification() {
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(false);
@@ -24,12 +18,10 @@ export default function Notification() {
   }, []);
 
   useEffect(() => {
-    notifyFn = show;
     const handler = (e: Event) => show((e as CustomEvent).detail);
     window.addEventListener("notify", handler);
     return () => {
       window.removeEventListener("notify", handler);
-      notifyFn = () => {};
     };
   }, [show]);
 

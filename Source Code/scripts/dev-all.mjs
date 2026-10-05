@@ -16,6 +16,55 @@ function has(cmd) {
   } catch { return false; }
 }
 
+// ── JDK detection ──
+// `java` is not enough for `mvn package`: Maven needs a JDK (javac + lib/ct.sym).
+// Distro installs frequently ship only a JRE, in which case Maven dies with the
+// misleading "error: release version 21 not supported". Probe well-known JDK
+// homes so the build still works when a JDK exists but is not on PATH.
+
+function findJdk() {
+  const candidates = [];
+  const push = (p) => { if (p) candidates.push(p); };
+
+  push(process.env.JAVA_HOME);
+
+  const home = process.env.HOME || "";
+  const sdkman = join(home, ".sdkman", "candidates", "java");
+  push(join(sdkman, "current"));
+  try {
+    readdirSync(sdkman, { withFileTypes: true })
+      .filter((e) => e.name !== "current")
+      .map((e) => join(sdkman, e.name))
+      .sort()
+      .reverse()
+      .forEach(push);
+  } catch {}
+
+  try {
+    readdirSync("/usr/lib/jvm", { withFileTypes: true })
+      .filter((e) => e.name !== "default" && e.name !== "default-java")
+      .map((e) => join("/usr/lib/jvm", e.name))
+      .sort()
+      .reverse()
+      .forEach(push);
+  } catch {}
+
+  return candidates.find((p) => existsSync(join(p, "bin", "javac"))) || null;
+}
+
+let jdkHome = null;
+
+function ensureJdk() {
+  if (has("javac")) return true;
+  jdkHome = findJdk();
+  return Boolean(jdkHome);
+}
+
+function javaEnv() {
+  if (!jdkHome) return process.env;
+  return { ...process.env, JAVA_HOME: jdkHome, PATH: `${join(jdkHome, "bin")}:${process.env.PATH || ""}` };
+}
+
 function detectPM() {
   const ua = process.env.npm_config_user_agent || "";
   const execPath = process.env.npm_execpath || "";
@@ -40,11 +89,11 @@ function run(cmd, args, opts = {}) {
   return child;
 }
 
-function buildSync(label, cmd, args, cwd) {
+function buildSync(label, cmd, args, cwd, env) {
   console.log(`[dev] Building ${label}...`);
   const start = Date.now();
   try {
-    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: 600000 });
+    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: 600000, env });
     if (result.status !== 0) {
       console.log(`[dev] ${label} build failed (exit ${result.status}). Skipping.`);
       return false;
@@ -57,8 +106,8 @@ function buildSync(label, cmd, args, cwd) {
   }
 }
 
-function pmRun(script, cwd) {
-  const opts = cwd ? { cwd } : {};
+function pmRun(script, cwd, env) {
+  const opts = { ...(cwd ? { cwd } : {}), ...(env ? { env } : {}) };
   switch (pm) {
     case "bun":    return run("bun", ["run", script], opts);
     case "deno":   return run("deno", ["task", script], opts);
@@ -114,7 +163,17 @@ function buildJava() {
     console.log("[dev] Skipping Java backend — mvn not installed.");
     return false;
   }
-  return buildSync("Java backend", "mvn", ["clean", "package", "-DskipTests", "-q"], join(ROOT, "backend"));
+  if (!ensureJdk()) {
+    console.log("[dev] Skipping Java backend — no JDK found.");
+    console.log("[dev]   `java` is on PATH but `javac` is not (a JRE-only install). Maven needs a JDK,");
+    console.log("[dev]   otherwise it fails with: error: release version 21 not supported.");
+    console.log("[dev]   Fix one of:");
+    console.log("[dev]     • sudo apt-get install -y openjdk-25-jdk-headless");
+    console.log("[dev]     • nix develop        (flake.nix already provides pkgs.jdk21)");
+    return false;
+  }
+  if (jdkHome) console.log(`[dev] Using JDK at ${jdkHome}`);
+  return buildSync("Java backend", "mvn", ["clean", "package", "-DskipTests", "-q"], join(ROOT, "backend"), javaEnv());
 }
 
 function buildGo() {
@@ -249,7 +308,7 @@ async function main() {
 
   if (javaOk) {
     console.log("[dev] Starting Java backend → http://localhost:3001");
-    procs.push(pmRun("backend:java"));
+    procs.push(pmRun("backend:java", null, javaEnv()));
   }
 
   if (goOk) {
