@@ -75,6 +75,9 @@ check_system_deps() {
 
   check_dep node   || missing+=("node (https://nodejs.org)")
   check_dep java   || missing+=("java (https://adoptium.net)")
+  # `java` alone is not enough: compiling the backend needs a JDK (javac).
+  # A JRE-only install makes `mvn package` fail with "release version 21 not supported".
+  check_dep javac  || missing+=('JDK with javac — a JRE is not enough (apt: openjdk-25-jdk-headless, or use `nix develop`)')
   check_dep go     || missing+=("go (https://go.dev/dl)")
   check_dep cargo  || missing+=("rust (https://rustup.rs)")
   check_dep pnpm   || missing+=("pnpm (npm install -g pnpm)")
@@ -100,7 +103,7 @@ install_with_brew() {
 install_with_apt() {
   info "Installing dependencies via apt (Node.js + Rust)..."
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-  sudo apt-get install -y nodejs maven
+  sudo apt-get install -y nodejs maven openjdk-21-jdk-headless
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   curl -LsSf https://get.go.dev/installation | sh
   npm install -g pnpm
