@@ -73,5 +73,5 @@ function RecentlyViewedWidget() {
   );
 }
 
-export { trackView, useRecentlyViewed, RecentlyViewedWidget };
+export { trackView };
 export default memo(RecentlyViewedWidget);

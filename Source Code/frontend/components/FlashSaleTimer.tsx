@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, memo, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import uiStringsJson from "@/data/navbar-translate.json";
 
@@ -73,38 +73,4 @@ function FlashSaleCard({ sale }: { sale: FlashSale }) {
   );
 }
 
-function FlashBadge({ endsAt }: { endsAt: string }) {
-  const [time, setTime] = useState<{ hours: number; minutes: number; seconds: number; expired: boolean }>({ hours: 0, minutes: 0, seconds: 0, expired: true });
-
-  useEffect(() => {
-    setTime(getTimeLeft(endsAt));
-    const interval = setInterval(() => setTime(getTimeLeft(endsAt)), 1000);
-    return () => clearInterval(interval);
-  }, [endsAt]);
-
-  if (time.expired) return null;
-
-  return (
-    <div style={{
-      position: "absolute",
-      top: 8,
-      right: 8,
-      background: "#ff0064",
-      color: "white",
-      padding: "3px 8px",
-      borderRadius: 6,
-      fontSize: 11,
-      fontWeight: 700,
-      zIndex: 2,
-      display: "flex",
-      alignItems: "center",
-      gap: 4,
-    }}>
-      ⚡ {String(time.hours).padStart(2, "0")}:{String(time.minutes).padStart(2, "0")}:{String(time.seconds).padStart(2, "0")}
-    </div>
-  );
-}
-
-export { FlashSaleBanner, FlashSaleCard, FlashBadge };
-export type { FlashSale };
-export default memo(FlashSaleBanner);
+export { FlashSaleBanner };

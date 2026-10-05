@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useState, useCallback, useContext, useEffect, useMemo } from "react";
+import { createContext, useState, useCallback, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { goFetch } from "@/lib/goFetch";
 
@@ -73,10 +73,4 @@ export function ReferralProvider({ children }: { children: ReactNode }) {
       {children}
     </ReferralContext.Provider>
   );
-}
-
-export function useReferral(): ReferralState {
-  const ctx = useContext(ReferralContext);
-  if (!ctx) return { myCode: "", referralCount: 0, referredBy: null, generateCode: () => {}, applyCode: async () => false, getShareUrl: () => "" };
-  return ctx;
 }
