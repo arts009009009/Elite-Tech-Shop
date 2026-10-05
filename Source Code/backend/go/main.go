@@ -1016,7 +1016,7 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]interface{}{
 		"status":  "ok",
 		"service": "elite-shop-go",
-		"version": "5.2 Canary 10",
+		"version": "5.2 Canary 11",
 	}, 200)
 }
 
@@ -1052,7 +1052,7 @@ func handleLanding(w http.ResponseWriter, r *http.Request) {
     <div class="card">
         <h1>Elite Shop — Go Service</h1>
         <div class="label">Version</div>
-        <div class="version">5.2 Canary 10</div>
+        <div class="version">5.2 Canary 11</div>
         <div class="status">&#x25cf; Running</div>
         <div class="info">
             Go / net-http<br>

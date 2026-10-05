@@ -319,7 +319,7 @@ dependencies = [
 
 [[package]]
 name = "products-service"
-version = "5.2.0-canary.10"
+version = "5.2.0-canary.11"
 dependencies = [
  "axum",
  "serde",

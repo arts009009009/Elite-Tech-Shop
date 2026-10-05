@@ -367,7 +367,7 @@ function FrostbiteOSDesktopInner() {
           <span className={`fs-ctx-chaos-indicator ${monitorVisible ? "fs-ctx-chaos-on" : "fs-ctx-chaos-off"}`} />
         </div>
         <div className="fs-ctx-sep" />
-        <div className="fs-ctx-item" onClick={() => { setCtxMenu({ show: false, x: 0, y: 0 }); showNotif("Frostbite OS 5.2 Canary 10 \u2014 Elite Tech Shop"); }}>About Frostbite OS</div>
+        <div className="fs-ctx-item" onClick={() => { setCtxMenu({ show: false, x: 0, y: 0 }); showNotif("Frostbite OS 5.2 Canary 11 \u2014 Elite Tech Shop"); }}>About Frostbite OS</div>
       </div>
 
       {/* System Monitor Overlay */}
