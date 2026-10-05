@@ -159,7 +159,7 @@ async fn index() -> Html<&'static str> {
     <div class="card">
         <h1>Elite Shop Products</h1>
         <div class="label">Version</div>
-        <div class="version">5.2 Canary 10</div>
+        <div class="version">5.2 Canary 11</div>
         <div class="status">&#x25cf; Running</div>
         <div class="info">
             Rust / Axum<br>
