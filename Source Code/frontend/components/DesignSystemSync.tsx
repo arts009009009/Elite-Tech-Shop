@@ -8,7 +8,7 @@ export default function DesignSystemSync() {
   const { theme } = useThemeMode();
   useEffect(() => {
     document.body.classList.toggle("design-system-classic", designSystem === "classic");
-    const wp = designSystem === "classic" ? "/classic wallpaper.webp" : "/wallpaper.webp";
+    const wp = designSystem === "classic" ? "/classic wallpaper.avif" : "/wallpaper.avif";
     if (theme === "light-mode") {
       document.body.style.background = `url("${wp}") no-repeat center center fixed`;
       document.body.style.backgroundSize = "cover";

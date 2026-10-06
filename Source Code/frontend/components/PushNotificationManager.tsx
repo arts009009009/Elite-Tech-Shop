@@ -8,7 +8,7 @@ type TranslationEntry = Partial<Record<Lang, string>>;
 type TranslationMap = Record<string, TranslationEntry>;
 const typedTranslations: TranslationMap = translations;
 
-const NOTIFICATION_ICON = "/elitetech.webp";
+const NOTIFICATION_ICON = "/elitetech.avif";
 
 export default function PushNotificationManager() {
   const [permission, setPermission] = useState<NotificationPermission>("default");
