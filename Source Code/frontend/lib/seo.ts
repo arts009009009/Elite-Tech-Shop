@@ -7,7 +7,7 @@ export function generateOrganizationJsonLd() {
     "@type": "Organization",
     name: SITE_NAME,
     url: SITE_URL,
-    logo: `${SITE_URL}/elitetech.webp`,
+    logo: `${SITE_URL}/elitetech.avif`,
     sameAs: [],
     contactPoint: {
       "@type": "ContactPoint",

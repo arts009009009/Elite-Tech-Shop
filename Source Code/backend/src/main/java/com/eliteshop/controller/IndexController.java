@@ -11,7 +11,7 @@ public class IndexController {
 
     @GetMapping("/api/health")
     public Map<String, Object> health() {
-        return Map.of("status", "ok", "service", "elite-shop-java", "version", "5.2 Canary 11");
+        return Map.of("status", "ok", "service", "elite-shop-java", "version", "5.2 Canary 12");
     }
 
     @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
@@ -45,7 +45,7 @@ public class IndexController {
                 <div class="card">
                     <h1>Elite Shop Backend</h1>
                     <div class="label">Version</div>
-                    <div class="version">5.2 Canary 11</div>
+                    <div class="version">5.2 Canary 12</div>
                     <div class="status">&#x25cf; Running</div>
                     <div class="info">
                         Spring Boot 3.4.2<br>

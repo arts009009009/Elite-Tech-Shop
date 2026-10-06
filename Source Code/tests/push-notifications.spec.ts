@@ -58,11 +58,11 @@ test.describe("push notifications", () => {
       const registration = await navigator.serviceWorker.ready;
       await registration.showNotification("Elite Tech Shop", {
         body: "Order confirmed",
-        icon: "/elitetech.webp",
+        icon: "/elitetech.avif",
         tag: "playwright-check",
       });
       const active = registration.active?.state;
-      const iconResponse = await fetch("/elitetech.webp");
+      const iconResponse = await fetch("/elitetech.avif");
       const missingIcon = await fetch("/favicon.svg");
       return { active, iconStatus: iconResponse.status, faviconStatus: missingIcon.status };
     });

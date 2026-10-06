@@ -17,7 +17,7 @@ React 19 · **Triple Backend** (Rust + Java + Go) · **C++ Calculator** · Minec
 [![Discussions](https://img.shields.io/badge/Discussions-💬-gray?style=for-the-badge&logo=github)](https://github.com/arts009009009/Elite-Tech-Shop/discussions)
 [![Hall of Fame](https://img.shields.io/badge/Hall_of_Fame-🏆-ff6f00?style=for-the-badge)](https://github.com/arts009009009/Elite-Tech-Shop/discussions/11)
 [![License: MIT](https://img.shields.io/badge/License-MIT-CE412B?style=for-the-badge&logo=open-source-initiative&logoColor=white)](https://github.com/arts009009009/Elite-Tech-Shop/blob/main/Source%20Code/LICENSE)
-[![Release](https://img.shields.io/badge/release-5.2_Canary_11-3178C6?style=for-the-badge)](https://github.com/arts009009009/Elite-Tech-Shop/releases)
+[![Release](https://img.shields.io/badge/release-5.2_Canary_12-3178C6?style=for-the-badge)](https://github.com/arts009009009/Elite-Tech-Shop/releases)
 
 </div>
 
@@ -111,13 +111,13 @@ The **`/Source Code`** folder is **always up to date**. Every commit reflects th
 - 🔄 **Continuous updates** — bug fixes, features and experiments land here first
 - 🕹️ **Direct viewable code** — browse backend, frontend and configs without cloning
 - 🛠️ **Pull requests welcome** — edit files, upload replacements, or propose changes directly
-- 🏷️ **Releases are snapshots** — tagged versions (like **5.2 Canary 11**) are milestones, but `/Source Code` may be ahead
+- 🏷️ **Releases are snapshots** — tagged versions (like **5.2 Canary 12**) are milestones, but `/Source Code` may be ahead
 
 > ⚠️ Only **Stable** and **Canary** releases are supported (no LTS).
 
 ---
 
-## 🚀 Release Summary — 5.2 Canary 11
+## 🚀 Release Summary — 5.2 Canary 12
 
 | Feature | Detail |
 |---------|--------|
@@ -324,7 +324,7 @@ docker-compose up --build
 | TypeScript strict mode | ✅ `tsc --noEmit` clean |
 | Calculator backend | ✅ 73 parser + 34 derivative + 390 fuzz cases; HTTP 400 error contract |
 | Push notifications | ✅ Service worker push + notificationclick, flight-request bypass |
-| Version sync | ✅ 5.2 Canary 11 across navbar, health endpoints, pom, Cargo, CMake, package.json |
+| Version sync | ✅ 5.2 Canary 12 across navbar, health endpoints, pom, Cargo, CMake, package.json |
 | Auth Flow | ✅ Java-backed register / login / logout |
 | Hydration | ✅ SSR-safe, no mismatches |
 | i18n | ✅ 130 translation keys, 10 languages + RTL |

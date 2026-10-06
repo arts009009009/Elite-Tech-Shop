@@ -189,7 +189,7 @@ export default function ThemeCustomizer() {
                     }}
                   >
                     {p === "default" ? (
-                      <Image src="/elitetech.webp" alt="Default" width={24} height={24} style={{ objectFit: "contain" }} />
+                      <Image src="/elitetech.avif" alt="Default" width={24} height={24} style={{ objectFit: "contain" }} />
                     ) : (
                       <span style={{ fontSize: "24px" }}>{PROFILE_ICONS[p]}</span>
                     )}

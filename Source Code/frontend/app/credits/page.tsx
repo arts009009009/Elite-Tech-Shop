@@ -46,7 +46,7 @@ export default function Credits() {
             onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "none"; }}
           >
             <Image
-              src="/elitetech.webp"
+              src="/elitetech.avif"
               alt="Elite Tech"
               width={500}
               height={500}
@@ -70,14 +70,14 @@ export default function Credits() {
               onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; e.currentTarget.style.filter = "drop-shadow(0 0 20px #ff4f00)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "none"; }}
             >
-              <Image src="/rust.webp" alt="Rust" width={300} height={300} style={{ width: BE_LOGO_W, height: BE_LOGO_W }} unoptimized />
+              <Image src="/rust.avif" alt="Rust" width={300} height={300} style={{ width: BE_LOGO_W, height: BE_LOGO_W }} unoptimized />
               <p className="rust-text" style={{ fontSize: BE_TEXT_S, margin: "clamp(2px, 0.3vh, 6px) 0 0" }}>Rust</p>
             </div>
             <div key="go" className="logo-block" style={{ transition: "transform 0.3s, filter 0.3s", cursor: "default", display: "flex", flexDirection: "column", alignItems: "center" }}
               onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; e.currentTarget.style.filter = "drop-shadow(0 0 20px #00add8)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "none"; }}
             >
-              <Image src="/GO.webp" alt="Go" width={300} height={300} style={{ width: BE_LOGO_W, height: BE_LOGO_W }} unoptimized />
+              <Image src="/GO.avif" alt="Go" width={300} height={300} style={{ width: BE_LOGO_W, height: BE_LOGO_W }} unoptimized />
               <p className="go-text" style={{ fontSize: BE_TEXT_S, margin: "clamp(2px, 0.3vh, 6px) 0 0" }}>Go</p>
             </div>
           </div>
@@ -87,14 +87,14 @@ export default function Credits() {
               onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; e.currentTarget.style.filter = "drop-shadow(0 0 20px #f89820)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "none"; }}
             >
-              <Image src="/java.webp" alt="Java" width={300} height={300} style={{ width: BE_LOGO_W, height: BE_LOGO_W }} unoptimized />
+              <Image src="/java.avif" alt="Java" width={300} height={300} style={{ width: BE_LOGO_W, height: BE_LOGO_W }} unoptimized />
               <p className="java-text" style={{ fontSize: BE_TEXT_S, margin: "clamp(2px, 0.3vh, 6px) 0 0" }}>Java</p>
             </div>
             <div key="springboot" className="logo-block" style={{ transition: "transform 0.3s, filter 0.3s", cursor: "default", display: "flex", flexDirection: "column", alignItems: "center" }}
               onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.08)"; e.currentTarget.style.filter = "drop-shadow(0 0 20px #6db33f)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "none"; }}
             >
-              <Image src="/springboot.webp" alt="Spring Boot" width={600} height={300} style={{ width: `calc(${BE_LOGO_W} * 1.4)`, height: BE_LOGO_W }} unoptimized />
+              <Image src="/springboot.avif" alt="Spring Boot" width={600} height={300} style={{ width: `calc(${BE_LOGO_W} * 1.4)`, height: BE_LOGO_W }} unoptimized />
               <p className="spring-text" style={{ fontSize: BE_TEXT_S, margin: "clamp(2px, 0.3vh, 6px) 0 0" }}>Spring Boot</p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-module elite-shop-go // v5.2.11
+module elite-shop-go // v5.2.12
 
 go 1.25.0
 
