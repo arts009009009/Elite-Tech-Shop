@@ -3,7 +3,6 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useDiscount } from "@/context/DiscountContext";
-import { useReviews } from "@/context/ReviewContext";
 import { useUser } from "@/context/UserContext";
 import { useInventory } from "@/context/InventoryContext";
 import { useRewards } from "@/context/RewardsContext";
@@ -153,7 +152,6 @@ const checkoutCss = `
 
 export default function Checkout() {
   const cartCtx = useCart();
-  const reviewCtx = useReviews();
   const userCtx = useUser();
   const { appliedCode, discountAmount, discountLabel, applyCode, removeDiscount, availableCodes } = useDiscount();
   const { addPoints } = useRewards();
@@ -162,7 +160,7 @@ export default function Checkout() {
   const [discountInput, setDiscountInput] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [placing, setPlacing] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [orderId] = useState<string | null>(null);
 
   const subtotal = cartCtx.cart.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
   const total = Math.max(0, subtotal - discountAmount);

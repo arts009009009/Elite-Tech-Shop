@@ -87,10 +87,6 @@ export default function ProfilePage() {
     );
   }
 
-  const cardStyle = { background: "var(--card-bg, #111)", border: "1px solid var(--border, #333)", borderRadius: 8, padding: 24 };
-  const inputStyle = { width: "100%", padding: "8px 12px", border: "1px solid var(--border, #333)", borderRadius: 4, background: "var(--bg, #0a0a0a)", color: "var(--text, #e0e0e0)", fontSize: 14 };
-  const btnStyle = { padding: "8px 16px", background: "var(--accent, #00d4ff)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 14 };
-
   return (
     <>
       <Navbar />

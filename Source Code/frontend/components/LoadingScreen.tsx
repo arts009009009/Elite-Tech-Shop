@@ -1,21 +1,22 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 
 export default function LoadingScreen({ minimumLoad = 1500 }: { minimumLoad?: number }) {
-  const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
+  // Detect client mount without a setState-in-effect: false while SSRing and
+  // hydrating, true once running in the browser.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const [finished, setFinished] = useState(false);
   const [progress, setProgress] = useState(0);
   const done = useRef(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setVisible(true);
-  }, []);
 
   const finish = useCallback(() => {
     if (done.current) return;
     done.current = true;
-    setVisible(false);
+    setFinished(true);
   }, []);
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export default function LoadingScreen({ minimumLoad = 1500 }: { minimumLoad?: nu
     return () => clearInterval(interval);
   }, []);
 
-  if (!mounted || !visible) return null;
+  if (!mounted || finished) return null;
 
   return (
     <div

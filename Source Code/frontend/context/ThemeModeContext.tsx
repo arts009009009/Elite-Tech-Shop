@@ -19,9 +19,12 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>("dark-mode");
 
   useEffect(() => {
+    // localStorage/matchMedia are unavailable during prerender, so the stored
+    // theme can only be resolved after mount (SSR-safe hydration pattern).
     try {
       const saved = localStorage.getItem(THEME_KEY);
       if (saved && (THEME_OPTIONS as string[]).includes(saved)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setThemeState(saved as ThemeMode);
         return;
       }
