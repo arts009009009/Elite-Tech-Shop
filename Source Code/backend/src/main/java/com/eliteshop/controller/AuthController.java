@@ -48,7 +48,6 @@ public class AuthController {
     private static final ConcurrentHashMap<String, Long> rateLimitTimestamps = new ConcurrentHashMap<>();
     private static final int MAX_LOGIN_ATTEMPTS = 5;
     private static final long RATE_LIMIT_WINDOW_MS = 60 * 1000;
-    private static final long PASSWORD_TTL_MS = 10 * 60 * 1000L;
     private volatile boolean mongoAvailable = true;
     
     private static final Map<String, String> SENSITIVE_ERROR_MESSAGES = Map.of(
@@ -347,13 +346,14 @@ public class AuthController {
         }
         
         if (pendingPw == null) {
+            // Read the timestamp BEFORE removing it, otherwise the TTL check
+            // below always sees null and expired in-memory OTPs never expire.
+            Long createdTime = inMemoryPendingTime.get(normalizedEmail);
             pendingPw = inMemoryPending.remove(normalizedEmail);
             inMemoryPendingTime.remove(normalizedEmail);
-            if (pendingPw != null) {
-                Long createdTime = inMemoryPendingTime.get(normalizedEmail);
-                if (createdTime != null && (System.currentTimeMillis() - createdTime) > PASSWORD_TTL_MS) {
-                    pendingPw = null;
-                }
+            if (pendingPw != null && createdTime != null
+                && (System.currentTimeMillis() - createdTime) > PASSWORD_TTL_MS) {
+                pendingPw = null;
             }
         }
 
