@@ -24,20 +24,20 @@ import (
 )
 
 type Product struct {
-	ID          int                `json:"id"`
-	Name        string             `json:"name"`
-	Price       float64            `json:"price"`
-	Currency    string             `json:"currency"`
-	Category    string             `json:"category"`
-	Description map[string]string  `json:"description"`
-	Image       string             `json:"image"`
-	Images      []string           `json:"images"`
-	Rating      float64            `json:"rating"`
-	Reviews     int                `json:"reviews"`
-	InStock     bool               `json:"in_stock"`
-	Featured    bool               `json:"featured"`
-	Tags        []string           `json:"tags"`
- Specs       map[string]string  `json:"specs"`
+	ID          int               `json:"id"`
+	Name        string            `json:"name"`
+	Price       float64           `json:"price"`
+	Currency    string            `json:"currency"`
+	Category    string            `json:"category"`
+	Description map[string]string `json:"description"`
+	Image       string            `json:"image"`
+	Images      []string          `json:"images"`
+	Rating      float64           `json:"rating"`
+	Reviews     int               `json:"reviews"`
+	InStock     bool              `json:"in_stock"`
+	Featured    bool              `json:"featured"`
+	Tags        []string          `json:"tags"`
+	Specs       map[string]string `json:"specs"`
 }
 
 type CartItem struct {
@@ -68,9 +68,9 @@ type Review struct {
 }
 
 type RewardData struct {
-	Points     int            `json:"points"`
-	Lifetime   int            `json:"lifetime"`
-	Redeemed   map[string]bool `json:"redeemed"`
+	Points   int             `json:"points"`
+	Lifetime int             `json:"lifetime"`
+	Redeemed map[string]bool `json:"redeemed"`
 }
 
 type DiscountCode struct {
@@ -95,31 +95,31 @@ type Session struct {
 }
 
 type Store struct {
-	mu          sync.RWMutex
-	Products    []Product              `json:"products"`
-	Carts       map[string][]CartItem  `json:"carts"`
-	Wishlists   map[string][]int       `json:"wishlists"`
-	Orders      []Order                `json:"orders"`
-	Reviews     []Review               `json:"reviews"`
-	Rewards     map[string]*RewardData `json:"rewards"`
-	Discounts   []DiscountCode         `json:"discounts"`
-	Users       []User                 `json:"users"`
-	Sessions    map[string]*Session    `json:"sessions"`
-	Profiles    map[string]*UserProfile `json:"profiles"`
-	NextReviewID int                   `json:"next_review_id"`
+	mu           sync.RWMutex
+	Products     []Product               `json:"products"`
+	Carts        map[string][]CartItem   `json:"carts"`
+	Wishlists    map[string][]int        `json:"wishlists"`
+	Orders       []Order                 `json:"orders"`
+	Reviews      []Review                `json:"reviews"`
+	Rewards      map[string]*RewardData  `json:"rewards"`
+	Discounts    []DiscountCode          `json:"discounts"`
+	Users        []User                  `json:"users"`
+	Sessions     map[string]*Session     `json:"sessions"`
+	Profiles     map[string]*UserProfile `json:"profiles"`
+	NextReviewID int                     `json:"next_review_id"`
 
 	// Index maps for O(1) lookups
-	UsersByUsername   map[string]int    // username -> index in Users
-	OrdersByUsername  map[string][]int  // username -> indices in Orders
-	ReviewsByProduct  map[int][]int     // product_id -> indices in Reviews
+	UsersByUsername  map[string]int   // username -> index in Users
+	OrdersByUsername map[string][]int // username -> indices in Orders
+	ReviewsByProduct map[int][]int    // product_id -> indices in Reviews
 }
 
 var store = &Store{
-	Carts:     make(map[string][]CartItem),
-	Wishlists: make(map[string][]int),
-	Rewards:   make(map[string]*RewardData),
-	Sessions:  make(map[string]*Session),
-	Profiles:  make(map[string]*UserProfile),
+	Carts:            make(map[string][]CartItem),
+	Wishlists:        make(map[string][]int),
+	Rewards:          make(map[string]*RewardData),
+	Sessions:         make(map[string]*Session),
+	Profiles:         make(map[string]*UserProfile),
 	UsersByUsername:  map[string]int{"admin": 0},
 	OrdersByUsername: make(map[string][]int),
 	ReviewsByProduct: make(map[int][]int),
@@ -180,8 +180,8 @@ func generateOrderID() string {
 }
 
 var allowedOrigins = map[string]bool{
-	"http://localhost:3000": true,
-	"http://localhost:3001": true,
+	"http://localhost:3000":   true,
+	"http://localhost:3001":   true,
 	"https://elite-tech.shop": true,
 }
 
@@ -223,9 +223,15 @@ func getUsername(r *http.Request) string {
 }
 
 func handleSignup(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
-	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "POST" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
 	var req struct {
 		Username string `json:"username"`
@@ -233,17 +239,20 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, "invalid request", 400); return
+		errorResponse(w, "invalid request", 400)
+		return
 	}
 	if req.Username == "" || req.Password == "" {
-		errorResponse(w, "username and password required", 400); return
+		errorResponse(w, "username and password required", 400)
+		return
 	}
 
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
 	if _, exists := store.UsersByUsername[req.Username]; exists {
-		errorResponse(w, "username already exists", 409); return
+		errorResponse(w, "username already exists", 409)
+		return
 	}
 
 	idx := len(store.Users)
@@ -283,9 +292,15 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
-	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "POST" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
 	var req struct {
 		Username string `json:"username"`
@@ -293,7 +308,8 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, "invalid request", 400); return
+		errorResponse(w, "invalid request", 400)
+		return
 	}
 
 	username := req.Username
@@ -314,15 +330,15 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 				Expires:  time.Now().Add(7 * 24 * time.Hour).Unix(),
 			}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "session_token",
-			Value:    token,
-			Path:     "/",
-			MaxAge:   7 * 24 * 3600,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		})
+			http.SetCookie(w, &http.Cookie{
+				Name:     "session_token",
+				Value:    token,
+				Path:     "/",
+				MaxAge:   7 * 24 * 3600,
+				HttpOnly: true,
+				Secure:   true,
+				SameSite: http.SameSiteLaxMode,
+			})
 
 			jsonResponse(w, map[string]interface{}{
 				"token":    token,
@@ -336,7 +352,10 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	cookie, err := r.Cookie("session_token")
 	if err == nil {
@@ -364,15 +383,22 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSendPassword(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
-	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "POST" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
 	var req struct {
 		Email string `json:"email"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, "invalid request", 400); return
+		errorResponse(w, "invalid request", 400)
+		return
 	}
 
 	// Always return success to prevent user enumeration
@@ -383,11 +409,15 @@ func handleSendPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleMe(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
 	if username == "" {
-		errorResponse(w, "not logged in", 401); return
+		errorResponse(w, "not logged in", 401)
+		return
 	}
 	store.mu.RLock()
 	defer store.mu.RUnlock()
@@ -406,23 +436,31 @@ func handleMe(w http.ResponseWriter, r *http.Request) {
 // --- CART HANDLERS ---
 
 func handleCart(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { username = "guest" }
+	if username == "" {
+		username = "guest"
+	}
 
 	switch r.Method {
 	case "GET":
 		store.mu.RLock()
 		cart := store.Carts[username]
-		if cart == nil { cart = []CartItem{} }
+		if cart == nil {
+			cart = []CartItem{}
+		}
 		store.mu.RUnlock()
 		jsonResponse(w, cart, 200)
 
 	case "POST":
 		var item CartItem
 		if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-			errorResponse(w, "invalid request", 400); return
+			errorResponse(w, "invalid request", 400)
+			return
 		}
 		store.mu.Lock()
 		cart := store.Carts[username]
@@ -456,15 +494,26 @@ func handleCart(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCartItem(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { username = "guest" }
+	if username == "" {
+		username = "guest"
+	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 { errorResponse(w, "bad path", 400); return }
+	if len(parts) < 5 {
+		errorResponse(w, "bad path", 400)
+		return
+	}
 	productID, err := strconv.Atoi(parts[4])
-	if err != nil { errorResponse(w, "invalid product id", 400); return }
+	if err != nil {
+		errorResponse(w, "invalid product id", 400)
+		return
+	}
 
 	switch r.Method {
 	case "PUT":
@@ -472,7 +521,8 @@ func handleCartItem(w http.ResponseWriter, r *http.Request) {
 			Quantity int `json:"quantity"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errorResponse(w, "invalid request", 400); return
+			errorResponse(w, "invalid request", 400)
+			return
 		}
 		store.mu.Lock()
 		cart := store.Carts[username]
@@ -511,16 +561,23 @@ func handleCartItem(w http.ResponseWriter, r *http.Request) {
 // --- WISHLIST HANDLERS ---
 
 func handleWishlist(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { username = "guest" }
+	if username == "" {
+		username = "guest"
+	}
 
 	switch r.Method {
 	case "GET":
 		store.mu.RLock()
 		wl := store.Wishlists[username]
-		if wl == nil { wl = []int{} }
+		if wl == nil {
+			wl = []int{}
+		}
 		store.mu.RUnlock()
 		jsonResponse(w, wl, 200)
 
@@ -529,10 +586,12 @@ func handleWishlist(w http.ResponseWriter, r *http.Request) {
 			ProductID int `json:"product_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errorResponse(w, "invalid request", 400); return
+			errorResponse(w, "invalid request", 400)
+			return
 		}
 		if req.ProductID <= 0 {
-			errorResponse(w, "invalid product id", 400); return
+			errorResponse(w, "invalid product id", 400)
+			return
 		}
 		store.mu.Lock()
 		wl := store.Wishlists[username]
@@ -562,17 +621,31 @@ func handleWishlist(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleWishlistItem(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { username = "guest" }
+	if username == "" {
+		username = "guest"
+	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 { errorResponse(w, "bad path", 400); return }
+	if len(parts) < 5 {
+		errorResponse(w, "bad path", 400)
+		return
+	}
 	productID, err := strconv.Atoi(parts[4])
-	if err != nil { errorResponse(w, "invalid product id", 400); return }
+	if err != nil {
+		errorResponse(w, "invalid product id", 400)
+		return
+	}
 
-	if r.Method != "DELETE" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "DELETE" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
 	store.mu.Lock()
 	wl := store.Wishlists[username]
@@ -589,10 +662,16 @@ func handleWishlistItem(w http.ResponseWriter, r *http.Request) {
 // --- ORDER HANDLERS ---
 
 func handleOrders(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	switch r.Method {
 	case "GET":
@@ -607,7 +686,9 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		store.mu.RUnlock()
-		if userOrders == nil { userOrders = []Order{} }
+		if userOrders == nil {
+			userOrders = []Order{}
+		}
 		jsonResponse(w, userOrders, 200)
 
 	case "POST":
@@ -616,7 +697,8 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 			Total float64    `json:"total"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errorResponse(w, "invalid request", 400); return
+			errorResponse(w, "invalid request", 400)
+			return
 		}
 		order := Order{
 			ID:        generateOrderID(),
@@ -647,13 +729,22 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleOrderItem(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 { errorResponse(w, "bad path", 400); return }
+	if len(parts) < 5 {
+		errorResponse(w, "bad path", 400)
+		return
+	}
 	orderID := parts[4]
 
 	if r.Method == "DELETE" {
@@ -674,7 +765,10 @@ func handleOrderItem(w http.ResponseWriter, r *http.Request) {
 // --- REVIEW HANDLERS ---
 
 func handleReviews(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 
 	switch r.Method {
@@ -699,12 +793,17 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 			copy(reviews, store.Reviews)
 		}
 		store.mu.RUnlock()
-		if reviews == nil { reviews = []Review{} }
+		if reviews == nil {
+			reviews = []Review{}
+		}
 		jsonResponse(w, reviews, 200)
 
 	case "POST":
 		username := getUsername(r)
-		if username == "" { errorResponse(w, "unauthorized", 401); return }
+		if username == "" {
+			errorResponse(w, "unauthorized", 401)
+			return
+		}
 
 		var req struct {
 			ProductID int    `json:"product_id"`
@@ -712,13 +811,16 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 			Comment   string `json:"comment"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errorResponse(w, "invalid request", 400); return
+			errorResponse(w, "invalid request", 400)
+			return
 		}
 		if req.ProductID <= 0 {
-			errorResponse(w, "invalid product id", 400); return
+			errorResponse(w, "invalid product id", 400)
+			return
 		}
 		if req.Rating < 1 || req.Rating > 5 {
-			errorResponse(w, "rating must be 1-5", 400); return
+			errorResponse(w, "rating must be 1-5", 400)
+			return
 		}
 		if len(req.Comment) > 1000 {
 			req.Comment = req.Comment[:1000]
@@ -747,10 +849,16 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 // --- REWARDS HANDLERS ---
 
 func handleRewards(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	store.mu.RLock()
 	reward := store.Rewards[username]
@@ -763,18 +871,28 @@ func handleRewards(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
-	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "POST" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	var req struct {
 		Perk string `json:"perk"`
 		Cost int    `json:"cost"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, "invalid request", 400); return
+		errorResponse(w, "invalid request", 400)
+		return
 	}
 
 	store.mu.Lock()
@@ -787,10 +905,12 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if reward.Points < req.Cost {
-		errorResponse(w, "insufficient points", 400); return
+		errorResponse(w, "insufficient points", 400)
+		return
 	}
 	if reward.Redeemed[req.Perk] {
-		errorResponse(w, "perk already redeemed", 400); return
+		errorResponse(w, "perk already redeemed", 400)
+		return
 	}
 
 	reward.Points -= req.Cost
@@ -801,15 +921,22 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 // --- DISCOUNT HANDLERS ---
 
 func handleDiscountValidate(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
-	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "POST" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
 	var req struct {
 		Code string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, "invalid request", 400); return
+		errorResponse(w, "invalid request", 400)
+		return
 	}
 
 	store.mu.RLock()
@@ -818,12 +945,14 @@ func handleDiscountValidate(w http.ResponseWriter, r *http.Request) {
 	for _, d := range store.Discounts {
 		if strings.EqualFold(d.Code, req.Code) {
 			if d.Used >= d.MaxUses {
-				errorResponse(w, "discount code fully used", 400); return
+				errorResponse(w, "discount code fully used", 400)
+				return
 			}
 			if d.ExpiresAt != "" {
 				exp, err := time.Parse("2006-01-02", d.ExpiresAt)
 				if err == nil && time.Now().After(exp) {
-					errorResponse(w, "discount code expired", 400); return
+					errorResponse(w, "discount code expired", 400)
+					return
 				}
 			}
 			jsonResponse(w, map[string]interface{}{
@@ -838,15 +967,22 @@ func handleDiscountValidate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDiscountApply(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
-	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "POST" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
 	var req struct {
 		Code string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, "invalid request", 400); return
+		errorResponse(w, "invalid request", 400)
+		return
 	}
 
 	store.mu.Lock()
@@ -855,7 +991,8 @@ func handleDiscountApply(w http.ResponseWriter, r *http.Request) {
 	for i, d := range store.Discounts {
 		if strings.EqualFold(d.Code, req.Code) {
 			if d.Used >= d.MaxUses {
-				errorResponse(w, "discount code fully used", 400); return
+				errorResponse(w, "discount code fully used", 400)
+				return
 			}
 			store.Discounts[i].Used++
 			jsonResponse(w, map[string]interface{}{
@@ -872,10 +1009,16 @@ func handleDiscountApply(w http.ResponseWriter, r *http.Request) {
 // --- ADMIN HANDLERS ---
 
 func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	store.mu.RLock()
 	isAdmin := false
@@ -883,7 +1026,10 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 		isAdmin = true
 	}
 	store.mu.RUnlock()
-	if !isAdmin { errorResponse(w, "forbidden", 403); return }
+	if !isAdmin {
+		errorResponse(w, "forbidden", 403)
+		return
+	}
 
 	parts := strings.Split(r.URL.Path, "/")
 	if r.Method == "DELETE" && len(parts) >= 5 {
@@ -922,10 +1068,16 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAdminClearOrders(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	store.mu.RLock()
 	isAdmin := false
@@ -933,9 +1085,15 @@ func handleAdminClearOrders(w http.ResponseWriter, r *http.Request) {
 		isAdmin = true
 	}
 	store.mu.RUnlock()
-	if !isAdmin { errorResponse(w, "forbidden", 403); return }
+	if !isAdmin {
+		errorResponse(w, "forbidden", 403)
+		return
+	}
 
-	if r.Method != "DELETE" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "DELETE" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 	store.mu.Lock()
 	store.Orders = []Order{}
 	store.mu.Unlock()
@@ -945,10 +1103,16 @@ func handleAdminClearOrders(w http.ResponseWriter, r *http.Request) {
 // --- PRODUCT MANAGEMENT (admin) ---
 
 func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	store.mu.RLock()
 	isAdmin := false
@@ -956,24 +1120,39 @@ func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
 		isAdmin = true
 	}
 	store.mu.RUnlock()
-	if !isAdmin { errorResponse(w, "forbidden", 403); return }
+	if !isAdmin {
+		errorResponse(w, "forbidden", 403)
+		return
+	}
 
 	parts := strings.Split(r.URL.Path, "/")
 
 	if r.Method == "PUT" && len(parts) >= 5 {
 		productID, err := strconv.Atoi(parts[4])
-		if err != nil { errorResponse(w, "invalid product id", 400); return }
+		if err != nil {
+			errorResponse(w, "invalid product id", 400)
+			return
+		}
 		var updates map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-			errorResponse(w, "invalid request", 400); return
+			errorResponse(w, "invalid request", 400)
+			return
 		}
 		store.mu.Lock()
 		for i, p := range store.Products {
 			if p.ID == productID {
-				if v, ok := updates["name"].(string); ok { store.Products[i].Name = v }
-				if v, ok := updates["price"].(float64); ok { store.Products[i].Price = v }
-				if v, ok := updates["currency"].(string); ok { store.Products[i].Currency = v }
-				if v, ok := updates["category"].(string); ok { store.Products[i].Category = v }
+				if v, ok := updates["name"].(string); ok {
+					store.Products[i].Name = v
+				}
+				if v, ok := updates["price"].(float64); ok {
+					store.Products[i].Price = v
+				}
+				if v, ok := updates["currency"].(string); ok {
+					store.Products[i].Currency = v
+				}
+				if v, ok := updates["category"].(string); ok {
+					store.Products[i].Category = v
+				}
 				break
 			}
 		}
@@ -984,7 +1163,10 @@ func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "DELETE" && len(parts) >= 5 {
 		productID, err := strconv.Atoi(parts[4])
-		if err != nil { errorResponse(w, "invalid product id", 400); return }
+		if err != nil {
+			errorResponse(w, "invalid product id", 400)
+			return
+		}
 		store.mu.Lock()
 		for i, p := range store.Products {
 			if p.ID == productID {
@@ -1003,7 +1185,10 @@ func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
 // --- INVENTORY ---
 
 func handleInventory(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	jsonResponse(w, map[string]string{"status": "ok"}, 200)
 }
@@ -1011,7 +1196,10 @@ func handleInventory(w http.ResponseWriter, r *http.Request) {
 // --- HEALTH ---
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	jsonResponse(w, map[string]interface{}{
 		"status":  "ok",
@@ -1021,7 +1209,10 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLanding(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `<!DOCTYPE html>
@@ -1073,10 +1264,16 @@ type UserProfile struct {
 }
 
 func handleProfile(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	switch r.Method {
 	case "GET":
@@ -1090,7 +1287,8 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		var req UserProfile
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errorResponse(w, "invalid request", 400); return
+			errorResponse(w, "invalid request", 400)
+			return
 		}
 		store.mu.Lock()
 		store.Profiles[username] = &req
@@ -1102,28 +1300,40 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePasswordChange(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
-	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "POST" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	var req struct {
 		OldPassword string `json:"old_password"`
 		NewPassword string `json:"new_password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, "invalid request", 400); return
+		errorResponse(w, "invalid request", 400)
+		return
 	}
 	if len(req.NewPassword) < 8 {
-		errorResponse(w, "password must be at least 8 characters", 400); return
+		errorResponse(w, "password must be at least 8 characters", 400)
+		return
 	}
 
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	if idx, ok := store.UsersByUsername[username]; ok {
 		if !checkPassword(store.Users[idx].PasswordHash, req.OldPassword) {
-			errorResponse(w, "incorrect current password", 401); return
+			errorResponse(w, "incorrect current password", 401)
+			return
 		}
 		store.Users[idx].PasswordHash = hashPassword(req.NewPassword)
 		jsonResponse(w, map[string]string{"status": "password updated"}, 200)
@@ -1135,7 +1345,10 @@ func handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 // --- RECOMMENDATIONS ---
 
 func handleRecommendations(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 
 	store.mu.RLock()
@@ -1151,7 +1364,9 @@ func handleRecommendations(w http.ResponseWriter, r *http.Request) {
 
 	for _, p := range store.Products {
 		score := p.Rating*10 + float64(p.Reviews)*0.5
-		if p.Featured { score += 20 }
+		if p.Featured {
+			score += 20
+		}
 		scored = append(scored, struct {
 			product Product
 			score   float64
@@ -1164,7 +1379,9 @@ func handleRecommendations(w http.ResponseWriter, r *http.Request) {
 	})
 
 	limit := 6
-	if len(scored) < limit { limit = len(scored) }
+	if len(scored) < limit {
+		limit = len(scored)
+	}
 	for i := 0; i < limit; i++ {
 		recommended = append(recommended, scored[i].product)
 	}
@@ -1178,15 +1395,15 @@ func handleRecommendations(w http.ResponseWriter, r *http.Request) {
 // --- ANALYTICS ---
 
 type AnalyticsSummary struct {
-	TotalOrders    int              `json:"total_orders"`
-	TotalRevenue   float64          `json:"total_revenue"`
-	TotalUsers     int              `json:"total_users"`
-	TotalProducts  int              `json:"total_products"`
-	TotalReviews   int              `json:"total_reviews"`
-	AvgOrderValue  float64          `json:"avg_order_value"`
-	OrdersByStatus map[string]int   `json:"orders_by_status"`
-	TopProducts    []TopProduct     `json:"top_products"`
-	RevenueByDay   []DayRevenue     `json:"revenue_by_day"`
+	TotalOrders    int            `json:"total_orders"`
+	TotalRevenue   float64        `json:"total_revenue"`
+	TotalUsers     int            `json:"total_users"`
+	TotalProducts  int            `json:"total_products"`
+	TotalReviews   int            `json:"total_reviews"`
+	AvgOrderValue  float64        `json:"avg_order_value"`
+	OrdersByStatus map[string]int `json:"orders_by_status"`
+	TopProducts    []TopProduct   `json:"top_products"`
+	RevenueByDay   []DayRevenue   `json:"revenue_by_day"`
 }
 
 type TopProduct struct {
@@ -1202,10 +1419,16 @@ type DayRevenue struct {
 }
 
 func handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	store.mu.RLock()
 	defer store.mu.RUnlock()
@@ -1213,10 +1436,14 @@ func handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
 	isAdmin := false
 	for _, u := range store.Users {
 		if u.Username == username && u.Role == "admin" {
-			isAdmin = true; break
+			isAdmin = true
+			break
 		}
 	}
-	if !isAdmin { errorResponse(w, "forbidden", 403); return }
+	if !isAdmin {
+		errorResponse(w, "forbidden", 403)
+		return
+	}
 
 	summary := AnalyticsSummary{
 		OrdersByStatus: make(map[string]int),
@@ -1272,26 +1499,39 @@ func handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAnalyticsTrack(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
-	if r.Method != "POST" { errorResponse(w, "method not allowed", 405); return }
+	if r.Method != "POST" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
 	var req struct {
 		Event string            `json:"event"`
 		Data  map[string]string `json:"data"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		errorResponse(w, "invalid request", 400); return
+		errorResponse(w, "invalid request", 400)
+		return
 	}
 	log.Printf("[ANALYTICS] %s %v", req.Event, req.Data)
 	jsonResponse(w, map[string]string{"status": "tracked"}, 200)
 }
 
 func handleUserActivity(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { getCors(w, r); return }
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" { errorResponse(w, "unauthorized", 401); return }
+	if username == "" {
+		errorResponse(w, "unauthorized", 401)
+		return
+	}
 
 	switch r.Method {
 	case "GET":
@@ -1302,7 +1542,8 @@ func handleUserActivity(w http.ResponseWriter, r *http.Request) {
 			Action    string `json:"action"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errorResponse(w, "invalid request", 400); return
+			errorResponse(w, "invalid request", 400)
+			return
 		}
 		log.Printf("[ACTIVITY] user=%s action=%s product=%d", username, req.Action, req.ProductID)
 		jsonResponse(w, map[string]string{"status": "tracked"}, 200)
@@ -1363,12 +1604,13 @@ func (w *statusWriter) WriteHeader(code int) {
 }
 
 type ipRequest struct {
-	count    int
-	resetAt  time.Time
+	count   int
+	resetAt time.Time
 }
 
 var rateLimiterStore sync.Map
 var rateLimiterCount int64
+
 const maxRateLimiterEntries = 10000
 
 func rateLimit(next http.Handler) http.Handler {
