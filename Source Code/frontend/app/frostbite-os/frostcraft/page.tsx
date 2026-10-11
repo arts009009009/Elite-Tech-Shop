@@ -150,7 +150,7 @@ export default function FrostCraftPage() {
     let spacePressed = false;
 
     const EYE_HEIGHT = 2.8, PLAYER_W = 0.3, PLAYER_H = 3.0;
-    const SPAWN_X = 24, SPAWN_Y = 50, SPAWN_Z = 40;
+    const SPAWN_X = 24, SPAWN_Z = 40;
 
     // Difficulty scaling
     const getMoveSpeed = () => 5 * DIFFICULTY_LEVELS[game.difficulty].speedBoost;
