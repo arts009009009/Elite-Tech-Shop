@@ -89,6 +89,62 @@ function run(cmd, args, opts = {}) {
   return child;
 }
 
+// ── Dependency guard ──
+// Starting `next dev` with an incomplete node_modules makes Next.js install
+// packages *while the dev server is already running*, which corrupts the build
+// (missing `next/package.json`, missing `.next/dev/server/preview-props.json`,
+// 500 on every page). Install up front instead.
+
+function installCmd() {
+  switch (pm) {
+    case "pnpm": return ["pnpm", ["install"]];
+    case "bun":  return ["bun", ["install"]];
+    case "deno": return ["deno", ["install"]];
+    default:     return [pm === "yarn" ? "yarn" : "npm", ["install"]];
+  }
+}
+
+function installSync(label, cwd) {
+  const [cmd, args] = installCmd();
+  console.log(`[dev] ${label} dependencies not installed — running \`${cmd} ${args.join(" ")}\`...`);
+  const start = Date.now();
+  try {
+    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: 600000 });
+    if (result.status !== 0) {
+      console.log(`[dev] ${label} install failed (exit ${result.status}).`);
+      return false;
+    }
+    console.log(`[dev] ${label} dependencies installed in ${((Date.now() - start) / 1000).toFixed(1)}s`);
+    return true;
+  } catch (err) {
+    console.log(`[dev] ${label} install failed: ${err.message}`);
+    return false;
+  }
+}
+
+function rootDepsReady() {
+  const nm = join(ROOT, "node_modules");
+  return existsSync(nm) && readdirSync(nm).some((e) => !e.startsWith("."));
+}
+
+// Packages Next.js verifies before it serves a request. If any is missing it
+// runs its own package-manager install in the middle of `next dev`.
+const FRONTEND_REQUIRED = ["next", "react", "react-dom", "typescript", "@types/react", "@types/node"];
+
+function frontendDepsReady() {
+  const nm = join(ROOT, "frontend", "node_modules");
+  return FRONTEND_REQUIRED.every((p) => existsSync(join(nm, p, "package.json")));
+}
+
+function ensureJsDeps() {
+  if (!rootDepsReady()) installSync("Root", ROOT);
+  if (!BACKEND_ONLY && !frontendDepsReady()) installSync("Frontend", join(ROOT, "frontend"));
+  if (!BACKEND_ONLY && !frontendDepsReady()) {
+    console.log("[dev] Frontend dependencies are still incomplete — `next dev` will likely fail.");
+    console.log("[dev] Fix manually with: cd frontend && yarn install");
+  }
+}
+
 function buildSync(label, cmd, args, cwd, env) {
   console.log(`[dev] Building ${label}...`);
   const start = Date.now();
@@ -285,6 +341,9 @@ function ensureMongoDB() {
 
 async function main() {
   console.log("[dev] Elite Shop — auto-build & dev mode\n");
+
+  // Step 0: Make sure JS dependencies exist before anything starts them
+  ensureJsDeps();
 
   // Step 1: Build all backends (fast-fail: skip individual if toolchain missing)
   const rustOk = buildRust();

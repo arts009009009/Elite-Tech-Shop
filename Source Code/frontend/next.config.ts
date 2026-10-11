@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: "../",
+    // Workspace root: the "Source Code" directory that holds the lockfile.
+    // Must be an absolute path — a relative value triggers a Turbopack warning.
+    root: path.resolve(__dirname, ".."),
   },
 
   reactCompiler: true,
