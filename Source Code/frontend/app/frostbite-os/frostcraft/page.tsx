@@ -105,6 +105,16 @@ export default function FrostCraftPage() {
   });
   const selectedRef = useRef(0);
   const graphicsLevelRef = useRef(1);
+  // The WebGL game loop runs once (deps: [isMounted]) to avoid re-initialising
+  // the whole engine, so mutable gameplay inputs are mirrored into refs to
+  // avoid stale closures. difficultyRef keeps difficulty changes live.
+  const difficultyRef = useRef(game.difficulty);
+  const hotbarRef = useRef(hotbar);
+
+  useEffect(() => {
+    difficultyRef.current = game.difficulty;
+    hotbarRef.current = hotbar;
+  }, [game.difficulty, hotbar]);
   const rebuildRef = useRef<((subdiv: number) => void) | null>(null);
   const hotbarCanvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const frameIdRef = useRef<number | null>(null);
@@ -167,9 +177,9 @@ export default function FrostCraftPage() {
     const SPAWN_X = 24, SPAWN_Z = 40;
 
     // Difficulty scaling
-    const getMoveSpeed = () => 5 * DIFFICULTY_LEVELS[game.difficulty].speedBoost;
-    const getJumpVelocity = () => 9 + game.difficulty * 0.5;
-    const getGravity = () => -28 - game.difficulty * 2;
+    const getMoveSpeed = () => 5 * DIFFICULTY_LEVELS[difficultyRef.current].speedBoost;
+    const getJumpVelocity = () => 9 + difficultyRef.current * 0.5;
+    const getGravity = () => -28 - difficultyRef.current * 2;
 
     async function init() {
       if (destroyed) return;
@@ -366,7 +376,7 @@ export default function FrostCraftPage() {
             gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.STATIC_DRAW);
           } else if (e.button === 2) {
             // Place block
-            const blockType = hotbar[selectedRef.current];
+            const blockType = hotbarRef.current[selectedRef.current];
             const px = hit[3], py = hit[4], pz = hit[5];
             if (blockType !== 7 || world.get_block_at(px, py, pz) !== 7) {
               world.set_block(px, py, pz, blockType);
@@ -410,8 +420,8 @@ export default function FrostCraftPage() {
       }
       function onWheel(e: WheelEvent) {
         let idx = selectedRef.current;
-        if (e.deltaY > 0) idx = (idx + 1) % hotbar.length;
-        else idx = (idx - 1 + hotbar.length) % hotbar.length;
+        if (e.deltaY > 0) idx = (idx + 1) % hotbarRef.current.length;
+        else idx = (idx - 1 + hotbarRef.current.length) % hotbarRef.current.length;
         setSelected(idx);
         selectedRef.current = idx;
       }
