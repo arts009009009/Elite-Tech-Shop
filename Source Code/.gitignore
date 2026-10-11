@@ -45,6 +45,9 @@ next-env.d.ts
 
 # Go
 /backend/go-backend
+# Stray compiled Go binaries (build output, never commit)
+elite-shop-go
+*.test
 
 # Rust
 /backend/rust/target/
