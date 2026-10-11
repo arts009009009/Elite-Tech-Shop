@@ -60,7 +60,7 @@ export async function apiFetch<T>(
         } else {
           fetchInit.body = JSON.stringify(body);
           if (!fetchInit.headers) fetchInit.headers = {};
-          (fetchInit.headers as Record<string, string>).["Content-Type"] = "application/json";
+          (fetchInit.headers as Record<string, string>)["Content-Type"] = "application/json";
         }
       }
       
