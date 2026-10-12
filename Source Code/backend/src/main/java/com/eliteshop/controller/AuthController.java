@@ -178,7 +178,6 @@ public class AuthController {
         cookie.setMaxAge(86400);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
-        cookie.setSameSite("Lax");
         response.addCookie(cookie);
     }
 
@@ -431,7 +430,6 @@ public class AuthController {
         cookie.setMaxAge(0);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
-        cookie.setSameSite("Lax");
         response.addCookie(cookie);
         
         return ResponseEntity.ok(createSuccessResponse(Map.of("message", "Logged out successfully")));
