@@ -2013,6 +2013,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"blazefire@file:../vendor/blazefire::locator=frontend%40workspace%3A.":
+  version: 1.0.0
+  resolution: "blazefire@file:../vendor/blazefire#../vendor/blazefire::hash=f2662f&locator=frontend%40workspace%3A."
+  dependencies:
+    react: "npm:^19.0.0"
+    react-dom: "npm:^19.0.0"
+  bin:
+    blazefire: ./blazefire/cli.cjs
+  checksum: 10c0/a859e795c68f78ff8c0558e4bcddd6a6c156a7eb06fe5e3e3f890bfc1a2836b26324e253f56683926a730357c9852fce5ded339efd5ff06d91a1168cfb25bbb6
+  languageName: node
+  linkType: hard
+
 "brace-expansion@npm:^1.1.7":
   version: 1.1.21
   resolution: "brace-expansion@npm:1.1.21"
@@ -3041,6 +3053,7 @@ __metadata:
     "@types/node": "npm:20.19.43"
     "@types/react": "npm:19.3.0"
     "@types/react-dom": "npm:19.2.3"
+    blazefire: "file:../vendor/blazefire"
     eslint: "npm:9.39.5"
     eslint-config-next: "npm:16.4.0-canary.10"
     next: "npm:16.4.0-canary.10"
@@ -4318,6 +4331,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-dom@npm:^19.0.0":
+  version: 19.3.0
+  resolution: "react-dom@npm:19.3.0"
+  dependencies:
+    scheduler: "npm:^0.28.0"
+  peerDependencies:
+    react: ^19.3.0
+  checksum: 10c0/c513044b724dd6bfe9500a9682d60973e7f8a48cffba00b6b16d3e910e27dcc459bf71bf0a5c33d7d62a3843ca30de1bd1e2098058aa4ed71f618a24b6061da5
+  languageName: node
+  linkType: hard
+
 "react-is@npm:^16.13.1":
   version: 16.13.1
   resolution: "react-is@npm:16.13.1"
@@ -4348,6 +4372,13 @@ __metadata:
   version: 19.2.8
   resolution: "react@npm:19.2.8"
   checksum: 10c0/5f86bdb56426652fd6d989d30a6f2e603c057272c47c9ca3a3fbe190a3a39ee9ccce937d63cfc039717abed1b8891d6a499134bc35311acc07eafdacd86537cd
+  languageName: node
+  linkType: hard
+
+"react@npm:^19.0.0":
+  version: 19.3.0
+  resolution: "react@npm:19.3.0"
+  checksum: 10c0/dd3099c3c43a7122bc01223bb26b0f8d5ba13cca569af6fb94a005fb54fa73223c9cb203bb226d40cfd49a82cbeef2e36ce84062a3a6d5b9fe8f4437694c7b52
   languageName: node
   linkType: hard
 
@@ -4534,6 +4565,13 @@ __metadata:
   version: 0.27.0
   resolution: "scheduler@npm:0.27.0"
   checksum: 10c0/4f03048cb05a3c8fddc45813052251eca00688f413a3cee236d984a161da28db28ba71bd11e7a3dd02f7af84ab28d39fb311431d3b3772fed557945beb00c452
+  languageName: node
+  linkType: hard
+
+"scheduler@npm:^0.28.0":
+  version: 0.28.0
+  resolution: "scheduler@npm:0.28.0"
+  checksum: 10c0/783c8e5ce89d41273a02ed6dc0e3d24bd60e05c9e8f7e3adfc6c82e7c69935500d90e343f1ee26d592fc7504e8a2532573c6368def3e93bfe812391fa53efaf4
   languageName: node
   linkType: hard
 
