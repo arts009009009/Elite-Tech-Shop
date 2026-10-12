@@ -1,3 +1,4 @@
+import blazefire from "blazefire/plugin";
 import type { NextConfig } from "next";
 import path from "node:path";
 
@@ -200,4 +201,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default blazefire(nextConfig);

@@ -16,11 +16,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"blazefire@github:arts009009009/Blazefire":
+  version: 1.0.0
+  resolution: "blazefire@https://github.com/arts009009009/Blazefire.git#commit=f0e1b39c3f7899104cf864e917aceb11fe593432"
+  dependencies:
+    react: "npm:^19.0.0"
+    react-dom: "npm:^19.0.0"
+  bin:
+    blazefire: ./blazefire/cli.cjs
+  checksum: 10c0/4f787055190125d9dc248c6f0b723f27d6ed304e2772c05ad590f555b2c3a438bb91cdaf68440415a643765b6cbe228c683ec8b2bc5195b40153003d51d25b8f
+  languageName: node
+  linkType: hard
+
 "elite-shop@workspace:.":
   version: 0.0.0-use.local
   resolution: "elite-shop@workspace:."
   dependencies:
     "@playwright/test": "npm:^1.62.1"
+    blazefire: "github:arts009009009/Blazefire"
   languageName: unknown
   linkType: soft
 
@@ -41,5 +54,30 @@ __metadata:
   bin:
     playwright: cli.js
   checksum: 10c0/d1fd048a89be27c9aba6757dc4f70eff4a5163b49f439ad691767be8b2a482327d0dd1928b4f73c8fe0d8b33aab2c9dc2670424ab60f112d9e98e91b94e3b090
+  languageName: node
+  linkType: hard
+
+"react-dom@npm:^19.0.0":
+  version: 19.3.0
+  resolution: "react-dom@npm:19.3.0"
+  dependencies:
+    scheduler: "npm:^0.28.0"
+  peerDependencies:
+    react: ^19.3.0
+  checksum: 10c0/c513044b724dd6bfe9500a9682d60973e7f8a48cffba00b6b16d3e910e27dcc459bf71bf0a5c33d7d62a3843ca30de1bd1e2098058aa4ed71f618a24b6061da5
+  languageName: node
+  linkType: hard
+
+"react@npm:^19.0.0":
+  version: 19.3.0
+  resolution: "react@npm:19.3.0"
+  checksum: 10c0/dd3099c3c43a7122bc01223bb26b0f8d5ba13cca569af6fb94a005fb54fa73223c9cb203bb226d40cfd49a82cbeef2e36ce84062a3a6d5b9fe8f4437694c7b52
+  languageName: node
+  linkType: hard
+
+"scheduler@npm:^0.28.0":
+  version: 0.28.0
+  resolution: "scheduler@npm:0.28.0"
+  checksum: 10c0/783c8e5ce89d41273a02ed6dc0e3d24bd60e05c9e8f7e3adfc6c82e7c69935500d90e343f1ee26d592fc7504e8a2532573c6368def3e93bfe812391fa53efaf4
   languageName: node
   linkType: hard

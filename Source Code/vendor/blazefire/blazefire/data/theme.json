@@ -1,0 +1,25 @@
+{
+  "colors": {
+    "primary": "#00ffff",
+    "secondary": "#ff00ff",
+    "accent": "#ff006e",
+    "success": "#00ff41",
+    "warning": "#ffaa00",
+    "error": "#ff006e",
+    "background": "#000000",
+    "surface": "#050505",
+    "text": "#e0e0e0"
+  },
+  "glow": {
+    "cyan": "0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1)",
+    "magenta": "0 0 10px rgba(255, 0, 255, 0.3), 0 0 20px rgba(255, 0, 255, 0.1)",
+    "red": "0 0 10px rgba(255, 0, 110, 0.3), 0 0 20px rgba(255, 0, 110, 0.1)",
+    "green": "0 0 10px rgba(0, 255, 65, 0.3), 0 0 20px rgba(0, 255, 65, 0.1)"
+  },
+  "gradients": {
+    "brand": "linear-gradient(90deg, #ff8800, #ff006e)",
+    "header": "linear-gradient(135deg, rgba(0, 255, 255, 0.05) 0%, rgba(255, 0, 255, 0.05) 100%)",
+    "scrollbar": "linear-gradient(180deg, #00ffff, #ff00ff)"
+  },
+  "theme": "dark"
+}
