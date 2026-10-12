@@ -2,6 +2,14 @@ import blazefire from "blazefire/plugin";
 import type { NextConfig } from "next";
 import path from "node:path";
 
+// React's development build reconstructs component stacks with eval(); serving
+// this CSP without 'unsafe-eval' in dev makes the browser refuse it. Production
+// keeps the strict policy.
+const scriptSrc =
+  process.env.NODE_ENV === "production"
+    ? "'self' 'unsafe-inline'"
+    : "'self' 'unsafe-inline' 'unsafe-eval'";
+
 const nextConfig: NextConfig = {
   turbopack: {
     // Workspace root: the "Source Code" directory that holds the lockfile.
@@ -162,7 +170,7 @@ const nextConfig: NextConfig = {
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
-          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:3001 http://localhost:3002 http://localhost:3003; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self';" },
+          { key: "Content-Security-Policy", value: `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:3001 http://localhost:3002 http://localhost:3003; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self';` },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
           { key: "Expect-CT", value: "max-age=86400, enforce" },
         ],

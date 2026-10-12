@@ -21,6 +21,6 @@
   },
   "packageManager": "yarn@4.18.1",
   "dependencies": {
-    "blazefire": "github:arts009009009/Blazefire"
+    "blazefire": "file:./vendor/blazefire"
   }
 }

@@ -16,15 +16,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"blazefire@github:arts009009009/Blazefire":
+"blazefire@file:./vendor/blazefire::locator=elite-shop%40workspace%3A.":
   version: 1.0.0
-  resolution: "blazefire@https://github.com/arts009009009/Blazefire.git#commit=f0e1b39c3f7899104cf864e917aceb11fe593432"
+  resolution: "blazefire@file:./vendor/blazefire#./vendor/blazefire::hash=f2662f&locator=elite-shop%40workspace%3A."
   dependencies:
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
   bin:
     blazefire: ./blazefire/cli.cjs
-  checksum: 10c0/4f787055190125d9dc248c6f0b723f27d6ed304e2772c05ad590f555b2c3a438bb91cdaf68440415a643765b6cbe228c683ec8b2bc5195b40153003d51d25b8f
+  checksum: 10c0/a859e795c68f78ff8c0558e4bcddd6a6c156a7eb06fe5e3e3f890bfc1a2836b26324e253f56683926a730357c9852fce5ded339efd5ff06d91a1168cfb25bbb6
   languageName: node
   linkType: hard
 
@@ -33,7 +33,7 @@ __metadata:
   resolution: "elite-shop@workspace:."
   dependencies:
     "@playwright/test": "npm:^1.62.1"
-    blazefire: "github:arts009009009/Blazefire"
+    blazefire: "file:./vendor/blazefire"
   languageName: unknown
   linkType: soft
 
