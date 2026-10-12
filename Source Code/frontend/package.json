@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "5.2-canary.12",
+  "version": "5.3-canary.13",
   "private": true,
   "scripts": {
     "dev": "next dev",
