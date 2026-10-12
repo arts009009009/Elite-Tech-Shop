@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "blazefire init || echo blazefire skipped"
   },
   "dependencies": {
     "@oprogress/next": "^0.0.1",

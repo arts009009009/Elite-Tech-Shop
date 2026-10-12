@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "blazefire": "github:arts009009009/Blazefire",
     "sharp": "^0.35.5"
   }
 }

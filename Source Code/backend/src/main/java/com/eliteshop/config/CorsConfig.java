@@ -20,13 +20,15 @@ public class CorsConfig {
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
         
-        List<String> origins = Arrays.stream(allowedOrigins)
-            .map(String::trim)
-            .filter(origin -> !origin.isEmpty())
-            .toList();
-        
-        if (!origins.isEmpty()) {
-            config.setAllowedOrigins(origins);
+        if (allowedOrigins != null) {
+            List<String> origins = Arrays.stream(allowedOrigins)
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
+            
+            if (!origins.isEmpty()) {
+                config.setAllowedOrigins(origins);
+            }
         }
         
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

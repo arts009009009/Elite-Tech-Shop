@@ -64,9 +64,12 @@ export default function Home() {
   const parentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    // sessionStorage is unavailable during Next.js prerender, so the cache
+    // can only be read after mount. This is the standard SSR-safe pattern.
     try {
       const cached = sessionStorage.getItem("products");
       if (cached) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setProducts(JSON.parse(cached));
         setLoading(false);
         return;

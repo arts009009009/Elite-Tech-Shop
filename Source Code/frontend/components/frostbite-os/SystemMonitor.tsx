@@ -42,6 +42,9 @@ function formatUptime(ms: number): string {
   return `${String(h).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
+// Transparency steps cycled by the monitor's opacity control.
+const opacityLevels = [1, 0.7, 0.4];
+
 export interface MonitorConfig {
   theme: "auto" | "fire" | "ice" | "neon" | "matrix" | "retro";
   barStyle: "gradient" | "solid" | "glow";
@@ -111,7 +114,7 @@ export default function SystemMonitor({ visible = true, onClose, asApp = false }
   });
   const dragRef = useRef<{ ox: number; oy: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const startTime = useRef(Date.now());
+  const startTime = useRef<number>(0);
 
   useEffect(() => {
     try {
@@ -120,10 +123,15 @@ export default function SystemMonitor({ visible = true, onClose, asApp = false }
   }, [config]);
 
   useEffect(() => {
+    startTime.current = Date.now();
     const id = setInterval(() => {
       setStats(getApproxStats());
       setUptime(Date.now() - startTime.current);
     }, 2000);
+    // getApproxStats() is intentionally invoked here rather than during render:
+    // it busy-waits ~3ms and reads performance.memory, so it must not run in
+    // the render path. Seeding it once on mount avoids a blank first 2s.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStats(getApproxStats());
     return () => clearInterval(id);
   }, []);
@@ -165,7 +173,6 @@ export default function SystemMonitor({ visible = true, onClose, asApp = false }
     resolvedTheme = isFireAuto ? "fire" : "ice";
   }
 
-  const opacityLevels = [1, 0.7, 0.4];
   const cycleTransparency = useCallback(() => {
     setConfig((prev) => {
       const curIdx = opacityLevels.indexOf(prev.transparency);

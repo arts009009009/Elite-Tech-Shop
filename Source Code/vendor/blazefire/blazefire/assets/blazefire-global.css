@@ -1,0 +1,107 @@
+:root {
+  --blazefire-cyan: #00ffff;
+  --blazefire-magenta: #ff00ff;
+  --blazefire-red: #ff006e;
+  --blazefire-green: #00ff41;
+  --blazefire-orange: #ff8800;
+  --blazefire-background: #000000;
+  --blazefire-surface: #050505;
+  --blazefire-text: #e0e0e0;
+  --glow-cyan: 0 0 10px rgba(0,255,255,0.3), 0 0 20px rgba(0,255,255,0.1);
+  --glow-magenta: 0 0 10px rgba(255,0,255,0.3), 0 0 20px rgba(255,0,255,0.1);
+  color-scheme: dark;
+}
+
+@keyframes blazefire-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes blazefire-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 255, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(0, 255, 255, 0.6), 0 0 30px rgba(255, 0, 255, 0.3); }
+}
+
+body {
+  background: var(--blazefire-background);
+  color: var(--blazefire-text);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ff8800, #ff006e, #00ffff, #ff00ff);
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+.blazefire-branding-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(0,255,255,0.05) 0%, rgba(255,0,255,0.05) 100%);
+  border-bottom: 1px solid rgba(0,255,255,0.15);
+}
+
+.blazefire-branding-text {
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(90deg, #ff8800, #ff006e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.blazefire-error-label {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255,0,110,0.15);
+  font-weight: 600;
+  font-size: 12px;
+  color: #ff006e;
+  border: 1px solid rgba(255,0,110,0.3);
+  text-shadow: 0 0 8px rgba(255,0,110,0.5);
+}
+
+.blazefire-error-message {
+  color: #ff006e;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.blazefire-error-message code {
+  color: #00ffff;
+  padding: 2px 6px;
+  background: rgba(0,255,255,0.08);
+  border: 1px solid rgba(0,255,255,0.2);
+  border-radius: 4px;
+}
+
+.blazefire-dialog {
+  background: #000000;
+  border: 1px solid rgba(0,255,255,0.2);
+  border-radius: 8px;
+  box-shadow: 0 0 30px rgba(0,255,255,0.15);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00ffff, #ff00ff);
+  border-radius: 3px;
+}

@@ -27,6 +27,9 @@ export default function PushNotificationManager() {
   }, []);
 
   useEffect(() => {
+    // Notification.permission is a browser-only API and can't be read during
+    // prerender, so the permission state is refreshed once after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshPermission();
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
     navigator.serviceWorker
@@ -78,9 +81,9 @@ export default function PushNotificationManager() {
       const notification = new Notification(title, options);
       notification.onclick = () => {
         window.focus();
-        window.location.href = "/";
+        window.location.href = "/"; // eslint-disable-line @next/next/no-location-assign-relative-destination
         notification.close();
-      }; // eslint-disable-line @next/next/no-location-assign-relative-destination
+      };
     } catch (error) {
       console.error("Failed to send notification:", error);
     }

@@ -87,10 +87,10 @@ export default function OptimizedImage({
   if (fill) {
     return (
       <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", borderRadius: style?.borderRadius || 8 }}>
-        <Image {...imageProps} />
+        <Image {...imageProps} alt={alt} />
       </div>
     );
   }
 
-  return <Image {...imageProps} />;
+  return <Image {...imageProps} alt={alt} />;
 }

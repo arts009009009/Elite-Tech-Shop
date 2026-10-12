@@ -3,7 +3,7 @@ type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS";
 type ApiFetchOptions<T = unknown> = {
   timeout?: number;
   retries?: number;
-  fallback?: T;
+  fallback?: T | null;
   method?: HttpMethod;
   headers?: Record<string, string>;
   body?: Record<string, unknown> | string | null;

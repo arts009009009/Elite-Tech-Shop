@@ -4,8 +4,9 @@ import { useEffect, useState, useMemo } from "react";
 import Navbar from "@/components/Navbar";
 import { useLanguage } from "@/context/LanguageContext";
 import { apiFetch } from "@/lib/api-fetch";
+import uiStringsJson from "@/data/navbar-translate.json";
 
-type Lang = "en" | "ar" | "ru" | "fr" | "es" | "de" | "zh" | "ja" | "pt" | "hi";
+const uiStrings = uiStringsJson as Record<string, Record<string, string>>;
 
 type Product = {
   id: number;
@@ -26,8 +27,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
 
   const ui = useMemo(() => {
-    const strings = require("@/data/navbar-translate.json") as Record<string, Record<string, string>>;
-    return (key: string) => strings[key]?.[language] ?? key;
+    return (key: string) => uiStrings[key]?.[language] ?? key;
   }, [language]);
 
   useEffect(() => {
