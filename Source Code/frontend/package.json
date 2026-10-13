@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "5.2-canary.12",
+  "version": "5.3-canary.13",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@oprogress/next": "^0.0.1",
+    "blazefire": "file:../vendor/blazefire",
     "next": "16.4.0-canary.10",
     "react": "19.2.8",
     "react-dom": "19.2.8",
