@@ -1,0 +1,12 @@
+{
+  "en": {
+    "nav.home": "Home",
+    "nav.about": "About",
+    "errors.title": "Something went wrong"
+  },
+  "es": {
+    "nav.home": "Inicio",
+    "nav.about": "Acerca de",
+    "errors.title": "Algo salió mal"
+  }
+}

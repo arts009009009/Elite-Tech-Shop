@@ -170,6 +170,11 @@
   resolved "https://registry.yarnpkg.com/@img/sharp-win32-x64/-/sharp-win32-x64-0.35.5.tgz#1785356b8cb396e58430e03865281280acb818b1"
   integrity sha512-x76eH0vEiHlcMQu8Y8IenntaACtddpT6W0wmXtWrnKcnKI7ME5DdgqhAD6SEWOEl1v2zDvkZDhFA9KnURwpfqg==
 
+"blazefire@github:arts009009009/Blazefire":
+  version "1.0.9"
+  uid "39addcffe11c8b0ac968f0f0a7140d044382cb14"
+  resolved "https://codeload.github.com/arts009009009/Blazefire/tar.gz/39addcffe11c8b0ac968f0f0a7140d044382cb14"
+
 detect-libc@^2.1.2:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/detect-libc/-/detect-libc-2.1.2.tgz#689c5dcdc1900ef5583a4cb9f6d7b473742074ad"

@@ -1,18 +1,20 @@
-type ApiFetchOptions = {
+type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS";
+
+type ApiFetchOptions<T = unknown> = {
   timeout?: number;
   retries?: number;
-  fallback?: unknown;
-  method?: string;
+  fallback?: T | null;
+  method?: HttpMethod;
   headers?: Record<string, string>;
-  body?: unknown;
+  body?: Record<string, unknown> | string | null;
   credentials?: RequestCredentials;
 };
 
-const defaults: Omit<Required<ApiFetchOptions>, "body" | "headers" | "method" | "credentials"> = {
+const defaults = {
   timeout: 5000,
   retries: 3,
   fallback: null,
-};
+} as const;
 
 const BACKEND_URLS: Record<string, string> = {
   products: process.env.RUST_BACKEND_URL || "http://localhost:3002",
@@ -27,12 +29,13 @@ function resolveBackendUrl(url: string): string {
   for (const [prefix, backend] of Object.entries(BACKEND_URLS)) {
     if (url.startsWith(`/api/${prefix}`)) return `${backend}${url}`;
   }
-  return `${process.env.GO_BACKEND_URL || "http://localhost:3003"}${url}`;
+  const goBackendUrl = process.env.GO_BACKEND_URL || "http://localhost:3003";
+  return `${goBackendUrl}${url}`;
 }
 
 export async function apiFetch<T>(
   url: string,
-  options: ApiFetchOptions = {},
+  options: ApiFetchOptions<T> = {},
 ): Promise<T> {
   const { timeout, retries, fallback, method, headers, body, credentials } = { ...defaults, ...options };
   const resolvedUrl = resolveBackendUrl(url);
@@ -42,25 +45,58 @@ export async function apiFetch<T>(
     const timer = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const fetchInit: RequestInit = { signal: controller.signal };
-      if (method) fetchInit.method = method;
-      if (headers) fetchInit.headers = headers;
-      if (body) fetchInit.body = typeof body === "string" ? body : JSON.stringify(body);
-      if (credentials) fetchInit.credentials = credentials;
+      const fetchInit: RequestInit = { 
+        signal: controller.signal,
+        method: method || "GET",
+      };
+      
+      if (headers) {
+        fetchInit.headers = { ...headers };
+      }
+      
+      if (body !== null && body !== undefined) {
+        if (typeof body === "string") {
+          fetchInit.body = body;
+        } else {
+          fetchInit.body = JSON.stringify(body);
+          if (!fetchInit.headers) fetchInit.headers = {};
+          (fetchInit.headers as Record<string, string>)["Content-Type"] = "application/json";
+        }
+      }
+      
+      if (credentials) {
+        fetchInit.credentials = credentials;
+      }
 
       const res = await fetch(resolvedUrl, fetchInit);
       clearTimeout(timer);
 
       if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        const errorData = errorText ? JSON.parse(errorText) : null;
+        
         if (attempt < retries) {
           await backoff(attempt);
           continue;
         }
-        return fallback as T;
+        
+        if (fallback !== null && fallback !== undefined) {
+          return fallback;
+        }
+        
+        throw new Error(`HTTP error! status: ${res.status}, message: ${errorData?.message || errorText || "Unknown error"}`);
       }
 
-      return await res.json() as T;
-    } catch {
+      try {
+        const data = await res.json();
+        return data as T;
+      } catch {
+        if (fallback !== null && fallback !== undefined) {
+          return fallback;
+        }
+        throw new Error("Failed to parse response as JSON");
+      }
+    } catch (error) {
       clearTimeout(timer);
 
       if (attempt < retries) {
@@ -68,11 +104,19 @@ export async function apiFetch<T>(
         continue;
       }
 
-      return fallback as T;
+      if (fallback !== null && fallback !== undefined) {
+        return fallback;
+      }
+      
+      throw error;
     }
   }
 
-  return fallback as T;
+  if (fallback !== null && fallback !== undefined) {
+    return fallback;
+  }
+  
+  throw new Error("Max retries exceeded");
 }
 
 function backoff(attempt: number): Promise<void> {

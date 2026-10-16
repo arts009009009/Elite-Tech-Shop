@@ -6,17 +6,22 @@ import com.eliteshop.repository.PendingPasswordRepository;
 import com.eliteshop.repository.SessionRepository;
 import com.eliteshop.repository.UserRepository;
 import com.eliteshop.service.NotificationService;
+import com.eliteshop.validation.InputValidator;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.SecureRandom;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @RestController
@@ -39,7 +44,24 @@ public class AuthController {
     private static final ConcurrentHashMap<String, Long> inMemoryPendingTime = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, String> inMemorySessions = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Long> inMemorySessionTime = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, AtomicInteger> rateLimitTrackers = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Long> rateLimitTimestamps = new ConcurrentHashMap<>();
+    private static final int MAX_LOGIN_ATTEMPTS = 5;
+    private static final long RATE_LIMIT_WINDOW_MS = 60 * 1000;
     private volatile boolean mongoAvailable = true;
+    
+    private static final Map<String, String> SENSITIVE_ERROR_MESSAGES = Map.of(
+        "email_required", "Email is required",
+        "password_too_short", "Password must be at least 6 characters",
+        "username_required", "Username is required",
+        "username_exists", "Username already exists",
+        "invalid_credentials", "Invalid email or password",
+        "password_required", "Password is required",
+        "invalid_otp", "Invalid or expired OTP",
+        "rate_limit_exceeded", "Too many attempts. Please try again later.",
+        "invalid_email_format", "Invalid email format",
+        "invalid_username_format", "Username must be 3-30 characters (letters, numbers, underscore)"
+    );
 
     public AuthController(UserRepository userRepository, SessionRepository sessionRepository,
                           PendingPasswordRepository pendingPasswordRepository, CsrfFilter csrfFilter) {
@@ -162,19 +184,28 @@ public class AuthController {
     @PostMapping("/send-password")
     public ResponseEntity<Map<String, Object>> sendPassword(@RequestBody Map<String, String> body) {
         String email = body.get("email");
+        
         if (email == null || email.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "email_required"));
+            return ResponseEntity.badRequest().body(createErrorResponse("email_required"));
+        }
+        
+        String normalizedEmail = InputValidator.sanitizeEmail(email);
+        if (!InputValidator.isValidEmail(normalizedEmail)) {
+            return ResponseEntity.badRequest().body(createErrorResponse("invalid_email_format"));
+        }
+        
+        if (isRateLimited(normalizedEmail)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(createErrorResponse("rate_limit_exceeded"));
         }
 
         String password = generatePassword(6);
-        String normalizedEmail = email.toLowerCase().trim();
 
         if (mongoAvailable) {
             try {
                 pendingPasswordRepository.findByEmail(normalizedEmail).ifPresent(pendingPasswordRepository::delete);
                 pendingPasswordRepository.save(new PendingPasswordDocument(normalizedEmail, password));
             } catch (Exception e) {
-                log.warning("MongoDB save failed, using in-memory: " + e.getMessage());
+                log.log(Level.WARNING, "MongoDB save failed for send-password, using in-memory: " + e.getMessage(), e);
                 inMemoryPending.put(normalizedEmail, password);
                 inMemoryPendingTime.put(normalizedEmail, System.currentTimeMillis());
             }
@@ -183,36 +214,84 @@ public class AuthController {
             inMemoryPendingTime.put(normalizedEmail, System.currentTimeMillis());
         }
 
-        NotificationService.notifyAsync("Admin Password", "Your OTP is " + password);
+        try {
+            NotificationService.notifyAsync("Admin OTP", "Your OTP is " + password);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Failed to send notification: " + e.getMessage(), e);
+        }
 
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "email", email,
-            "password", password
-        ));
+        return ResponseEntity.ok(createSuccessResponse(Map.of(
+            "email", normalizedEmail,
+            "message", "If the email is registered, an OTP has been sent"
+        )));
+    }
+    
+    private boolean isRateLimited(String key) {
+        long now = System.currentTimeMillis();
+        AtomicInteger counter = rateLimitTrackers.computeIfAbsent(key, k -> new AtomicInteger(0));
+        Long lastTimestamp = rateLimitTimestamps.get(key);
+        
+        if (lastTimestamp == null || (now - lastTimestamp) > RATE_LIMIT_WINDOW_MS) {
+            counter.set(0);
+            rateLimitTimestamps.put(key, now);
+        }
+        
+        return counter.incrementAndGet() > MAX_LOGIN_ATTEMPTS;
+    }
+    
+    private Map<String, Object> createErrorResponse(String errorCode) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", errorCode);
+        response.put("message", SENSITIVE_ERROR_MESSAGES.getOrDefault(errorCode, "Authentication failed"));
+        return response;
+    }
+    
+    private Map<String, Object> createSuccessResponse(Map<String, Object> additionalData) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.putAll(additionalData);
+        return response;
     }
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, Object>> register(@RequestBody RegisterRequest req) {
-        if (req.username() == null || req.username().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "username_required"));
+        String username = InputValidator.sanitizeInput(req.username());
+        String password = req.password();
+        String emailInput = InputValidator.sanitizeInput(req.email());
+        
+        if (username == null || username.isBlank()) {
+            return ResponseEntity.badRequest().body(createErrorResponse("username_required"));
         }
-        if (req.password() == null || req.password().length() < 6) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "password_too_short"));
+        
+        if (!InputValidator.isValidUsername(username)) {
+            return ResponseEntity.badRequest().body(createErrorResponse("invalid_username_format"));
+        }
+        
+        if (password == null || password.isBlank() || !InputValidator.isValidPassword(password)) {
+            return ResponseEntity.badRequest().body(createErrorResponse("password_too_short"));
         }
 
-        String email = req.email() != null ? req.email().toLowerCase().trim() : req.username() + "@elite.shop";
+        String email = emailInput != null && InputValidator.isValidEmail(emailInput) 
+            ? InputValidator.sanitizeEmail(emailInput) 
+            : username + "@elite.shop";
 
         if (mongoAvailable) {
             try {
-                if (userRepository.existsByUsername(req.username())) {
-                    return ResponseEntity.status(409).body(Map.of("success", false, "error", "username_exists"));
+                if (userRepository.existsByUsername(username)) {
+                    return ResponseEntity.status(409).body(createErrorResponse("username_exists"));
                 }
-                String hashedPassword = passwordEncoder.encode(req.password());
-                userRepository.save(new UserDocument(email, hashedPassword, req.username()));
+                String hashedPassword = passwordEncoder.encode(password);
+                UserDocument user = new UserDocument(email, hashedPassword, username);
+                user.setRole("user");
+                userRepository.save(user);
+                log.info("User registered: " + username);
             } catch (Exception e) {
-                log.warning("MongoDB register failed: " + e.getMessage());
+                log.log(Level.SEVERE, "MongoDB register failed: " + e.getMessage(), e);
+                return ResponseEntity.internalServerError().body(createErrorResponse("registration_failed"));
             }
+        } else {
+            log.warning("MongoDB unavailable, registration may not persist");
         }
 
         String token = UUID.randomUUID().toString();
@@ -222,83 +301,110 @@ public class AuthController {
 
         return ResponseEntity.ok()
             .header("X-CSRF-Token", csrfToken)
-            .body(Map.of(
-                "success", true,
+            .body(createSuccessResponse(Map.of(
                 "token", token,
-                "user", Map.of("email", email, "username", req.username())
-            ));
+                "user", Map.of("email", email, "username", username)
+            )));
     }
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody AuthRequest req, HttpServletResponse response) {
-        if (req.email() == null || req.password() == null) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "credentials_required"));
+        String email = InputValidator.sanitizeEmail(req.email());
+        String password = req.password();
+        
+        if (email == null || password == null || password.isBlank()) {
+            return ResponseEntity.badRequest().body(createErrorResponse("credentials_required"));
         }
-
-        String email = req.email().toLowerCase().trim();
+        
+        if (!InputValidator.isValidEmail(email)) {
+            return ResponseEntity.badRequest().body(createErrorResponse("invalid_email_format"));
+        }
+        
+        if (isRateLimited(email)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(createErrorResponse("rate_limit_exceeded"));
+        }
 
         String pendingPw = null;
+        String normalizedEmail = email;
+        
         if (mongoAvailable) {
             try {
-                Optional<PendingPasswordDocument> pendingOpt = pendingPasswordRepository.findByEmail(email);
+                Optional<PendingPasswordDocument> pendingOpt = pendingPasswordRepository.findByEmail(normalizedEmail);
                 if (pendingOpt.isPresent()) {
                     PendingPasswordDocument pendingDoc = pendingOpt.get();
-                    pendingPw = pendingDoc.getPassword();
-                    pendingPasswordRepository.delete(pendingDoc);
+                    if (System.currentTimeMillis() - pendingDoc.getCreatedAt().getTime() > PASSWORD_TTL_MS) {
+                        pendingPasswordRepository.delete(pendingDoc);
+                    } else {
+                        pendingPw = pendingDoc.getPassword();
+                        pendingPasswordRepository.delete(pendingDoc);
+                    }
                 }
             } catch (Exception e) {
-                log.warning("MongoDB pending lookup failed: " + e.getMessage());
+                log.log(Level.WARNING, "MongoDB pending lookup failed: " + e.getMessage(), e);
             }
         }
+        
         if (pendingPw == null) {
-            pendingPw = inMemoryPending.remove(email);
-            inMemoryPendingTime.remove(email);
+            // Read the timestamp BEFORE removing it, otherwise the TTL check
+            // below always sees null and expired in-memory OTPs never expire.
+            Long createdTime = inMemoryPendingTime.get(normalizedEmail);
+            pendingPw = inMemoryPending.remove(normalizedEmail);
+            inMemoryPendingTime.remove(normalizedEmail);
+            if (pendingPw != null && createdTime != null
+                && (System.currentTimeMillis() - createdTime) > PASSWORD_TTL_MS) {
+                pendingPw = null;
+            }
         }
 
-        if (pendingPw != null && pendingPw.equals(req.password())) {
-            String username = email.contains("@") ? email.split("@")[0] : email;
+        if (pendingPw != null && pendingPw.equals(password)) {
+            String username = normalizedEmail.contains("@") 
+                ? normalizedEmail.split("@")[0] 
+                : normalizedEmail;
             String token = UUID.randomUUID().toString();
-            createSession(token, email);
+            createSession(token, normalizedEmail);
             setCookieAdminSession(token, response);
 
             String csrfToken = csrfFilter.generateToken(token);
 
+            log.info("User logged in with OTP: " + username);
+
             return ResponseEntity.ok()
                 .header("X-CSRF-Token", csrfToken)
-                .body(Map.of(
-                    "success", true,
+                .body(createSuccessResponse(Map.of(
                     "token", token,
                     "redirect", "/admin/dashboard",
-                    "user", Map.of("email", email, "username", username)
-                ));
+                    "user", Map.of("email", normalizedEmail, "username", username)
+                )));
         }
 
         if (mongoAvailable) {
             try {
-                Optional<UserDocument> userOpt = userRepository.findByEmail(email);
-                if (userOpt.isPresent() && passwordEncoder.matches(req.password(), userOpt.get().getPassword())) {
+                Optional<UserDocument> userOpt = userRepository.findByEmail(normalizedEmail);
+                if (userOpt.isPresent() && passwordEncoder.matches(password, userOpt.get().getPassword())) {
                     UserDocument user = userOpt.get();
                     String token = UUID.randomUUID().toString();
-                    createSession(token, email);
+                    createSession(token, normalizedEmail);
                     setCookieAdminSession(token, response);
 
                     String csrfToken = csrfFilter.generateToken(token);
 
+                    log.info("User logged in with password: " + user.getUsername());
+
                     return ResponseEntity.ok()
                         .header("X-CSRF-Token", csrfToken)
-                        .body(Map.of(
-                            "success", true,
+                        .body(createSuccessResponse(Map.of(
                             "token", token,
                             "redirect", "/admin/dashboard",
                             "user", Map.of("email", user.getEmail(), "username", user.getUsername())
-                        ));
+                        )));
                 }
             } catch (Exception e) {
-                log.warning("MongoDB user lookup failed: " + e.getMessage());
+                log.log(Level.WARNING, "MongoDB user lookup failed: " + e.getMessage(), e);
             }
         }
 
-        return ResponseEntity.status(401).body(Map.of("success", false, "error", "invalid_credentials"));
+        log.warning("Failed login attempt for: " + normalizedEmail);
+        return ResponseEntity.status(401).body(createErrorResponse("invalid_credentials"));
     }
 
     @PostMapping("/logout")
@@ -308,31 +414,37 @@ public class AuthController {
                 try {
                     sessionRepository.findByToken(token).ifPresent(sessionRepository::delete);
                 } catch (Exception e) {
-                    log.warning("MongoDB session delete failed: " + e.getMessage());
+                    log.log(Level.WARNING, "MongoDB session delete failed: " + e.getMessage(), e);
                 }
             }
             inMemorySessions.remove(token);
             inMemorySessionTime.remove(token);
             csrfFilter.invalidateToken(token);
+            rateLimitTrackers.remove(token);
+            rateLimitTimestamps.remove(token);
+            log.info("User logged out: session=" + token);
         }
+        
         jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("admin_session", "");
         cookie.setPath("/");
         cookie.setMaxAge(0);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
         response.addCookie(cookie);
-        return ResponseEntity.ok(Map.of("success", true));
+        
+        return ResponseEntity.ok(createSuccessResponse(Map.of("message", "Logged out successfully")));
     }
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> me(@CookieValue(value = "admin_session", defaultValue = "") String token) {
         if (token.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("authenticated", false));
+            return ResponseEntity.status(401).body(createErrorResponse("not_authenticated"));
         }
 
         Optional<String> emailOpt = findSessionEmail(token);
         if (emailOpt.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("authenticated", false));
+            log.warning("Invalid session token in /me: " + token);
+            return ResponseEntity.status(401).body(createErrorResponse("not_authenticated"));
         }
 
         String email = emailOpt.get();
@@ -342,20 +454,30 @@ public class AuthController {
                 Optional<UserDocument> userOpt = userRepository.findByEmail(email);
                 if (userOpt.isPresent()) {
                     UserDocument user = userOpt.get();
-                    return ResponseEntity.ok(Map.of(
+                    Map<String, Object> userInfo = new HashMap<>();
+                    userInfo.put("email", user.getEmail());
+                    userInfo.put("username", user.getUsername());
+                    userInfo.put("role", user.getRole());
+                    
+                    return ResponseEntity.ok(createSuccessResponse(Map.of(
                         "authenticated", true,
-                        "user", Map.of("email", user.getEmail(), "username", user.getUsername())
-                    ));
+                        "user", userInfo
+                    )));
                 }
             } catch (Exception e) {
-                log.warning("MongoDB user lookup failed: " + e.getMessage());
+                log.log(Level.WARNING, "MongoDB user lookup failed in /me: " + e.getMessage(), e);
             }
         }
 
         String username = email.contains("@") ? email.split("@")[0] : email;
-        return ResponseEntity.ok(Map.of(
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("email", email);
+        userInfo.put("username", username);
+        userInfo.put("role", "user");
+        
+        return ResponseEntity.ok(createSuccessResponse(Map.of(
             "authenticated", true,
-            "user", Map.of("email", email, "username", username)
-        ));
+            "user", userInfo
+        )));
     }
 }

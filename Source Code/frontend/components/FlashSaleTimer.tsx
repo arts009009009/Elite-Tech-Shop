@@ -37,10 +37,9 @@ function FlashSaleBanner({ sales }: { sales: FlashSale[] }) {
 function FlashSaleCard({ sale }: { sale: FlashSale }) {
   const { language } = useLanguage();
   const offLabel = useMemo(() => uiStrings["OFF"]?.[language] ?? "OFF", [language]);
-  const [time, setTime] = useState<{ hours: number; minutes: number; seconds: number; expired: boolean }>({ hours: 0, minutes: 0, seconds: 0, expired: true });
+  const [time, setTime] = useState<{ hours: number; minutes: number; seconds: number; expired: boolean }>(() => getTimeLeft(sale.endsAt));
 
   useEffect(() => {
-    setTime(getTimeLeft(sale.endsAt));
     const interval = setInterval(() => setTime(getTimeLeft(sale.endsAt)), 1000);
     return () => clearInterval(interval);
   }, [sale.endsAt]);

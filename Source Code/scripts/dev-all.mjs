@@ -21,6 +21,7 @@ function has(cmd) {
 // Distro installs frequently ship only a JRE, in which case Maven dies with the
 // misleading "error: release version 21 not supported". Probe well-known JDK
 // homes so the build still works when a JDK exists but is not on PATH.
+// Prefer SDKMAN 21.0.2-graalce for compatibility with Spring Boot 3.4.2.
 
 function findJdk() {
   const candidates = [];
@@ -30,6 +31,11 @@ function findJdk() {
 
   const home = process.env.HOME || "";
   const sdkman = join(home, ".sdkman", "candidates", "java");
+  // Prefer SDKMAN 21.0.2-graalce for Spring Boot 3.4.2 compatibility
+  const sdkman21 = join(sdkman, "21.0.2-graalce");
+  if (existsSync(join(sdkman21, "bin", "javac"))) {
+    return sdkman21;
+  }
   push(join(sdkman, "current"));
   try {
     readdirSync(sdkman, { withFileTypes: true })

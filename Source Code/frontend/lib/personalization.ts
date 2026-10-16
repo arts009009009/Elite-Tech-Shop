@@ -18,7 +18,6 @@ export type ScoredProduct = {
 };
 
 const CATEGORY_WEIGHT = 0.35;
-const RECENCY_WEIGHT = 0.25;
 const PRICE_MATCH_WEIGHT = 0.20;
 const POPULARITY_WEIGHT = 0.10;
 const DIVERSITY_WEIGHT = 0.10;
