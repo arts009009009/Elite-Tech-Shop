@@ -29,6 +29,13 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
 
   const debouncedSearch = useCallback((query: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    // Empty query: skip the debounce entirely to avoid pointless
+    // isSearching state churn/spinner flicker on mount and on clear.
+    if (!query.trim()) {
+      setLiveResults([]);
+      setIsSearching(false);
+      return;
+    }
     setIsSearching(true);
     debounceRef.current = setTimeout(() => { setLiveResults(performSearch(query)); setIsSearching(false); }, 200);
   }, [performSearch]);
