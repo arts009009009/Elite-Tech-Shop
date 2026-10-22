@@ -28,18 +28,44 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState(() => {
+  // Default to "en" during SSR/prerender — reading localStorage or navigator in
+  // the useState initializer throws on Node < 21 and mismatches on >= 21
+  // (SSR-safe hydration pattern, see ThemeModeContext).
+  const [language, setLanguageState] = useState("en");
+
+  useEffect(() => {
     try {
+      // Merge persisted custom translations so they survive reloads.
+      const storedCustom = localStorage.getItem("custom_translations");
+      if (storedCustom) {
+        const custom: unknown = JSON.parse(storedCustom);
+        if (custom && typeof custom === "object" && !Array.isArray(custom)) {
+          for (const [lang, entries] of Object.entries(custom as Record<string, unknown>)) {
+            if (entries && typeof entries === "object" && !Array.isArray(entries)) {
+              FALLBACK_TRANSLATIONS[lang] = { ...(FALLBACK_TRANSLATIONS[lang] || {}), ...(entries as Record<string, string>) };
+            }
+          }
+        }
+      }
       const saved = localStorage.getItem("preferred_language");
-      if (saved && SUPPORTED_LANGUAGES.some((l) => l.code === saved)) return saved;
+      if (saved && SUPPORTED_LANGUAGES.some((l) => l.code === saved)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- resolve saved language after mount
+        setLanguageState(saved);
+        return;
+      }
     } catch {}
-    const browserLangs = navigator.languages || [navigator.language];
-    for (const bl of browserLangs) {
-      const code = bl.split("-")[0];
-      if (SUPPORTED_LANGUAGES.some((l) => l.code === code)) return code;
-    }
-    return "en";
-  });
+    try {
+      const browserLangs = navigator.languages || [navigator.language];
+      for (const bl of browserLangs) {
+        const code = bl.split("-")[0];
+        if (SUPPORTED_LANGUAGES.some((l) => l.code === code)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- resolve browser language after mount
+          setLanguageState(code);
+          return;
+        }
+      }
+    } catch {}
+  }, []);
 
   const isRTL = RTL_LANGUAGES.has(language);
   const setLanguage = useCallback((lang: string) => { setLanguageState(lang); try { localStorage.setItem("preferred_language", lang); } catch {} }, []);
@@ -63,7 +89,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     FALLBACK_TRANSLATIONS[lang][key] = value;
     try {
       const stored = localStorage.getItem("custom_translations");
-      const custom: Record<string, Record<string, string>> = stored ? JSON.parse(stored) : {};
+      const parsed: unknown = stored ? JSON.parse(stored) : null;
+      const custom: Record<string, Record<string, string>> =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Record<string, Record<string, string>>)
+          : {};
       if (!custom[lang]) custom[lang] = {};
       custom[lang][key] = value;
       localStorage.setItem("custom_translations", JSON.stringify(custom));

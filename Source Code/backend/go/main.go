@@ -149,6 +149,9 @@ func init() {
 		log.Printf("[WARN] No ADMIN_PASSWORD env var set, using default password. Set ADMIN_PASSWORD in production!")
 	}
 	store.Users[0].PasswordHash = hashPassword(adminPass)
+	if store.Users[0].PasswordHash == "" {
+		log.Fatalf("[FATAL] could not hash admin password: bcrypt failure")
+	}
 }
 
 func hashPassword(password string) string {
@@ -208,7 +211,16 @@ func errorResponse(w http.ResponseWriter, msg string, status int) {
 	jsonResponse(w, map[string]string{"error": msg}, status)
 }
 
-func getUsername(r *http.Request) string {
+// round2 rounds a money amount to 2 decimal places.
+func round2(f float64) float64 {
+	return math.Round(f*100) / 100
+}
+
+var guestIDRe = regexp.MustCompile(`^[a-f0-9-]{8,64}$`)
+
+// getSessionUsername returns the authenticated session username, or "" if the
+// request has no valid session.
+func getSessionUsername(r *http.Request) string {
 	cookie, err := r.Cookie("session_token")
 	if err != nil || cookie.Value == "" {
 		cookie, err = r.Cookie("user_session")
@@ -223,6 +235,35 @@ func getUsername(r *http.Request) string {
 		return ""
 	}
 	return sess.Username
+}
+
+// getUsername returns the session username when present; otherwise it derives a
+// per-visitor guest identity from the X-Guest-Id header so that anonymous
+// visitors do not share cart/wishlist state.
+func getUsername(r *http.Request) string {
+	if u := getSessionUsername(r); u != "" {
+		return u
+	}
+	if id := r.Header.Get("X-Guest-Id"); guestIDRe.MatchString(id) {
+		return "guest:" + id
+	}
+	return "guest"
+}
+
+func isAdminUser(username string) bool {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	idx, ok := store.UsersByUsername[username]
+	return ok && store.Users[idx].Role == "admin"
+}
+
+// rebuildOrderIndex rebuilds the username -> order indices map after any
+// mutation of store.Orders. Must be called with store.mu held for writing.
+func rebuildOrderIndex() {
+	store.OrdersByUsername = make(map[string][]int)
+	for i, o := range store.Orders {
+		store.OrdersByUsername[o.Username] = append(store.OrdersByUsername[o.Username], i)
+	}
 }
 
 func handleSignup(w http.ResponseWriter, r *http.Request) {
