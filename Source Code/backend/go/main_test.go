@@ -247,9 +247,10 @@ func TestLogin(t *testing.T) {
 	if body["username"] != "admin" {
 		t.Fatalf("expected username 'admin', got %v", body["username"])
 	}
+	if body["email"] != "admin@elite.shop" {
+		t.Fatalf("expected email 'admin@elite.shop', got %v", body["email"])
+	}
 }
-
-func TestLoginInvalid(t *testing.T) {
 	resp := doReq("POST", "/api/auth/login", map[string]string{
 		"username": "admin",
 		"password": "wrongpassword",
@@ -479,14 +480,57 @@ func TestDiscountInvalid(t *testing.T) {
 	}
 }
 
-func TestCSRFMissing(t *testing.T) {
+func TestCSRFNoOriginAllowed(t *testing.T) {
+	// No Origin/Referer (curl, server-to-server) must be allowed.
 	resp := doReq("POST", "/api/auth/signup", map[string]string{
 		"username": "csrfmissing",
 		"email":    "csrfmissing@test.com",
 		"password": "pass1234",
 	}, "", false)
+	if resp.status != 200 {
+		t.Fatalf("expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+}
+
+func TestCSRFCrossOriginRejected(t *testing.T) {
+	resp := doReqWithHeaders("POST", "/api/auth/signup", map[string]string{
+		"username": "csrforigin",
+		"email":    "csrforigin@test.com",
+		"password": "pass1234",
+	}, "", map[string]string{"Origin": "https://evil.example"})
 	if resp.status != 403 {
-		t.Fatalf("expected 403, got %d: %s", resp.status, string(resp.body))
+		t.Fatalf("expected 403 for cross-origin POST, got %d: %s", resp.status, string(resp.body))
+	}
+}
+
+func TestCSRFAllowedOrigin(t *testing.T) {
+	resp := doReqWithHeaders("POST", "/api/auth/signup", map[string]string{
+		"username": "csrfallowed",
+		"email":    "csrfallowed@test.com",
+		"password": "pass1234",
+	}, "", map[string]string{"Origin": "http://localhost:3000"})
+	if resp.status != 200 {
+		t.Fatalf("expected 200 for allowed origin, got %d: %s", resp.status, string(resp.body))
+	}
+}
+
+func TestCSRFRefererFallback(t *testing.T) {
+	resp := doReqWithHeaders("POST", "/api/auth/signup", map[string]string{
+		"username": "csrfreferer",
+		"email":    "csrfreferer@test.com",
+		"password": "pass1234",
+	}, "", map[string]string{"Referer": "https://evil.example/checkout"})
+	if resp.status != 403 {
+		t.Fatalf("expected 403 for cross-origin referer, got %d: %s", resp.status, string(resp.body))
+	}
+
+	resp = doReqWithHeaders("POST", "/api/auth/signup", map[string]string{
+		"username": "csrfreferer2",
+		"email":    "csrfreferer2@test.com",
+		"password": "pass1234",
+	}, "", map[string]string{"Referer": "https://elite-tech.shop/cart"})
+	if resp.status != 200 {
+		t.Fatalf("expected 200 for allowed referer, got %d: %s", resp.status, string(resp.body))
 	}
 }
 

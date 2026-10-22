@@ -94,15 +94,9 @@ export default function FrostCraftPage() {
     difficulty: 0,
     particles: [] as Array<{ x: number; y: number; z: number; life: number }>,
   });
-  const [, setPlayer] = useState({
-    onGround: false,
-    canDoubleJump: false,
-    dashCooldown: 0,
-    dashTimer: 0,
-    lives: 3,
-    combo: 0,
-    score: 0,
-  });
+  // NOTE: the per-frame player snapshot (score/combo/lives/grounded/dash) was
+  // never read by any render — it only forced an extra full React re-render
+  // every frame — so it now stays in the game loop's local state.
   const selectedRef = useRef(0);
   const graphicsLevelRef = useRef(1);
   // The WebGL game loop runs once (deps: [isMounted]) to avoid re-initialising
@@ -160,6 +154,12 @@ export default function FrostCraftPage() {
     let canvasEl: HTMLCanvasElement | null = null;
     let wasmMem: WebAssembly.Memory | null = null;
     let lastTime = performance.now();
+    // FPS/HUD bookkeeping lives in its own locals: frameIdRef is reserved for
+    // the requestAnimationFrame handle (cancelAnimationFrame in cleanup) and
+    // must not double as a timestamp.
+    let lastFpsTime = 0;
+    let fpsFrameCount = 0;
+    let lastHudPush = 0;
     let mouseDX = 0, mouseDY = 0;
     let camX = 24, camY = 50, camZ = 40;
     const cleanupRef = { current: null as (() => void) | null };
@@ -536,10 +536,19 @@ export default function FrostCraftPage() {
         const didSpacePress = spacePressed;
         spacePressed = false;
 
-        // FPS calculation
-        if (now - (frameIdRef.current || 0) >= 1000) {
-          setGame(prev => ({ ...prev, fps: Math.round(1 / dt) }));
-          frameIdRef.current = now;
+        // FPS: count frames and publish once per second. The old check
+        // compared against frameIdRef (the RAF handle), so it ran every frame
+        // and reported 1/dt instead of frames-per-second.
+        if (lastFpsTime === 0) {
+          lastFpsTime = now;
+          lastHudPush = now;
+        }
+        fpsFrameCount++;
+        if (now - lastFpsTime >= 1000) {
+          const fps = Math.round((fpsFrameCount * 1000) / (now - lastFpsTime));
+          lastFpsTime = now;
+          fpsFrameCount = 0;
+          setGame((prev) => (prev.fps === fps ? prev : { ...prev, fps }));
         }
 
         time += dt;
@@ -675,9 +684,13 @@ export default function FrostCraftPage() {
         gl.uniformMatrix4fv(uMVP, false, mvp);
         gl.drawArrays(gl.TRIANGLES, 0, verts);
 
-        // Update state
-        setGame(prev => ({ ...prev, time, particles: [...particles] }));
-        setPlayer({ score, combo, lives, onGround, canDoubleJump, dashCooldown, dashTimer });
+        // Update HUD state at a throttled rate: pushing the full game state
+        // every frame re-rendered React at ~60Hz even though the HUD only
+        // shows seconds/quarter-seconds worth of change.
+        if (now - lastHudPush >= 250) {
+          lastHudPush = now;
+          setGame(prev => ({ ...prev, time, particles: [...particles] }));
+        }
 
         frameIdRef.current = requestAnimationFrame(frame);
       }

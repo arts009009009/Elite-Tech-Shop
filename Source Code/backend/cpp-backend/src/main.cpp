@@ -172,7 +172,9 @@ int main() {
             } catch (const calc::CalcError& error) {
                 return json_error(400, error.what());
             } catch (const std::exception& error) {
-                return json_error(500, std::string("internal error: ") + error.what());
+                std::cerr << "internal error in " << request.url << ": " << error.what()
+                          << std::endl;
+                return json_error(500, "internal error");
             } catch (...) {
                 return json_error(500, "internal error: unknown exception");
             }
@@ -201,7 +203,9 @@ int main() {
             } catch (const calc::CalcError& error) {
                 return json_error(400, error.what());
             } catch (const std::exception& error) {
-                return json_error(500, std::string("internal error: ") + error.what());
+                std::cerr << "internal error in " << request.url << ": " << error.what()
+                          << std::endl;
+                return json_error(500, "internal error");
             } catch (...) {
                 return json_error(500, "internal error: unknown exception");
             }
@@ -259,7 +263,9 @@ int main() {
             } catch (const calc::CalcError& error) {
                 return json_error(400, error.what());
             } catch (const std::exception& error) {
-                return json_error(500, std::string("internal error: ") + error.what());
+                std::cerr << "internal error in " << request.url << ": " << error.what()
+                          << std::endl;
+                return json_error(500, "internal error");
             } catch (...) {
                 return json_error(500, "internal error: unknown exception");
             }
