@@ -1313,43 +1313,70 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
-
-	store.mu.RLock()
-	isAdmin := false
-	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
-		isAdmin = true
-	}
-	store.mu.RUnlock()
-	if !isAdmin {
+	if !isAdminUser(username) {
 		errorResponse(w, "forbidden", 403)
 		return
 	}
 
-	parts := strings.Split(r.URL.Path, "/")
-	if r.Method == "DELETE" && len(parts) >= 5 {
+	if r.Method == "DELETE" {
+		// /api/admin/users/{target} -> ["", "api", "admin", "users", "{target}"]
+		parts := strings.Split(r.URL.Path, "/")
+		if len(parts) < 5 || parts[4] == "" {
+			errorResponse(w, "bad path", 400)
+			return
+		}
 		target := parts[4]
 		store.mu.Lock()
-		if targetIdx, ok := store.UsersByUsername[target]; ok && store.Users[targetIdx].Role != "admin" {
-			// Remove from slice and rebuild index
-			store.Users = append(store.Users[:targetIdx], store.Users[targetIdx+1:]...)
-			delete(store.UsersByUsername, target)
-			// Rebuild index after slice modification
-			for uname, idx := range store.UsersByUsername {
-				if idx > targetIdx {
-					store.UsersByUsername[uname] = idx - 1
-				}
-			}
-			delete(store.Carts, target)
-			delete(store.Wishlists, target)
-			delete(store.Rewards, target)
+		targetIdx, ok := store.UsersByUsername[target]
+		if !ok {
+			store.mu.Unlock()
+			errorResponse(w, "user not found", 404)
+			return
 		}
+		if store.Users[targetIdx].Role == "admin" {
+			store.mu.Unlock()
+			errorResponse(w, "cannot delete admin user", 403)
+			return
+		}
+		// Remove from slice and rebuild index
+		store.Users = append(store.Users[:targetIdx], store.Users[targetIdx+1:]...)
+		delete(store.UsersByUsername, target)
+		// Rebuild index after slice modification
+		for uname, idx := range store.UsersByUsername {
+			if idx > targetIdx {
+				store.UsersByUsername[uname] = idx - 1
+			}
+		}
+		delete(store.Carts, target)
+		delete(store.Wishlists, target)
+		delete(store.Rewards, target)
+		delete(store.Profiles, target)
+		for tok, sess := range store.Sessions {
+			if sess.Username == target {
+				delete(store.Sessions, tok)
+			}
+		}
+		// Drop the user's orders and rebuild the per-user index.
+		kept := store.Orders[:0]
+		for _, o := range store.Orders {
+			if o.Username != target {
+				kept = append(kept, o)
+			}
+		}
+		store.Orders = kept
+		rebuildOrderIndex()
 		store.mu.Unlock()
 		jsonResponse(w, map[string]string{"status": "deleted"}, 200)
+		return
+	}
+
+	if r.Method != "GET" {
+		errorResponse(w, "method not allowed", 405)
 		return
 	}
 
@@ -1372,19 +1399,12 @@ func handleAdminClearOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
-
-	store.mu.RLock()
-	isAdmin := false
-	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
-		isAdmin = true
-	}
-	store.mu.RUnlock()
-	if !isAdmin {
+	if !isAdminUser(username) {
 		errorResponse(w, "forbidden", 403)
 		return
 	}
@@ -1395,6 +1415,7 @@ func handleAdminClearOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	store.mu.Lock()
 	store.Orders = []Order{}
+	store.OrdersByUsername = make(map[string][]int)
 	store.mu.Unlock()
 	jsonResponse(w, map[string]string{"status": "cleared"}, 200)
 }

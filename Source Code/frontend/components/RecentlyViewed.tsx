@@ -18,21 +18,21 @@ function trackView(product: Product) {
 }
 
 function useRecentlyViewed() {
-  const [items, setItems] = useState<Product[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as Product[];
-    } catch { return []; }
-  });
+  // localStorage is unavailable during SSR/prerender — hydrate after mount so
+  // the widget doesn't mismatch (SSR-safe hydration pattern).
+  const [items, setItems] = useState<Product[]>([]);
 
   useEffect(() => {
-    const handler = () => {
+    const load = () => {
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as Product[];
-        setItems(saved);
+        setItems(Array.isArray(saved) ? saved : []);
       } catch { setItems([]); }
     };
-    window.addEventListener("recently-viewed-updated", handler);
-    return () => window.removeEventListener("recently-viewed-updated", handler);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load history after mount
+    load();
+    window.addEventListener("recently-viewed-updated", load);
+    return () => window.removeEventListener("recently-viewed-updated", load);
   }, []);
 
   return items;
