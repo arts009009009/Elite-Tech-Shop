@@ -66,22 +66,22 @@ public class AuthController {
     private volatile boolean mongoAvailable = true;
     private volatile long lastMongoProbeAt = 0;
 
-    private static final Map<String, String> SENSITIVE_ERROR_MESSAGES = Map.of(
-        "email_required", "Email is required",
-        "password_too_short", "Password must be at least 6 characters",
-        "username_required", "Username is required",
-        "username_exists", "Username already exists",
-        "email_exists", "Email already registered",
-        "account_exists", "Account already exists",
-        "storage_unavailable", "Registration is temporarily unavailable. Please try again later.",
-        "invalid_credentials", "Invalid email or password",
-        "credentials_required", "Email and password are required",
-        "password_required", "Password is required",
-        "invalid_otp", "Invalid or expired OTP",
-        "rate_limit_exceeded", "Too many attempts. Please try again later.",
-        "invalid_email_format", "Invalid email format",
-        "invalid_username_format", "Username must be 3-30 characters (letters, numbers, underscore)",
-        "not_authenticated", "Not authenticated"
+    private static final Map<String, String> SENSITIVE_ERROR_MESSAGES = Map.ofEntries(
+        Map.entry("email_required", "Email is required"),
+        Map.entry("password_too_short", "Password must be at least 6 characters"),
+        Map.entry("username_required", "Username is required"),
+        Map.entry("username_exists", "Username already exists"),
+        Map.entry("email_exists", "Email already registered"),
+        Map.entry("account_exists", "Account already exists"),
+        Map.entry("storage_unavailable", "Registration is temporarily unavailable. Please try again later."),
+        Map.entry("invalid_credentials", "Invalid email or password"),
+        Map.entry("credentials_required", "Email and password are required"),
+        Map.entry("password_required", "Password is required"),
+        Map.entry("invalid_otp", "Invalid or expired OTP"),
+        Map.entry("rate_limit_exceeded", "Too many attempts. Please try again later."),
+        Map.entry("invalid_email_format", "Invalid email format"),
+        Map.entry("invalid_username_format", "Username must be 3-30 characters (letters, numbers, underscore)"),
+        Map.entry("not_authenticated", "Not authenticated")
     );
 
     public AuthController(UserRepository userRepository, SessionRepository sessionRepository,

@@ -92,13 +92,12 @@ export default function Home() {
       console.log(
         `[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=${lang} | OK`,
       );
-      setProducts(data.products || []);
+      const fetched = Array.isArray(data.products) ? data.products : [];
+      setProducts(fetched);
       try {
         // Cache per language and only ever store an array so a later read
         // can't blow up products.filter.
-        if (Array.isArray(data.products)) {
-          sessionStorage.setItem(`products:${lang}`, JSON.stringify(data.products));
-        }
+        sessionStorage.setItem(`products:${lang}`, JSON.stringify(fetched));
       } catch {}
     } catch (err) {
       console.error("Failed to fetch products:", err);

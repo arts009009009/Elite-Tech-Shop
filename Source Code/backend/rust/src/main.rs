@@ -175,6 +175,30 @@ impl RawProduct {
             _ => &self.en,
         }
     }
+
+    /// Lowercased concatenation of every localized title of this product, so
+    /// `?search=` also matches non-English titles (ar/ru/fr/es).
+    fn search_text(&self) -> String {
+        let mut text = self.en.title.to_lowercase();
+        for locale in [&self.ar, &self.ru, &self.fr, &self.es].into_iter().flatten() {
+            text.push(' ');
+            text.push_str(&locale.title.to_lowercase());
+        }
+        text
+    }
+}
+
+/// Match `needle` (already lowercased) against the pre-computed search index,
+/// falling back to the product's localized titles when the index is missing.
+fn search_matches(
+    index: Option<&HashMap<u32, String>>,
+    product: &RawProduct,
+    needle: &str,
+) -> bool {
+    index
+        .and_then(|idx| idx.get(&product.id))
+        .map(|titles| titles.contains(needle))
+        .unwrap_or_else(|| product.search_text().contains(needle))
 }
 
 fn get_locale_price(raw: &RawProduct, lang: &str) -> f64 {
@@ -236,7 +260,8 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
         return Json(serde_json::json!(ProductsResponse { products: vec![], total: 0 }));
     };
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
-    let limit = query.limit.unwrap_or(MAX_LIMIT).min(MAX_LIMIT) as usize;
+    let limit = query.limit.unwrap_or(MAX_LIMIT).clamp(1, MAX_LIMIT) as usize;
+    let skip = query.skip.unwrap_or(0) as usize;
 
     let search_lower = query.search.as_ref().map(|s| s.to_lowercase());
 
@@ -249,13 +274,9 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
                 .is_none_or(|c| c == &p.category)
         })
         .filter(|p| {
-            search_lower.as_ref().is_none_or(|s| {
-                SEARCH_INDEX
-                    .get()
-                    .and_then(|idx| idx.get(&p.id))
-                    .map(|title| title.contains(s.as_str()))
-                    .unwrap_or(false)
-            })
+            search_lower
+                .as_ref()
+                .is_none_or(|s| search_matches(SEARCH_INDEX.get(), p, s))
         })
         .filter(|p| {
             let price = get_locale_price(p, &lang);
@@ -264,8 +285,14 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
         })
         .collect();
     filtered.sort_by_key(|p| p.id);
-    let products: Vec<Product> = filtered.iter().take(limit).map(|p| p.to_product(&lang)).collect();
-    let total = products.len();
+    // `total` counts every match, before pagination is applied.
+    let total = filtered.len();
+    let products: Vec<Product> = filtered
+        .iter()
+        .skip(skip)
+        .take(limit)
+        .map(|p| p.to_product(&lang))
+        .collect();
     Json(serde_json::json!(ProductsResponse { products, total }))
 }
 

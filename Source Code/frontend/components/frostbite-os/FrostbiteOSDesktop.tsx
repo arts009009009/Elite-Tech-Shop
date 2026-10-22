@@ -57,6 +57,7 @@ function FrostbiteOSDesktopInner() {
   const [showPresets, setShowPresets] = useState(false);
   const snowRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
+  const notifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const tick = () => {
@@ -110,8 +111,16 @@ function FrostbiteOSDesktopInner() {
 
   const showNotif = useCallback((text: string) => {
     setNotif({ show: true, text });
-    setTimeout(() => setNotif({ show: false, text: "" }), 3000);
+    if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
+    notifTimerRef.current = setTimeout(() => {
+      setNotif({ show: false, text: "" });
+      notifTimerRef.current = null;
+    }, 3000);
   }, []);
+
+  // Clear a pending notification setState so it can't fire after unmount
+  // (e.g. navigating away on route change).
+  useEffect(() => () => { if (notifTimerRef.current) clearTimeout(notifTimerRef.current); }, []);
 
   useEffect(() => {
     const t = setTimeout(() => showNotif("Welcome to Frostbite OS! Double-click icons to launch apps."), 600);

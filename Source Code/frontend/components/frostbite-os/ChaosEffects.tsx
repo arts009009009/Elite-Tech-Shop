@@ -188,8 +188,20 @@ export function ChaosProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!chaosEnabled || activePreset.id === "off") return;
 
+    // Non-blocking frame-timing sampler feeding getApproxStats (replaces the
+    // old busy-wait that froze the main thread every 2s).
+    let raf = 0;
+    let last = performance.now();
+    let avgDelta = 16.7;
+    const sampleFrames = (now: number) => {
+      avgDelta = avgDelta * 0.9 + (now - last) * 0.1;
+      last = now;
+      raf = requestAnimationFrame(sampleFrames);
+    };
+    raf = requestAnimationFrame(sampleFrames);
+
     const id = setInterval(() => {
-      const { cpu, ram, gpu } = getApproxStats();
+      const { cpu, ram, gpu } = getApproxStats(avgDelta);
       setCpuLoad(cpu);
       setRamLoad(ram);
       setGpuLoad(gpu);
@@ -212,7 +224,7 @@ export function ChaosProvider({ children }: { children: React.ReactNode }) {
         desktopRef.current.style.setProperty("--chaos-icon-speed", String(activePreset.iconMorphSpeed));
       }
     }, 2000);
-    return () => clearInterval(id);
+    return () => { clearInterval(id); cancelAnimationFrame(raf); };
   }, [chaosEnabled, activePreset]);
 
   const triggerGlitch = useCallback(
