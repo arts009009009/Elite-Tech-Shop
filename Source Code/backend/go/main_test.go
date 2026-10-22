@@ -781,9 +781,12 @@ func TestOrdersServerComputedTotal(t *testing.T) {
 	if order["total"] != 1998.0 {
 		t.Fatalf("expected server-computed total 1998.0 (999 clamped x $2.00), got %v", order["total"])
 	}
-	var items []map[string]interface{}
-	items, _ = order["items"].([]map[string]interface{})
-	if len(items) != 1 || items[0]["quantity"] != float64(999) {
+	items, ok := order["items"].([]interface{})
+	if !ok || len(items) != 1 {
+		t.Fatalf("expected 1 item, got %v", order["items"])
+	}
+	first, _ := items[0].(map[string]interface{})
+	if first["quantity"] != float64(999) {
 		t.Fatalf("expected quantity clamped to 999, got %v", order["items"])
 	}
 }
