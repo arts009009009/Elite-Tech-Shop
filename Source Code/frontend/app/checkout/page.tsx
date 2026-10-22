@@ -160,7 +160,9 @@ export default function Checkout() {
   const [discountInput, setDiscountInput] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [placing, setPlacing] = useState(false);
-  const [orderId] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [createdTotal, setCreatedTotal] = useState(0);
+  const [createdCurrency, setCreatedCurrency] = useState("USD");
 
   const subtotal = cartCtx.cart.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
   const total = Math.max(0, subtotal - discountAmount);
@@ -177,28 +179,38 @@ export default function Checkout() {
     if (!userCtx.user) { window.dispatchEvent(new CustomEvent("notify", { detail: "Please login before checkout!" })); return; }
     if (placing) return;
     setPlacing(true);
-    initializeStock(cartCtx.cart.map((item) => item.id));
-    await cartCtx.placeOrder(userCtx.user.username);
-    const earnedPoints = Math.round(total);
-    addPoints(earnedPoints);
-    window.dispatchEvent(new CustomEvent("notify", { detail: `Order placed successfully! Earned ${earnedPoints} rewards points.` }));
-    setPlacing(false);
-    router.push("/orders");
-  }, [cartCtx, userCtx, total, addPoints, initializeStock, placing, router]);
+    try {
+      const result = await cartCtx.placeOrder(userCtx.user.username, appliedCode || undefined);
+      if (!result.success || !result.order) {
+        // placeOrder already notified; keep the user on this page.
+        return;
+      }
+      const order = result.order;
+      initializeStock(cartCtx.cart.map((item) => item.id));
+      setOrderId(order.id);
+      setCreatedTotal(order.total);
+      setCreatedCurrency(order.currency || "USD");
+      const earnedPoints = Math.round(order.total);
+      addPoints(earnedPoints);
+      window.dispatchEvent(new CustomEvent("notify", { detail: `Order created! Pay now or later. Earned ${earnedPoints} rewards points.` }));
+    } finally {
+      setPlacing(false);
+    }
+  }, [cartCtx, userCtx, appliedCode, addPoints, initializeStock, placing]);
 
-  const handlePaymentSuccess = useCallback(async (paymentId: string) => {
+  const handlePaymentSuccess = useCallback((paymentId: string) => {
     window.dispatchEvent(new CustomEvent("notify", { detail: `Payment successful! ID: ${paymentId}` }));
-    if (!userCtx.user) return;
-    initializeStock(cartCtx.cart.map((item) => item.id));
-    await cartCtx.placeOrder(userCtx.user.username);
-    const earnedPoints = Math.round(total);
-    addPoints(earnedPoints);
+    if (orderId) cartCtx.markOrderPaid(orderId, paymentId);
     router.push("/orders");
-  }, [cartCtx, userCtx, total, addPoints, initializeStock, router]);
+  }, [cartCtx, orderId, router]);
 
   const handlePaymentError = useCallback((error: string) => {
     window.dispatchEvent(new CustomEvent("notify", { detail: `Payment failed: ${error}` }));
   }, []);
+
+  const handlePayLater = useCallback(() => {
+    router.push("/orders");
+  }, [router]);
 
   return (
     <>
