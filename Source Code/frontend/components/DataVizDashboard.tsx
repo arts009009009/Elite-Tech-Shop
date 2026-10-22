@@ -1,9 +1,11 @@
 "use client";
 import { useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer } from "recharts";
+import { formatCurrency } from "@/lib/utils";
 
-type Props = { products: Array<{ id: number; title: string; price: number; currency: string }>; orders: Array<{ id: string | number; total: number; date: string; items: Array<unknown> }> };
+type Props = { products: Array<{ id: number; title: string; price: number; currency: string }>; orders: Array<{ id: string | number; total: number; currency?: string; date: string; items: Array<unknown> }> };
 const COLORS = ["#00d4ff", "#A020F0", "#A020F0", "#fff700", "#00ff41", "#ff6600"];
+const CURRENCY_COLORS = ["#A020F0", "#00d4ff", "#00ff41", "#ff6600", "#fff700"];
 
 export default function DataVizDashboard({ products, orders }: Props) {
   const categoryStats = useMemo(() => {
@@ -12,33 +14,61 @@ export default function DataVizDashboard({ products, orders }: Props) {
   }, [products]);
 
   const priceDistribution = useMemo(() => {
-    const ranges = [{ name: "$0-500", min: 0, max: 500, count: 0 }, { name: "$500-1000", min: 500, max: 1000, count: 0 }, { name: "$1000-1500", min: 1000, max: 1500, count: 0 }, { name: "$1500-2000", min: 1500, max: 2000, count: 0 }, { name: "$2000+", min: 2000, max: Infinity, count: 0 }];
+    const ranges = [{ name: "0-500", min: 0, max: 500, count: 0 }, { name: "500-1000", min: 500, max: 1000, count: 0 }, { name: "1000-1500", min: 1000, max: 1500, count: 0 }, { name: "1500-2000", min: 1500, max: 2000, count: 0 }, { name: "2000+", min: 2000, max: Infinity, count: 0 }];
     for (const p of products) { const range = ranges.find((r) => p.price >= r.min && p.price < r.max); if (range) range.count++; }
     return ranges;
   }, [products]);
 
+  // Orders can carry mixed currencies (USD/EUR/EGP/RUB depending on the
+  // product's language data), so revenue is aggregated per currency and
+  // rendered with its own symbol — summing across currencies is meaningless.
+  const revenueStats = useMemo(() => {
+    const byCurrency: Record<string, { sum: number; count: number }> = {};
+    for (const order of orders) {
+      const currency = order.currency || "USD";
+      const entry = byCurrency[currency] || (byCurrency[currency] = { sum: 0, count: 0 });
+      entry.sum += order.total || 0;
+      entry.count++;
+    }
+    return Object.entries(byCurrency).map(([currency, { sum, count }]) => ({
+      currency,
+      total: sum,
+      avg: sum / count,
+    }));
+  }, [orders]);
+
   const orderTimeline = useMemo(() => {
-    const grouped: Record<string, number> = {};
-    for (const order of orders) { const date = order.date?.split(",")[0] || "Unknown"; grouped[date] = (grouped[date] || 0) + order.total; }
-    return Object.entries(grouped).map(([date, total]) => ({ date, total: Math.round(total) })).slice(-10);
+    const byDate: Record<string, Record<string, number>> = {};
+    const currencies: string[] = [];
+    for (const order of orders) {
+      const date = order.date?.split(",")[0] || "Unknown";
+      const currency = order.currency || "USD";
+      if (!currencies.includes(currency)) currencies.push(currency);
+      const bucket = byDate[date] || (byDate[date] = {});
+      bucket[currency] = (bucket[currency] || 0) + (order.total || 0);
+    }
+    const rows = Object.entries(byDate).map(([date, byCurrency]) => {
+      const row: Record<string, string | number> = { date };
+      for (const [currency, total] of Object.entries(byCurrency)) row[currency] = Math.round(total);
+      return row;
+    }).slice(-10);
+    return { rows, currencies };
   }, [orders]);
 
   const stats = useMemo(() => ({
     totalProducts: products.length, totalOrders: orders.length,
-    totalRevenue: orders.reduce((sum, o) => sum + (o.total || 0), 0),
-    avgOrderValue: orders.length ? (orders.reduce((sum, o) => sum + (o.total || 0), 0) / orders.length) : 0,
   }), [products, orders]);
 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "16px", marginBottom: "24px" }}>
         {[
-          { label: "Total Products", value: stats.totalProducts },
-          { label: "Total Orders", value: stats.totalOrders },
-          { label: "Total Revenue", value: `$${stats.totalRevenue.toLocaleString()}` },
-          { label: "Avg Order Value", value: `$${stats.avgOrderValue.toFixed(2)}` },
-        ].map((stat, i) => (
-          <div key={i} style={{ padding: "16px", border: "1px solid #bee3f8", borderRadius: "12px", textAlign: "center" }}>
+          { label: "Total Products", value: String(stats.totalProducts) },
+          { label: "Total Orders", value: String(stats.totalOrders) },
+          ...revenueStats.map((r) => ({ label: `Total Revenue (${r.currency})`, value: formatCurrency(r.total, r.currency) })),
+          ...revenueStats.map((r) => ({ label: `Avg Order Value (${r.currency})`, value: formatCurrency(r.avg, r.currency) })),
+        ].map((stat) => (
+          <div key={stat.label} style={{ padding: "16px", border: "1px solid #bee3f8", borderRadius: "12px", textAlign: "center" }}>
             <p style={{ fontSize: "1.5rem", fontWeight: "bold", margin: 0 }}>{stat.value}</p>
             <p style={{ fontSize: "0.875rem", opacity: 0.7, margin: 0 }}>{stat.label}</p>
           </div>

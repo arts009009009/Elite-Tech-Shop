@@ -62,10 +62,7 @@ export default function MediaPlayerPage() {
     if (result) {
       if (audioRef.current) { audioRef.current.pause(); }
       // Revoke the previous file's blob URL before creating a new one.
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
-      }
+      releaseObjectUrl();
       const blob = new Blob([result.data], { type: "audio/*" });
       const url = URL.createObjectURL(blob);
       objectUrlRef.current = url;
@@ -75,7 +72,7 @@ export default function MediaPlayerPage() {
       setPosition(0);
       setPlaying(true);
     }
-  }, []);
+  }, [releaseObjectUrl]);
 
   const stop = () => {
     setPlaying(false);
