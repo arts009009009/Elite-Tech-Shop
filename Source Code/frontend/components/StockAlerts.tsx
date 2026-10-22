@@ -14,6 +14,8 @@ function StockAlerts() {
   const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const removalTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const prevIdsRef = useRef<Set<number>>(new Set());
+  const alertsRef = useRef<AlertEntry[]>([]);
+  useEffect(() => { alertsRef.current = alerts; }, [alerts]);
 
   const dismiss = useCallback((id: number) => {
     // Forgetting the id here (and when it leaves lowStockItems) lets a
@@ -38,7 +40,9 @@ function StockAlerts() {
     for (const id of Array.from(existing)) {
       if (!currentIds.has(id)) existing.delete(id);
     }
-    const activeAlertIds = new Set(alerts.map((a) => a.productId));
+    // Read the live alerts through a ref so this effect only re-runs when
+    // stock actually changes (depending on `alerts` would re-alert in a loop).
+    const activeAlertIds = new Set(alertsRef.current.map((a) => a.productId));
     const newAlerts: AlertEntry[] = [];
     for (const item of lowStockItems) {
       if (!existing.has(item.productId) && !activeAlertIds.has(item.productId)) {
@@ -51,7 +55,7 @@ function StockAlerts() {
     if (newAlerts.length > 0) {
       queueMicrotask(() => setAlerts((prev) => [...prev, ...newAlerts]));
     }
-  }, [lowStockItems, alerts, dismiss]);
+  }, [lowStockItems, dismiss]);
 
   useEffect(() => {
     const timers = timersRef.current;

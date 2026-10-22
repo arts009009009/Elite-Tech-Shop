@@ -73,7 +73,7 @@ export default function CategoriesPage() {
               {categories.map((cat) => (
                 <Link
                   key={cat}
-                  href={`/products?category=${cat}`}
+                  href={`/products?category=${encodeURIComponent(cat)}`}
                   prefetch
                   style={{
                     display: "flex",
