@@ -48,70 +48,77 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
-  const [customTheme, setCustomThemeState] = useState<CustomTheme>(() => {
+  // localStorage/matchMedia are unavailable during SSR/prerender, so all
+  // persisted state defaults here and is resolved after mount (SSR-safe
+  // hydration pattern, see ThemeModeContext).
+  const [customTheme, setCustomThemeState] = useState<CustomTheme>(DEFAULT_THEME);
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  const [currentPalette, setCurrentPalette] = useState("Custom");
+  const [userThemes, setUserThemes] = useState<UserSavedTheme[]>([]);
+  const [animateTheme, setAnimateTheme] = useState(true);
+  const [highContrast, setHighContrast] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [designSystem, setDesignSystemState] = useState<DesignSystem>("modern");
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted settings after mount
     try {
       const stored = JSON.parse(localStorage.getItem("custom_theme") || "null");
       if (stored && stored._version === THEME_VERSION) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _version, ...theme } = stored;
-        return theme;
-      }
-      return DEFAULT_THEME;
-    }
-    catch { return DEFAULT_THEME; }
-  });
-  const [isCustomizing, setIsCustomizing] = useState(false);
-  const [currentPalette, setCurrentPalette] = useState("Custom");
-  const [userThemes, setUserThemes] = useState<UserSavedTheme[]>(() => {
-    try { return JSON.parse(localStorage.getItem("user_themes") || "[]"); }
-    catch { return []; }
-  });
-  const [animateTheme, setAnimateTheme] = useState(() => { try { const v = localStorage.getItem("theme_animation"); return v === null ? true : v === "true"; } catch { return true; } });
-  const [highContrast, setHighContrast] = useState(() => {
-    try {
-      if (typeof window !== "undefined") {
-        return localStorage.getItem("elite_high_contrast") === "true" || window.matchMedia("(prefers-contrast: more)").matches;
+        setCustomThemeState(theme);
+        for (const [name, palette] of Object.entries(PRESET_PALETTES)) {
+          if (themesEqual(theme, palette)) { setCurrentPalette(name); break; }
+        }
       }
     } catch {}
-    return false;
-  });
-  const [reducedMotion, setReducedMotion] = useState(() => {
     try {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("elite_reduced_motion") === "true";
-        if (stored) document.body.classList.add("reduced-motion");
-        return stored;
+      const stored: unknown = JSON.parse(localStorage.getItem("user_themes") || "[]");
+      if (Array.isArray(stored)) setUserThemes(stored as UserSavedTheme[]);
+    } catch {}
+    try {
+      const v = localStorage.getItem("theme_animation");
+      if (v !== null) setAnimateTheme(v === "true");
+    } catch {}
+    try {
+      if (localStorage.getItem("elite_high_contrast") === "true" || window.matchMedia("(prefers-contrast: more)").matches) {
+        setHighContrast(true);
       }
     } catch {}
-    return false;
-  });
-  const [designSystem, setDesignSystemState] = useState<DesignSystem>(() => {
     try {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem("elite_design_system");
-        if (saved === "classic" || saved === "modern") return saved;
-      }
+      if (localStorage.getItem("elite_reduced_motion") === "true") setReducedMotion(true);
     } catch {}
-    return "modern";
-  });
+    try {
+      const saved = localStorage.getItem("elite_design_system");
+      if (saved === "classic" || saved === "modern") setDesignSystemState(saved);
+    } catch {}
+    hydratedRef.current = true;
+  }, []);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     document.body.classList.toggle("high-contrast", highContrast);
     try { localStorage.setItem("elite_high_contrast", String(highContrast)); } catch {}
   }, [highContrast]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     try { localStorage.setItem("elite_reduced_motion", String(reducedMotion)); } catch {}
     document.body.classList.toggle("reduced-motion", reducedMotion);
   }, [reducedMotion]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     try { localStorage.setItem("elite_design_system", designSystem); } catch {}
     document.body.classList.toggle("design-system-classic", designSystem === "classic");
   }, [designSystem]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     try { localStorage.setItem("custom_theme", JSON.stringify({ ...customTheme, _version: THEME_VERSION })); } catch {}
+    try { localStorage.setItem("theme_animation", String(animateTheme)); } catch {}
     const root = document.documentElement;
     const isDefault = themesEqual(customTheme, DEFAULT_THEME);
     const set = (key: string, val: string) => root.style.setProperty(key, val);
