@@ -181,12 +181,18 @@ export default function SystemMonitor({ visible = true, onClose, asApp = false }
         dragRef.current = null;
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
+        dragCleanupRef.current = null;
       };
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
+      dragCleanupRef.current = onUp;
     },
     [asApp]
   );
+
+  // Unmounting mid-drag (e.g. route change) must not leak the window-level
+  // mousemove/mouseup listeners.
+  useEffect(() => () => { dragCleanupRef.current?.(); }, []);
 
   const combined = Math.round(stats.cpu * 0.5 + stats.ram * 0.3 + stats.gpu * 0.2);
   const isFireAuto = combined > 50;
