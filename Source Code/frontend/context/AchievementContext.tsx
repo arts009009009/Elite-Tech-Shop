@@ -216,7 +216,7 @@ function saveProgress(progress: AchievementProgress): void {
 }
 
 export function AchievementProvider({ children }: AchievementProviderProps) {
-  const [unlockedBadges, setUnlockedBadges] = useState<string[]>(() => loadUnlockedBadges());
+  const [unlockedBadges, setUnlockedBadges] = useState<string[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
@@ -224,10 +224,33 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
   const [referralCount, setReferralCount] = useState(0);
   const [discountCount, setDiscountCount] = useState(0);
   const [hasNightOrder, setHasNightOrder] = useState(false);
+  // localStorage is unavailable during SSR/prerender, so persisted state is
+  // resolved after mount (SSR-safe hydration pattern).
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
-    saveUnlockedBadges(unlockedBadges);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted achievements after mount
+    setUnlockedBadges(loadUnlockedBadges());
+    const progress = loadProgress();
+    setTotalOrders(progress.totalOrders);
+    setTotalSpent(progress.totalSpent);
+    setTotalReviews(progress.totalReviews);
+    setReferralCount(progress.referralCount);
+    setDiscountCount(progress.discountCount);
+    hydratedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (hydratedRef.current) saveUnlockedBadges(unlockedBadges);
   }, [unlockedBadges]);
+
+  // Persist cumulative counters so long-running badges (10 orders, $500 spent,
+  // 10 reviews, referrals, discounts) can actually unlock across reloads.
+  useEffect(() => {
+    if (hydratedRef.current) {
+      saveProgress({ totalOrders, totalSpent, totalReviews, referralCount, discountCount });
+    }
+  }, [totalOrders, totalSpent, totalReviews, referralCount, discountCount]);
 
   const isUnlocked = useCallback(
     (id: string) => unlockedBadges.includes(id),

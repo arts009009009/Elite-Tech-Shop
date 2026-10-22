@@ -164,7 +164,7 @@ function installSync(label, cwd) {
       return false;
     }
     if (result.status !== 0) {
-      console.log(`[dev] ${label} install failed (exit ${result.status}).`);
+      console.log(`[dev] ${label} install failed (exit ${result.status ?? `signal ${result.signal}`}).`);
       return false;
     }
     console.log(`[dev] ${label} dependencies installed in ${((Date.now() - start) / 1000).toFixed(1)}s`);
