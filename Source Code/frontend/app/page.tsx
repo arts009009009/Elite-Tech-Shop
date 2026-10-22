@@ -66,16 +66,22 @@ export default function Home() {
   useEffect(() => {
     // sessionStorage is unavailable during Next.js prerender, so the cache
     // can only be read after mount. This is the standard SSR-safe pattern.
+    // The key is language-scoped and the parsed value is validated: a
+    // corrupted entry (non-array) must not reach products.filter below.
     try {
-      const cached = sessionStorage.getItem("products");
+      const cached = sessionStorage.getItem(`products:${language}`);
       if (cached) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setProducts(JSON.parse(cached));
+        const parsed: unknown = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setProducts(parsed);
+        }
         setLoading(false);
         return;
       }
     } catch {}
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
 
   const fetchProducts = useCallback(async (lang: string) => {
     try {

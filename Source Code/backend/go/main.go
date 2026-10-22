@@ -491,7 +491,7 @@ func handleMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "not logged in", 401)
 		return
@@ -1582,7 +1582,7 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -1592,11 +1592,14 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		store.mu.RLock()
 		profile := store.Profiles[username]
-		store.mu.RUnlock()
-		if profile == nil {
-			profile = &UserProfile{DisplayName: username}
+		var snap UserProfile
+		if profile != nil {
+			snap = *profile
+		} else {
+			snap = UserProfile{DisplayName: username}
 		}
-		jsonResponse(w, profile, 200)
+		store.mu.RUnlock()
+		jsonResponse(w, &snap, 200)
 	case "PUT":
 		var req UserProfile
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1622,7 +1625,7 @@ func handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "method not allowed", 405)
 		return
 	}
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -1641,18 +1644,40 @@ func handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	if idx, ok := store.UsersByUsername[username]; ok {
-		if !checkPassword(store.Users[idx].PasswordHash, req.OldPassword) {
-			errorResponse(w, "incorrect current password", 401)
-			return
-		}
-		store.Users[idx].PasswordHash = hashPassword(req.NewPassword)
-		jsonResponse(w, map[string]string{"status": "password updated"}, 200)
+	// Read the current hash under a read lock, then run bcrypt without any
+	// lock held.
+	store.mu.RLock()
+	curHash, ok := store.UsersByUsername[username]
+	var oldHash string
+	if ok {
+		oldHash = store.Users[curHash].PasswordHash
+	}
+	store.mu.RUnlock()
+	if !ok {
+		errorResponse(w, "user not found", 404)
 		return
 	}
-	errorResponse(w, "user not found", 404)
+	if !checkPassword(oldHash, req.OldPassword) {
+		errorResponse(w, "incorrect current password", 401)
+		return
+	}
+	newHash := hashPassword(req.NewPassword)
+	if newHash == "" {
+		errorResponse(w, "could not process password", 500)
+		return
+	}
+
+	store.mu.Lock()
+	idx, stillExists := store.UsersByUsername[username]
+	if stillExists {
+		store.Users[idx].PasswordHash = newHash
+	}
+	store.mu.Unlock()
+	if !stillExists {
+		errorResponse(w, "user not found", 404)
+		return
+	}
+	jsonResponse(w, map[string]string{"status": "password updated"}, 200)
 }
 
 // --- RECOMMENDATIONS ---

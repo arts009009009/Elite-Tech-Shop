@@ -65,6 +65,62 @@ struct Product {
     image: Option<String>,
 }
 
+/// Leniently parse an optional query parameter as a non-negative integer.
+///
+/// Malformed input (`limit=abc`, `limit=-1`, `limit=10.5`, ...) becomes `None`
+/// so the handler can fall back to its default instead of returning 400.
+fn lenient_u32<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct LenientU32;
+
+    impl<'de> serde::de::Visitor<'de> for LenientU32 {
+        type Value = Option<u32>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a non-negative integer")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(value.trim().parse::<u32>().ok())
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(u32::try_from(value).ok())
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(u32::try_from(value).ok())
+        }
+
+        fn visit_f64<E>(self, _value: f64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+    }
+
+    deserializer.deserialize_any(LenientU32)
+}
+
 #[derive(Debug, Deserialize)]
 struct ProductQuery {
     lang: Option<String>,
@@ -72,7 +128,10 @@ struct ProductQuery {
     search: Option<String>,
     min_price: Option<f64>,
     max_price: Option<f64>,
+    #[serde(default, deserialize_with = "lenient_u32")]
     limit: Option<u32>,
+    #[serde(default, deserialize_with = "lenient_u32")]
+    skip: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
