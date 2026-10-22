@@ -260,6 +260,9 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
         return Json(serde_json::json!(ProductsResponse { products: vec![], total: 0 }));
     };
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
+    // Malformed/negative `limit`/`skip` values arrive as `None` from the
+    // lenient deserializer. The frontend fetches /api/products without a
+    // limit, so the default stays MAX_LIMIT; `skip` defaults to 0.
     let limit = query.limit.unwrap_or(MAX_LIMIT).clamp(1, MAX_LIMIT) as usize;
     let skip = query.skip.unwrap_or(0) as usize;
 
@@ -356,11 +359,12 @@ async fn main() {
     let count = list.products.len();
     let _ = PRODUCTS.set(list.products);
 
-    // Pre-compute lowercase search index for O(1) lookups
+    // Pre-compute lowercase search index for O(1) lookups, covering every
+    // localized title (en/ar/ru/fr/es) so ?search= works for any language
     let products = PRODUCTS.get().unwrap();
     let mut search_index = HashMap::with_capacity(products.len());
     for p in products {
-        search_index.insert(p.id, p.en.title.to_lowercase());
+        search_index.insert(p.id, p.search_text());
     }
     let _ = SEARCH_INDEX.set(search_index);
 
