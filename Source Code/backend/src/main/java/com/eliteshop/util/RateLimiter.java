@@ -94,6 +94,11 @@ public class RateLimiter {
         buckets.remove(key);
     }
 
+    /** Package-private: number of live buckets, for tests. */
+    int bucketCount() {
+        return buckets.size();
+    }
+
     private static final class Bucket {
         private final long windowSizeMs;
         private long windowStart;

@@ -291,10 +291,32 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store.mu.Lock()
-	defer store.mu.Unlock()
+	// Cheap existence check first (read lock only).
+	store.mu.RLock()
+	_, exists := store.UsersByUsername[req.Username]
+	store.mu.RUnlock()
+	if exists {
+		errorResponse(w, "username already exists", 409)
+		return
+	}
 
+	// bcrypt is expensive; never run it while holding the global store lock.
+	hash := hashPassword(req.Password)
+	if hash == "" {
+		errorResponse(w, "could not process password", 500)
+		return
+	}
+	token, err := generateToken()
+	if err != nil {
+		log.Printf("[ERROR] token generation failed: %v", err)
+		errorResponse(w, "could not generate token", 500)
+		return
+	}
+
+	store.mu.Lock()
+	// Re-check under the write lock to avoid a TOCTOU duplicate.
 	if _, exists := store.UsersByUsername[req.Username]; exists {
+		store.mu.Unlock()
 		errorResponse(w, "username already exists", 409)
 		return
 	}
@@ -303,12 +325,11 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 	store.Users = append(store.Users, User{
 		Username:     req.Username,
 		Email:        req.Email,
-		PasswordHash: hashPassword(req.Password),
+		PasswordHash: hash,
 		Role:         "user",
 	})
 	store.UsersByUsername[req.Username] = idx
 
-	token := generateToken()
 	store.Sessions[token] = &Session{
 		Token:    token,
 		Username: req.Username,
@@ -317,6 +338,7 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 
 	store.Wishlists[req.Username] = []int{}
 	store.Rewards[req.Username] = &RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
+	store.mu.Unlock()
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -361,36 +383,49 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		username = req.Email
 	}
 
-	store.mu.Lock()
-	defer store.mu.Unlock()
-
+	// Look the user up under a read lock, then run bcrypt without any lock held.
+	store.mu.RLock()
+	var u User
+	found := false
 	if idx, ok := store.UsersByUsername[username]; ok {
-		u := store.Users[idx]
-		if checkPassword(u.PasswordHash, req.Password) {
-			token := generateToken()
-			store.Sessions[token] = &Session{
-				Token:    token,
-				Username: u.Username,
-				Expires:  time.Now().Add(7 * 24 * time.Hour).Unix(),
-			}
+		u = store.Users[idx]
+		found = true
+	}
+	store.mu.RUnlock()
 
-			http.SetCookie(w, &http.Cookie{
-				Name:     "session_token",
-				Value:    token,
-				Path:     "/",
-				MaxAge:   7 * 24 * 3600,
-				HttpOnly: true,
-				Secure:   true,
-				SameSite: http.SameSiteLaxMode,
-			})
-
-			jsonResponse(w, map[string]interface{}{
-				"token":    token,
-				"username": u.Username,
-				"role":     u.Role,
-			}, 200)
+	if found && checkPassword(u.PasswordHash, req.Password) {
+		token, err := generateToken()
+		if err != nil {
+			log.Printf("[ERROR] token generation failed: %v", err)
+			errorResponse(w, "could not generate token", 500)
 			return
 		}
+
+		store.mu.Lock()
+		store.Sessions[token] = &Session{
+			Token:    token,
+			Username: u.Username,
+			Expires:  time.Now().Add(7 * 24 * time.Hour).Unix(),
+		}
+		store.mu.Unlock()
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "session_token",
+			Value:    token,
+			Path:     "/",
+			MaxAge:   7 * 24 * 3600,
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
+
+		jsonResponse(w, map[string]interface{}{
+			"token":    token,
+			"username": u.Username,
+			"email":    u.Email,
+			"role":     u.Role,
+		}, 200)
+		return
 	}
 	errorResponse(w, "invalid credentials", 401)
 }
@@ -445,11 +480,9 @@ func handleSendPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Always return success to prevent user enumeration
-	jsonResponse(w, map[string]interface{}{
-		"success": true,
-		"message": "If an account exists, a password reset link has been sent",
-	}, 200)
+	// Password reset mail is not implemented in the Go service; the frontend
+	// proxies this path to the Java service.
+	errorResponse(w, "not implemented", 501)
 }
 
 func handleMe(w http.ResponseWriter, r *http.Request) {
