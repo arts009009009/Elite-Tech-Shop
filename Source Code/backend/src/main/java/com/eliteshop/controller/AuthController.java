@@ -379,7 +379,8 @@ public class AuthController {
 
     /** Rate limit key includes the client IP AND the email (was email-only). */
     private boolean isRateLimited(HttpServletRequest request, String email) {
-        return authRateLimiter.allowRequest(rateLimitKey(request, email));
+        // allowRequest() returns true when the call is ALLOWED.
+        return !authRateLimiter.allowRequest(rateLimitKey(request, email));
     }
 
     private String rateLimitKey(HttpServletRequest request, String email) {

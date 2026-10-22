@@ -207,7 +207,9 @@ class AuthControllerTest {
         assertNotNull(responseBody);
         assertFalse((Boolean) responseBody.get("success"));
         assertEquals("email_exists", responseBody.get("error"));
-        verify(userRepository, never()).save(any());
+        // The admin seed may save its own document; the rejected user must not be saved.
+        verify(userRepository, never()).save(org.mockito.ArgumentMatchers.argThat(
+            user -> user != null && "alice@example.com".equals(user.getEmail())));
     }
 
     @Test
