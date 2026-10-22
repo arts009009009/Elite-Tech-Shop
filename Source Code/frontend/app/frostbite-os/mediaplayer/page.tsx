@@ -19,6 +19,18 @@ export default function MediaPlayerPage() {
   const [trackName, setTrackName] = useState<string | null>(null);
   const [skipAmount, setSkipAmount] = useState(10);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // The object URL backing the currently loaded audio blob, so it can be
+  // revoked when a new file replaces it (and on unmount).
+  const objectUrlRef = useRef<string | null>(null);
+
+  const releaseObjectUrl = useCallback(() => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => releaseObjectUrl, [releaseObjectUrl]);
 
   useEffect(() => {
     if (playing && audioRef.current) {
@@ -49,8 +61,14 @@ export default function MediaPlayerPage() {
     const result = await openBinaryFile("audio/*");
     if (result) {
       if (audioRef.current) { audioRef.current.pause(); }
+      // Revoke the previous file's blob URL before creating a new one.
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
       const blob = new Blob([result.data], { type: "audio/*" });
       const url = URL.createObjectURL(blob);
+      objectUrlRef.current = url;
       const audio = new Audio(url);
       audioRef.current = audio;
       setTrackName(result.name);
