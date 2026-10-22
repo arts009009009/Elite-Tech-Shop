@@ -139,7 +139,7 @@ function OrderHistoryContent() {
 
   const filteredOrders = useMemo(() => {
     return userOrders.filter((order) => {
-      if (filterStatus !== "all") { const status = getStatusColor(order.date).label.toLowerCase(); if (status !== filterStatus) return false; }
+      if (filterStatus !== "all") { const status = getStatusInfo(order).label.toLowerCase(); if (status !== filterStatus) return false; }
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
         const matchesItem = order.items.some((item) => item.title.toLowerCase().includes(q));
