@@ -185,6 +185,9 @@ int main() {
             try {
                 const crow::json::rvalue body = parse_body(request);
                 const std::string expression = require_expression(body);
+                if (expression.size() > kMaxDifferentiateExpressionLength) {
+                    throw calc::CalcError("expression too complex");
+                }
                 const std::string variable =
                     body.has("variable") ? require_variable(body) : std::string("x");
 

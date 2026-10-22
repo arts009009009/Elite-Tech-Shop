@@ -7,8 +7,11 @@ export function generateOrganizationJsonLd() {
     "@type": "Organization",
     name: SITE_NAME,
     url: SITE_URL,
+    // Matches the file in public/ (public/elitetech.avif — there is no
+    // .webp variant).
     logo: `${SITE_URL}/elitetech.avif`,
-    sameAs: [],
+    // sameAs intentionally omitted: an empty array is invalid for Google's
+    // rich results; add real profile URLs here if any exist.
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer service",

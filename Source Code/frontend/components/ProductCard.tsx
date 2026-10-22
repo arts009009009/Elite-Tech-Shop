@@ -48,9 +48,14 @@ function ProductCardComponent({ product, addToCartLabel, wishlistLabel }: Props)
       const key = `wishlist_${username}`;
       const saved = localStorage.getItem(key);
       const parsed: number[] = saved ? JSON.parse(saved) : [];
+      if (!Array.isArray(parsed)) throw new Error("corrupt wishlist");
       if (!parsed.includes(product.id)) {
-        localStorage.setItem(key, JSON.stringify([...parsed, product.id]));
+        const updated = [...parsed, product.id];
+        localStorage.setItem(key, JSON.stringify(updated));
         window.dispatchEvent(new CustomEvent("notify", { detail: wishlistLabel }));
+        // Let open wishlist views refresh without a reload. Listeners receive
+        // { username, productId, wishlistIds } in the event detail.
+        window.dispatchEvent(new CustomEvent("wishlist-updated", { detail: { username, productId: product.id, wishlistIds: updated } }));
       }
     } catch (err) {
       console.error("Failed to add to wishlist:", err);

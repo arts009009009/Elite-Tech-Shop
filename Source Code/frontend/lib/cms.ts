@@ -1,4 +1,4 @@
-import type { CMSProduct, CMSCategory, CMSPage, CMSResponse } from "./cms-types";
+import type { CMSProduct, CMSCategory, CMSPage, CMSResponse, CMSSiteImage } from "./cms-types";
 
 const CONTENTFUL_SPACE = process.env.CONTENTFUL_SPACE_ID || "";
 const CONTENTFUL_ACCESS_TOKEN = process.env.CONTENTFUL_ACCESS_TOKEN || "";
@@ -21,7 +21,8 @@ async function fetchContentful<T>(endpoint: string, params: Record<string, strin
   }
 
   try {
-    const res = await fetch(url.toString(), { next: { revalidate: 60 } });
+    // Draft/preview content must never be served from the shared cache.
+    const res = await fetch(url.toString(), CONTENTFUL_PREVIEW ? { cache: "no-store" } : { next: { revalidate: 60 } });
     if (!res.ok) return null;
     return res.json() as Promise<T>;
   } catch {
@@ -63,12 +64,20 @@ function mapProduct(entry: ContentfulEntry<ContentfulProductFields>): CMSProduct
     price: f.price,
     currency: f.currency,
     category: f.category,
-    images: (f.images || []).map((img) => ({
-      url: img.fields.file.url.startsWith("//") ? `https:${img.fields.file.url}` : img.fields.file.url,
-      alt: img.fields.description || img.fields.title,
-      width: img.fields.width,
-      height: img.fields.height,
-    })),
+    // A single malformed asset (no fields/file/url) must not throw and blank
+    // the whole product list — skip just that image.
+    images: (f.images || [])
+      .map((img): CMSSiteImage | null => {
+        const url = img?.fields?.file?.url;
+        if (!url || typeof url !== "string") return null;
+        return {
+          url: url.startsWith("//") ? `https:${url}` : url,
+          alt: img?.fields?.description || img?.fields?.title || "",
+          width: img?.fields?.width || 0,
+          height: img?.fields?.height || 0,
+        };
+      })
+      .filter((img): img is CMSSiteImage => img !== null),
     specs: f.specs,
     features: f.features,
     tags: f.tags,
@@ -84,8 +93,17 @@ export async function getProducts(limit = 100, skip = 0): Promise<CMSProduct[]> 
     "/content_types/product/entries",
     { limit: String(limit), skip: String(skip), order: "-fields.publishedAt" }
   );
-  if (!data) return [];
-  return data.items.map(mapProduct);
+  if (!data || !Array.isArray(data.items)) return [];
+  return data.items
+    .map((item) => {
+      // One malformed entry must not blank the whole list.
+      try {
+        return mapProduct(item);
+      } catch {
+        return null;
+      }
+    })
+    .filter((product): product is CMSProduct => product !== null);
 }
 
 export type { CMSProduct, CMSCategory, CMSPage, CMSResponse };

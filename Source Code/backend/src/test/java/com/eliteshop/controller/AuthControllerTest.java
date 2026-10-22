@@ -342,7 +342,8 @@ class AuthControllerTest {
         String token = (String) loginResult.getBody().get("token");
 
         Map<String, String> body = Map.of("email", "admin@elite.shop");
-        for (int i = 0; i < 5; i++) {
+        // login consumed one attempt, so only four sends fit under the limit of five.
+        for (int i = 0; i < 4; i++) {
             assertEquals(200, offline.sendPassword(body, request).getStatusCode().value());
         }
         assertEquals(429, offline.sendPassword(body, request).getStatusCode().value());

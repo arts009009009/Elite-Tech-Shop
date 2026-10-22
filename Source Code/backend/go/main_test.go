@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 var testServer *httptest.Server
@@ -251,6 +252,8 @@ func TestLogin(t *testing.T) {
 		t.Fatalf("expected email 'admin@elite.shop', got %v", body["email"])
 	}
 }
+
+func TestLoginInvalid(t *testing.T) {
 	resp := doReq("POST", "/api/auth/login", map[string]string{
 		"username": "admin",
 		"password": "wrongpassword",
@@ -590,5 +593,430 @@ func TestRecommendations(t *testing.T) {
 	jsonBody(&resp, &body)
 	if body["strategy"] != "popularity" {
 		t.Fatalf("expected strategy 'popularity', got %v", body["strategy"])
+	}
+}
+
+// --- REGRESSION TESTS ---
+
+func TestCartItemPathParsing(t *testing.T) {
+	token := signupAndGetToken(t, "cartitem12", "cartitem12@test.com", "pass1234")
+	resp := doReq("POST", "/api/cart", map[string]interface{}{
+		"product_id": 12, "quantity": 1, "price": 10.0, "name": "Twelve", "image": "", "currency": "USD",
+	}, token, true)
+	if resp.status != 200 {
+		t.Fatalf("cart add: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+
+	resp = doReq("PUT", "/api/cart/12", map[string]interface{}{"quantity": 3}, token, true)
+	if resp.status != 200 {
+		t.Fatalf("PUT /api/cart/12: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	var body []map[string]interface{}
+	jsonBody(&resp, &body)
+	if len(body) != 1 || body[0]["quantity"] != float64(3) {
+		t.Fatalf("expected 1 item with quantity 3, got %v", body)
+	}
+
+	resp = doReq("DELETE", "/api/cart/12", nil, token, true)
+	if resp.status != 200 {
+		t.Fatalf("DELETE /api/cart/12: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	body = nil
+	jsonBody(&resp, &body)
+	if len(body) != 0 {
+		t.Fatalf("expected empty cart after item delete, got %v", body)
+	}
+}
+
+func TestWishlistItemPathParsing(t *testing.T) {
+	token := signupAndGetToken(t, "wishitem7", "wishitem7@test.com", "pass1234")
+	resp := doReq("POST", "/api/wishlist", map[string]interface{}{"product_id": 7}, token, true)
+	if resp.status != 200 {
+		t.Fatalf("wishlist add: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+
+	resp = doReq("DELETE", "/api/wishlist/7", nil, token, true)
+	if resp.status != 200 {
+		t.Fatalf("DELETE /api/wishlist/7: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	var body []float64
+	jsonBody(&resp, &body)
+	if len(body) != 0 {
+		t.Fatalf("expected empty wishlist after delete, got %v", body)
+	}
+}
+
+func createTestOrder(t *testing.T, token string) string {
+	t.Helper()
+	resp := doReq("POST", "/api/orders", map[string]interface{}{
+		"items": []map[string]interface{}{
+			{"product_id": 3, "quantity": 1, "price": 25.5, "name": "Gadget", "currency": "USD"},
+		},
+	}, token, true)
+	if resp.status != 201 {
+		t.Fatalf("order create: expected 201, got %d: %s", resp.status, string(resp.body))
+	}
+	var order map[string]interface{}
+	jsonBody(&resp, &order)
+	id, _ := order["id"].(string)
+	if id == "" {
+		t.Fatal("expected order ID")
+	}
+	if order["currency"] != "USD" {
+		t.Fatalf("expected currency 'USD', got %v", order["currency"])
+	}
+	return id
+}
+
+func TestOrderItemGetPutOwnership(t *testing.T) {
+	token := signupAndGetToken(t, "orditem", "orditem@test.com", "pass1234")
+	id := createTestOrder(t, token)
+
+	// GET own order
+	resp := doReq("GET", "/api/orders/"+id, nil, token, false)
+	if resp.status != 200 {
+		t.Fatalf("GET own order: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	var order map[string]interface{}
+	jsonBody(&resp, &order)
+	if order["id"] != id {
+		t.Fatalf("expected order id %v, got %v", id, order["id"])
+	}
+
+	// PUT valid status
+	resp = doReq("PUT", "/api/orders/"+id, map[string]interface{}{"status": "shipped"}, token, true)
+	if resp.status != 200 {
+		t.Fatalf("PUT status: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	order = nil
+	jsonBody(&resp, &order)
+	if order["status"] != "shipped" {
+		t.Fatalf("expected status 'shipped', got %v", order["status"])
+	}
+
+	// PUT payment id
+	resp = doReq("PUT", "/api/orders/"+id, map[string]interface{}{"status": "paid", "payment_id": "pay-123"}, token, true)
+	if resp.status != 200 {
+		t.Fatalf("PUT payment: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	order = nil
+	jsonBody(&resp, &order)
+	if order["status"] != "paid" || order["payment_id"] != "pay-123" {
+		t.Fatalf("expected paid/pay-123, got %v/%v", order["status"], order["payment_id"])
+	}
+
+	// PUT invalid status
+	resp = doReq("PUT", "/api/orders/"+id, map[string]interface{}{"status": "bogus"}, token, true)
+	if resp.status != 400 {
+		t.Fatalf("PUT invalid status: expected 400, got %d: %s", resp.status, string(resp.body))
+	}
+
+	// Foreign user: 404 for GET and PUT
+	other := signupAndGetToken(t, "orditem2", "orditem2@test.com", "pass1234")
+	resp = doReq("GET", "/api/orders/"+id, nil, other, false)
+	if resp.status != 404 {
+		t.Fatalf("GET foreign order: expected 404, got %d: %s", resp.status, string(resp.body))
+	}
+	resp = doReq("PUT", "/api/orders/"+id, map[string]interface{}{"status": "cancelled"}, other, true)
+	if resp.status != 404 {
+		t.Fatalf("PUT foreign order: expected 404, got %d: %s", resp.status, string(resp.body))
+	}
+
+	// Unknown order
+	resp = doReq("GET", "/api/orders/ORD-doesnotexist", nil, token, false)
+	if resp.status != 404 {
+		t.Fatalf("GET unknown order: expected 404, got %d: %s", resp.status, string(resp.body))
+	}
+
+	// DELETE then verify gone (index rebuild works)
+	resp = doReq("DELETE", "/api/orders/"+id, nil, token, true)
+	if resp.status != 200 {
+		t.Fatalf("DELETE order: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	resp = doReq("GET", "/api/orders/"+id, nil, token, false)
+	if resp.status != 404 {
+		t.Fatalf("GET deleted order: expected 404, got %d: %s", resp.status, string(resp.body))
+	}
+	resp = doReq("GET", "/api/orders", nil, token, false)
+	if resp.status != 200 {
+		t.Fatalf("GET orders: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	var list []map[string]interface{}
+	jsonBody(&resp, &list)
+	if len(list) != 0 {
+		t.Fatalf("expected empty order list after delete, got %d orders", len(list))
+	}
+}
+
+func TestOrdersRequireSession(t *testing.T) {
+	resp := doReq("POST", "/api/orders", map[string]interface{}{
+		"items": []map[string]interface{}{{"product_id": 1, "quantity": 1, "price": 10.0}},
+	}, "", true)
+	if resp.status != 401 {
+		t.Fatalf("expected 401 for anonymous order, got %d: %s", resp.status, string(resp.body))
+	}
+}
+
+func TestOrdersRejectEmptyItems(t *testing.T) {
+	token := signupAndGetToken(t, "ordempty", "ordempty@test.com", "pass1234")
+	resp := doReq("POST", "/api/orders", map[string]interface{}{"items": []interface{}{}}, token, true)
+	if resp.status != 400 {
+		t.Fatalf("expected 400 for empty items, got %d: %s", resp.status, string(resp.body))
+	}
+}
+
+func TestOrdersServerComputedTotal(t *testing.T) {
+	token := signupAndGetToken(t, "ordclamp", "ordclamp@test.com", "pass1234")
+	resp := doReq("POST", "/api/orders", map[string]interface{}{
+		"items": []map[string]interface{}{
+			{"product_id": 42, "quantity": 5000, "price": 2.0, "name": "Clamped", "currency": "USD"},
+		},
+		"total": 1.0, // lies about the total; server must recompute
+	}, token, true)
+	if resp.status != 201 {
+		t.Fatalf("expected 201, got %d: %s", resp.status, string(resp.body))
+	}
+	var order map[string]interface{}
+	jsonBody(&resp, &order)
+	if order["total"] != 1998.0 {
+		t.Fatalf("expected server-computed total 1998.0 (999 clamped x $2.00), got %v", order["total"])
+	}
+	var items []map[string]interface{}
+	items, _ = order["items"].([]map[string]interface{})
+	if len(items) != 1 || items[0]["quantity"] != float64(999) {
+		t.Fatalf("expected quantity clamped to 999, got %v", order["items"])
+	}
+}
+
+func TestRewardsRedeemRejectsNegativeCost(t *testing.T) {
+	token := signupAndGetToken(t, "rewneg", "rewneg@test.com", "pass1234")
+	// Client cost is ignored; free_shipping costs 200 and user has 0 points.
+	resp := doReq("POST", "/api/rewards/redeem", map[string]interface{}{
+		"perk": "free_shipping", "cost": -999999,
+	}, token, true)
+	if resp.status != 400 {
+		t.Fatalf("expected 400, got %d: %s", resp.status, string(resp.body))
+	}
+	var body map[string]interface{}
+	jsonBody(&resp, &body)
+	if body["error"] != "insufficient points" {
+		t.Fatalf("expected 'insufficient points', got %v", body["error"])
+	}
+}
+
+func TestRewardsRedeemUnknownPerk(t *testing.T) {
+	token := signupAndGetToken(t, "rewunk", "rewunk@test.com", "pass1234")
+	resp := doReq("POST", "/api/rewards/redeem", map[string]interface{}{
+		"perk": "nonexistent_perk", "cost": -5,
+	}, token, true)
+	if resp.status != 400 {
+		t.Fatalf("expected 400 for unknown perk, got %d: %s", resp.status, string(resp.body))
+	}
+	var body map[string]interface{}
+	jsonBody(&resp, &body)
+	if body["error"] != "unknown perk" {
+		t.Fatalf("expected 'unknown perk', got %v", body["error"])
+	}
+}
+
+func TestRewardsRedeemUsesRegistryCost(t *testing.T) {
+	token := signupAndGetToken(t, "rewok", "rewok@test.com", "pass1234")
+	store.mu.Lock()
+	if store.Rewards["rewok"] != nil {
+		store.Rewards["rewok"].Points = 250
+	}
+	store.mu.Unlock()
+
+	// Client claims cost 0; server must charge the registry cost of 200.
+	resp := doReq("POST", "/api/rewards/redeem", map[string]interface{}{
+		"perk": "free_shipping", "cost": 0,
+	}, token, true)
+	if resp.status != 200 {
+		t.Fatalf("expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	var body map[string]interface{}
+	jsonBody(&resp, &body)
+	if body["points"] != float64(50) {
+		t.Fatalf("expected 50 remaining points, got %v", body["points"])
+	}
+	redeemed, _ := body["redeemed"].(map[string]interface{})
+	if redeemed == nil || redeemed["free_shipping"] != true {
+		t.Fatalf("expected free_shipping redeemed, got %v", body["redeemed"])
+	}
+}
+
+func TestDiscountExpiryEndOfDay(t *testing.T) {
+	today := time.Now().Format("2006-01-02")
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	store.mu.Lock()
+	store.Discounts = append(store.Discounts,
+		DiscountCode{Code: "TODAYONLY", Percent: 15, MaxUses: 100, ExpiresAt: today},
+		DiscountCode{Code: "EXPIREDCODE", Percent: 15, MaxUses: 100, ExpiresAt: yesterday},
+	)
+	store.mu.Unlock()
+	t.Cleanup(func() {
+		store.mu.Lock()
+		filtered := store.Discounts[:0]
+		for _, d := range store.Discounts {
+			if d.Code != "TODAYONLY" && d.Code != "EXPIREDCODE" {
+				filtered = append(filtered, d)
+			}
+		}
+		store.Discounts = filtered
+		store.mu.Unlock()
+	})
+
+	// A code expiring "today" is still valid through the end of the day.
+	resp := doReq("POST", "/api/discounts/validate", map[string]string{"code": "TODAYONLY"}, "", true)
+	if resp.status != 200 {
+		t.Fatalf("expected 200 for code expiring today, got %d: %s", resp.status, string(resp.body))
+	}
+	resp = doReq("POST", "/api/discounts/apply", map[string]string{"code": "TODAYONLY"}, "", true)
+	if resp.status != 200 {
+		t.Fatalf("expected 200 apply for code expiring today, got %d: %s", resp.status, string(resp.body))
+	}
+
+	// Yesterday's code is expired for BOTH validate and apply.
+	resp = doReq("POST", "/api/discounts/validate", map[string]string{"code": "EXPIREDCODE"}, "", true)
+	if resp.status != 400 {
+		t.Fatalf("expected 400 for expired code validate, got %d: %s", resp.status, string(resp.body))
+	}
+	resp = doReq("POST", "/api/discounts/apply", map[string]string{"code": "EXPIREDCODE"}, "", true)
+	if resp.status != 400 {
+		t.Fatalf("expected 400 for expired code apply, got %d: %s", resp.status, string(resp.body))
+	}
+}
+
+func TestDiscountList(t *testing.T) {
+	resp := doReq("GET", "/api/discounts", nil, "", false)
+	if resp.status != 200 {
+		t.Fatalf("expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+	var body []map[string]interface{}
+	jsonBody(&resp, &body)
+	if len(body) == 0 {
+		t.Fatal("expected at least one discount code")
+	}
+	found := false
+	for _, d := range body {
+		for _, key := range []string{"code", "type", "value", "min_purchase", "expires_at", "max_uses", "used_count"} {
+			if _, ok := d[key]; !ok {
+				t.Fatalf("discount list item missing key %q: %v", key, d)
+			}
+		}
+		if d["code"] == "WELCOME10" {
+			found = true
+			if d["type"] != "percentage" {
+				t.Fatalf("expected type 'percentage', got %v", d["type"])
+			}
+			if d["value"] != float64(10) {
+				t.Fatalf("expected value 10, got %v", d["value"])
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected WELCOME10 in discount list")
+	}
+}
+
+func TestAdminUserDelete(t *testing.T) {
+	adminToken := loginAndGetToken(t, "admin", "admin")
+	signupAndGetToken(t, "deleteme", "deleteme@test.com", "pass1234")
+
+	resp := doReq("DELETE", "/api/admin/users/deleteme", nil, adminToken, true)
+	if resp.status != 200 {
+		t.Fatalf("expected 200 deleting user, got %d: %s", resp.status, string(resp.body))
+	}
+
+	// Deleting again -> 404
+	resp = doReq("DELETE", "/api/admin/users/deleteme", nil, adminToken, true)
+	if resp.status != 404 {
+		t.Fatalf("expected 404 for missing user, got %d: %s", resp.status, string(resp.body))
+	}
+
+	// Deleting an admin -> 403
+	resp = doReq("DELETE", "/api/admin/users/admin", nil, adminToken, true)
+	if resp.status != 403 {
+		t.Fatalf("expected 403 for admin target, got %d: %s", resp.status, string(resp.body))
+	}
+
+	// Non-admin caller -> 403
+	userToken := signupAndGetToken(t, "notadmin1", "notadmin1@test.com", "pass1234")
+	resp = doReq("DELETE", "/api/admin/users/notadmin1", nil, userToken, true)
+	if resp.status != 403 {
+		t.Fatalf("expected 403 for non-admin caller, got %d: %s", resp.status, string(resp.body))
+	}
+}
+
+func TestAdminProductEditPath(t *testing.T) {
+	adminToken := loginAndGetToken(t, "admin", "admin")
+	store.mu.Lock()
+	store.Products = append(store.Products, Product{ID: 777, Name: "Old", Price: 10, Currency: "USD"})
+	store.mu.Unlock()
+	t.Cleanup(func() {
+		store.mu.Lock()
+		for i, p := range store.Products {
+			if p.ID == 777 {
+				store.Products = append(store.Products[:i], store.Products[i+1:]...)
+				break
+			}
+		}
+		store.mu.Unlock()
+	})
+
+	resp := doReq("PUT", "/api/admin/products/777", map[string]interface{}{
+		"name": "New", "price": 20.0,
+	}, adminToken, true)
+	if resp.status != 200 {
+		t.Fatalf("expected 200 for product edit, got %d: %s", resp.status, string(resp.body))
+	}
+	store.mu.RLock()
+	name := ""
+	for _, p := range store.Products {
+		if p.ID == 777 {
+			name = p.Name
+		}
+	}
+	store.mu.RUnlock()
+	if name != "New" {
+		t.Fatalf("expected product renamed to 'New', got %q", name)
+	}
+}
+
+func TestGuestCartIsolation(t *testing.T) {
+	guestA := map[string]string{"X-Guest-Id": "aaaa-bbbb-cccc"}
+	guestB := map[string]string{"X-Guest-Id": "dddd-eeee-ffff"}
+
+	resp := doReqWithHeaders("POST", "/api/cart", map[string]interface{}{
+		"product_id": 9, "quantity": 1, "price": 5.0, "name": "GuestItem", "image": "", "currency": "USD",
+	}, "", guestA)
+	if resp.status != 200 {
+		t.Fatalf("guest cart add: expected 200, got %d: %s", resp.status, string(resp.body))
+	}
+
+	resp = doReqWithHeaders("GET", "/api/cart", nil, "", guestA)
+	var cartA []map[string]interface{}
+	jsonBody(&resp, &cartA)
+	if len(cartA) != 1 {
+		t.Fatalf("expected guest A cart to have 1 item, got %d", len(cartA))
+	}
+
+	resp = doReqWithHeaders("GET", "/api/cart", nil, "", guestB)
+	var cartB []map[string]interface{}
+	jsonBody(&resp, &cartB)
+	if len(cartB) != 0 {
+		t.Fatalf("expected guest B cart to be empty, got %d items", len(cartB))
+	}
+}
+
+func TestSendPasswordNotImplemented(t *testing.T) {
+	resp := doReq("POST", "/api/auth/send-password", map[string]string{"email": "x@test.com"}, "", true)
+	if resp.status != 501 {
+		t.Fatalf("expected 501, got %d: %s", resp.status, string(resp.body))
+	}
+	var body map[string]interface{}
+	jsonBody(&resp, &body)
+	if body["error"] != "not implemented" {
+		t.Fatalf("expected 'not implemented', got %v", body["error"])
 	}
 }

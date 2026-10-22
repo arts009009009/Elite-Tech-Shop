@@ -430,4 +430,12 @@ std::string to_string(const Node& node) {
     return out;
 }
 
+std::size_t node_count(const Node& node) {
+    std::size_t count = 1;
+    for (const auto& child : node.children) {
+        count += node_count(*child);
+    }
+    return count;
+}
+
 }  // namespace calc

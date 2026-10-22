@@ -168,7 +168,6 @@ export default function FrostCraftPage() {
     let hasDashed = false, dashDirection: [number, number, number] | null = null;
     let dashTimer = 0, dashCooldown = 0;
     let score = 0, combo = 0, time = 0;
-    const lives = 3;
     let difficultyTimer = 0, particleSpawnTimer = 0;
     const particles: Array<{ x: number; y: number; z: number; life: number }> = [];
     let spacePressed = false;

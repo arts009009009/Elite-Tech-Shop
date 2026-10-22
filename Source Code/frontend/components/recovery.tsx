@@ -8,6 +8,16 @@ type RecoveryProps = {
   reset: () => void;
 };
 
+type AshParticle = {
+  x: number;
+  drift: number;
+  size: number;
+  opacity: number;
+  dur: number;
+  delay: number;
+  big: boolean;
+};
+
 const GLITCH_CHARS = "!@#$%^&*()_+-=[]{}|;':\",./<>?~`";
 const ROAST_LABELS: Record<string, string> = { dev: "🔥 Dev Roast", user: "😤 User Roast", random: "🎲 Random Roast" };
 
@@ -19,15 +29,21 @@ export default function Recovery({ error, reset }: RecoveryProps) {
   const router = useRouter();
   const [glitchText, setGlitchText] = useState("LOSER HACKER :D");
   const [scanLine, setScanLine] = useState(0);
-  const [errorId] = useState(() => Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, "0"));
+  // Math.random() values are generated after mount — computing them in useState
+  // initializers would mismatch the prerendered server HTML.
+  const [errorId, setErrorId] = useState("");
   const [roast, setRoast] = useState<string | null>(null);
   const [roastType, setRoastType] = useState<string | null>(null);
   const [policeMode, setPoliceMode] = useState(false);
   const [fbiMode, setFbiMode] = useState(false);
   const [buttonVisible, setButtonVisible] = useState(false);
   const [explosionPhase, setExplosionPhase] = useState(-1);
-  const [ashParticles] = useState(() =>
-    Array.from({ length: 20 }, () => ({
+  const [ashParticles, setAshParticles] = useState<AshParticle[]>([]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- generate visual-only randomness after mount
+    setErrorId(Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, "0"));
+    setAshParticles(Array.from({ length: 20 }, () => ({
       x: Math.random() * 100,
       drift: -5 + Math.random() * 10,
       size: 2 + Math.random() * 5,
@@ -35,13 +51,13 @@ export default function Recovery({ error, reset }: RecoveryProps) {
       dur: 5 + Math.random() * 8,
       delay: Math.random() * 6,
       big: Math.random() > 0.6,
-    }))
-  );
+    })));
+  }, []);
 
   useEffect(() => {
     if (!policeMode) {
-      setTimeout(() => setButtonVisible(false), 0);
-      return;
+      const t = setTimeout(() => setButtonVisible(false), 0);
+      return () => clearTimeout(t);
     }
     const timer = setTimeout(() => setButtonVisible(true), 5000);
     return () => clearTimeout(timer);
@@ -287,11 +303,13 @@ export default function Recovery({ error, reset }: RecoveryProps) {
           </div>
 
           <div style={styles.crashReport}>
+            {/* Raw error details can leak internals to end users — only show
+                them outside production. The digest is safe by design. */}
             <div style={styles.dumpLine}>
-              <span style={{ color: "#00d4ff" }}>EXCEPTION:</span> {error.name}
+              <span style={{ color: "#00d4ff" }}>EXCEPTION:</span> {process.env.NODE_ENV !== "production" ? error.name : "UnexpectedApplicationError"}
             </div>
             <div style={styles.dumpLine}>
-              <span style={{ color: "#00d4ff" }}>MESSAGE:</span> {error.message}
+              <span style={{ color: "#00d4ff" }}>MESSAGE:</span> {process.env.NODE_ENV !== "production" ? error.message : "An unexpected error occurred. Please try again."}
             </div>
             {error.digest && (
               <div style={styles.dumpLine}>
