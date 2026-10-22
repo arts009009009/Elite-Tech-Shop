@@ -30,6 +30,7 @@ func newTestMux() *http.ServeMux {
 	mux.HandleFunc("/api/auth/login", handleLogin)
 	mux.HandleFunc("/api/auth/logout", handleLogout)
 	mux.HandleFunc("/api/auth/me", handleMe)
+	mux.HandleFunc("/api/auth/send-password", handleSendPassword)
 	mux.HandleFunc("/api/cart", handleCart)
 	mux.HandleFunc("/api/cart/", handleCartItem)
 	mux.HandleFunc("/api/wishlist", handleWishlist)
@@ -39,6 +40,7 @@ func newTestMux() *http.ServeMux {
 	mux.HandleFunc("/api/reviews", handleReviews)
 	mux.HandleFunc("/api/rewards", handleRewards)
 	mux.HandleFunc("/api/rewards/redeem", handleRewardsRedeem)
+	mux.HandleFunc("/api/discounts", handleDiscountList)
 	mux.HandleFunc("/api/discounts/validate", handleDiscountValidate)
 	mux.HandleFunc("/api/discounts/apply", handleDiscountApply)
 	mux.HandleFunc("/api/admin/users", handleAdminUsers)
@@ -72,6 +74,40 @@ func doReq(method, path string, body interface{}, sessionToken string, sendCSRF 
 	r.Header.Set("Content-Type", "application/json")
 	if sendCSRF {
 		r.Header.Set("X-CSRF-Token", "valid-test-token")
+	}
+	if sessionToken != "" {
+		r.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})
+	}
+	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return testResponse{status: -1, body: []byte(err.Error())}
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+
+	var sessToken string
+	var cookies []*http.Cookie
+	for _, c := range resp.Cookies() {
+		cookies = append(cookies, c)
+		if c.Name == "session_token" && c.Value != "" {
+			sessToken = c.Value
+		}
+	}
+
+	return testResponse{status: resp.StatusCode, body: b, cookies: cookies, sessionToken: sessToken}
+}
+
+// doReqWithHeaders issues a request with arbitrary extra headers (e.g.
+// Origin, Referer, X-Guest-Id).
+func doReqWithHeaders(method, path string, body interface{}, sessionToken string, headers map[string]string) testResponse {
+	var buf bytes.Buffer
+	if body != nil {
+		json.NewEncoder(&buf).Encode(body)
+	}
+	r, _ := http.NewRequest(method, testServer.URL+path, &buf)
+	r.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		r.Header.Set(k, v)
 	}
 	if sessionToken != "" {
 		r.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})

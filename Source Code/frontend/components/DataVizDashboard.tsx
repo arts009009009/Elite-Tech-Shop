@@ -103,16 +103,18 @@ export default function DataVizDashboard({ products, orders }: Props) {
           </ResponsiveContainer>
         </div>
 
-        {orderTimeline.length > 0 && (
+        {orderTimeline.rows.length > 0 && (
           <div style={{ padding: "16px", border: "1px solid #edf2f7", borderRadius: "12px" }}>
             <h3 style={{ fontSize: "1rem", fontWeight: "bold", margin: 0, marginBottom: "12px" }}>Revenue Timeline</h3>
             <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={orderTimeline}>
+              <LineChart data={orderTimeline.rows}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="total" stroke="#A020F0" strokeWidth={2} dot={{ fill: "#A020F0" }} />
+                {orderTimeline.currencies.map((currency, i) => (
+                  <Line key={currency} type="monotone" dataKey={currency} stroke={CURRENCY_COLORS[i % CURRENCY_COLORS.length]} strokeWidth={2} dot={{ fill: CURRENCY_COLORS[i % CURRENCY_COLORS.length] }} />
+                ))}
               </LineChart>
             </ResponsiveContainer>
           </div>
