@@ -462,7 +462,13 @@ mod tests {
                 specs: vec![],
             }),
             ru: None,
-            fr: None,
+            fr: Some(LocaleProduct {
+                title: "Ordinateur Portable de test".to_string(),
+                price: 999.0,
+                currency: "EUR".to_string(),
+                description: None,
+                specs: vec![],
+            }),
             es: None,
         }
     }
@@ -490,8 +496,17 @@ mod tests {
         let _ = PRODUCTS.set(vec![test_product(), test_product_2()]);
     }
 
+    fn init_search_index() {
+        let mut index = HashMap::new();
+        for p in [test_product(), test_product_2()] {
+            index.insert(p.id, p.search_text());
+        }
+        let _ = SEARCH_INDEX.set(index);
+    }
+
     fn app() -> Router {
         init_products();
+        init_search_index();
         Router::new()
             .route("/", get(index))
             .route("/api/health", get(health))
