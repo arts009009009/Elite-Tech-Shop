@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 export type Review = { id: number; product_id: number; username: string; rating: number; comment: string; created_at: string };
 export type ReviewState = {
   reviews: Record<number, Review[]>;
-  addReview: (productId: number, author: string, rating: number, comment: string) => void;
+  addReview: (productId: number, author: string, rating: number, comment: string) => Promise<boolean>;
   getAverageRating: (productId: number) => number;
   getReviewCount: (productId: number) => number;
   recentReviews: Review[];
@@ -30,19 +30,36 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  const addReview = useCallback(async (productId: number, author: string, rating: number, comment: string) => {
+  const addReview = useCallback(async (productId: number, author: string, rating: number, comment: string): Promise<boolean> => {
     try {
       const res = await goFetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product_id: productId, username: author, rating, comment }),
       });
-      const newReview: Review = await res.json();
+      if (!res.ok) return false;
+      const data: unknown = await res.json().catch(() => null);
+      // Guard against malformed payloads: only append a review once we have a
+      // usable object, otherwise averages would be corrupted by undefined
+      // fields.
+      const parsed = data && typeof data === "object" && !Array.isArray(data) ? (data as Partial<Review>) : null;
+      const safeRating = typeof parsed?.rating === "number" && Number.isFinite(parsed.rating) ? parsed.rating : rating;
+      const newReview: Review = {
+        id: typeof parsed?.id === "number" ? parsed.id : Date.now(),
+        product_id: typeof parsed?.product_id === "number" ? parsed.product_id : productId,
+        username: typeof parsed?.username === "string" && parsed.username ? parsed.username : author,
+        rating: Math.min(5, Math.max(1, Math.round(safeRating))),
+        comment: typeof parsed?.comment === "string" && parsed.comment ? parsed.comment : comment,
+        created_at: typeof parsed?.created_at === "string" && parsed.created_at ? parsed.created_at : new Date().toISOString(),
+      };
       setReviews(prev => ({
         ...prev,
         [productId]: [...(prev[productId] || []), newReview],
       }));
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const getAverageRating = useCallback((productId: number): number => {
@@ -54,7 +71,10 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
 
   const getReviewCount = useCallback((productId: number): number => reviews[productId]?.length || 0, [reviews]);
 
-  const recentReviews = Object.values(reviews).flat().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10);
+  const recentReviews = useMemo(
+    () => Object.values(reviews).flat().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10),
+    [reviews]
+  );
 
   return (
     <ReviewContext.Provider value={useMemo(() => ({ reviews, addReview, getAverageRating, getReviewCount, recentReviews }), [reviews, addReview, getAverageRating, getReviewCount, recentReviews])}>

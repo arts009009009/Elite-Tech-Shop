@@ -519,18 +519,15 @@ func handleCart(w http.ResponseWriter, r *http.Request) {
 	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" {
-		username = "guest"
-	}
 
 	switch r.Method {
 	case "GET":
 		store.mu.RLock()
-		cart := store.Carts[username]
+		cart := append([]CartItem(nil), store.Carts[username]...)
+		store.mu.RUnlock()
 		if cart == nil {
 			cart = []CartItem{}
 		}
-		store.mu.RUnlock()
 		jsonResponse(w, cart, 200)
 
 	case "POST":
@@ -556,8 +553,9 @@ func handleCart(w http.ResponseWriter, r *http.Request) {
 			cart = append(cart, item)
 		}
 		store.Carts[username] = cart
+		out := append([]CartItem(nil), cart...)
 		store.mu.Unlock()
-		jsonResponse(w, cart, 200)
+		jsonResponse(w, out, 200)
 
 	case "DELETE":
 		store.mu.Lock()
@@ -577,16 +575,13 @@ func handleCartItem(w http.ResponseWriter, r *http.Request) {
 	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" {
-		username = "guest"
-	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 {
+	if len(parts) < 4 {
 		errorResponse(w, "bad path", 400)
 		return
 	}
-	productID, err := strconv.Atoi(parts[4])
+	productID, err := strconv.Atoi(parts[3])
 	if err != nil {
 		errorResponse(w, "invalid product id", 400)
 		return
@@ -614,8 +609,9 @@ func handleCartItem(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		store.Carts[username] = cart
+		out := append([]CartItem(nil), cart...)
 		store.mu.Unlock()
-		jsonResponse(w, cart, 200)
+		jsonResponse(w, out, 200)
 
 	case "DELETE":
 		store.mu.Lock()
@@ -627,8 +623,9 @@ func handleCartItem(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		store.Carts[username] = cart
+		out := append([]CartItem(nil), cart...)
 		store.mu.Unlock()
-		jsonResponse(w, cart, 200)
+		jsonResponse(w, out, 200)
 
 	default:
 		errorResponse(w, "method not allowed", 405)
@@ -644,18 +641,15 @@ func handleWishlist(w http.ResponseWriter, r *http.Request) {
 	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" {
-		username = "guest"
-	}
 
 	switch r.Method {
 	case "GET":
 		store.mu.RLock()
-		wl := store.Wishlists[username]
+		wl := append([]int(nil), store.Wishlists[username]...)
+		store.mu.RUnlock()
 		if wl == nil {
 			wl = []int{}
 		}
-		store.mu.RUnlock()
 		jsonResponse(w, wl, 200)
 
 	case "POST":
@@ -683,8 +677,9 @@ func handleWishlist(w http.ResponseWriter, r *http.Request) {
 			wl = append(wl, req.ProductID)
 			store.Wishlists[username] = wl
 		}
+		out := append([]int(nil), wl...)
 		store.mu.Unlock()
-		jsonResponse(w, wl, 200)
+		jsonResponse(w, out, 200)
 
 	case "DELETE":
 		store.mu.Lock()
@@ -704,16 +699,13 @@ func handleWishlistItem(w http.ResponseWriter, r *http.Request) {
 	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" {
-		username = "guest"
-	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 {
+	if len(parts) < 4 {
 		errorResponse(w, "bad path", 400)
 		return
 	}
-	productID, err := strconv.Atoi(parts[4])
+	productID, err := strconv.Atoi(parts[3])
 	if err != nil {
 		errorResponse(w, "invalid product id", 400)
 		return
@@ -728,12 +720,14 @@ func handleWishlistItem(w http.ResponseWriter, r *http.Request) {
 	wl := store.Wishlists[username]
 	for i, id := range wl {
 		if id == productID {
-			store.Wishlists[username] = append(wl[:i], wl[i+1:]...)
+			wl = append(wl[:i], wl[i+1:]...)
 			break
 		}
 	}
+	store.Wishlists[username] = wl
+	out := append([]int(nil), wl...)
 	store.mu.Unlock()
-	jsonResponse(w, store.Wishlists[username], 200)
+	jsonResponse(w, out, 200)
 }
 
 // --- ORDER HANDLERS ---

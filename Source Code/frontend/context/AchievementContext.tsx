@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState, useCallback, useEffect, useMemo, ReactNode } from "react";
+import { createContext, useState, useCallback, useEffect, useMemo, useRef, ReactNode } from "react";
 
 interface Badge {
   id: string;
@@ -268,20 +268,23 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
 
   const checkAndUnlock = useCallback(
     (ctx: Omit<AchievementContextType, "checkAndUnlock" | "unlockedBadges" | "totalPoints" | "badges">) => {
-      setUnlockedBadges((prev) => {
-        const newUnlocked = [...prev];
-        let changed = false;
-        for (const badge of BADGES) {
-          if (!newUnlocked.includes(badge.id) && badge.condition({ ...ctx, badges: BADGES, unlockedBadges: prev, totalPoints: 0, checkAndUnlock: () => {}, isUnlocked: () => false, incrementOrders: () => {}, addSpent: () => {}, incrementReviews: () => {}, setWishlistCount: () => {}, incrementReferrals: () => {}, incrementDiscounts: () => {}, markNightOrder: () => {} })) {
-            newUnlocked.push(badge.id);
-            changed = true;
-            window.dispatchEvent(new CustomEvent("notify", { detail: `Badge unlocked: ${badge.icon} ${badge.name}! +${badge.points} points` }));
-          }
+      // Evaluate against current state in the handler (not inside an updater)
+      // so notify events don't double-fire under StrictMode.
+      const newlyUnlocked: Badge[] = [];
+      const next = [...unlockedBadges];
+      for (const badge of BADGES) {
+        if (!next.includes(badge.id) && badge.condition({ ...ctx, badges: BADGES, unlockedBadges: unlockedBadges, totalPoints: 0, checkAndUnlock: () => {}, isUnlocked: () => false, incrementOrders: () => {}, addSpent: () => {}, incrementReviews: () => {}, setWishlistCount: () => {}, incrementReferrals: () => {}, incrementDiscounts: () => {}, markNightOrder: () => {} })) {
+          next.push(badge.id);
+          newlyUnlocked.push(badge);
         }
-        return changed ? newUnlocked : prev;
-      });
+      }
+      if (newlyUnlocked.length === 0) return;
+      setUnlockedBadges(next);
+      for (const badge of newlyUnlocked) {
+        window.dispatchEvent(new CustomEvent("notify", { detail: `Badge unlocked: ${badge.icon} ${badge.name}! +${badge.points} points` }));
+      }
     },
-    []
+    [unlockedBadges]
   );
 
   const incrementOrders = useCallback(() => {

@@ -194,7 +194,7 @@ function ensureJsDeps() {
   if (!BACKEND_ONLY && !frontendDepsReady()) installSync("Frontend", join(ROOT, "frontend"));
   if (!BACKEND_ONLY && !frontendDepsReady()) {
     console.log("[dev] Frontend dependencies are still incomplete — `next dev` will likely fail.");
-    console.log("[dev] Fix manually with: cd frontend && yarn install");
+    console.log("[dev] Fix manually with: cd frontend && " + pm + " install");
   }
 }
 
@@ -202,9 +202,17 @@ function buildSync(label, cmd, args, cwd, env) {
   console.log(`[dev] Building ${label}...`);
   const start = Date.now();
   try {
-    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: 600000, env });
+    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: BUILD_TIMEOUT_MS, env });
+    if (result.error) {
+      if (result.error.code === "ETIMEDOUT") {
+        console.log(`[dev] ${label} build timed out after ${BUILD_TIMEOUT_MS / 1000}s. Skipping.`);
+      } else {
+        console.log(`[dev] ${label} build failed: ${result.error.message}. Skipping.`);
+      }
+      return false;
+    }
     if (result.status !== 0) {
-      console.log(`[dev] ${label} build failed (exit ${result.status}). Skipping.`);
+      console.log(`[dev] ${label} build failed (exit ${result.status ?? `signal ${result.signal}`}). Skipping.`);
       return false;
     }
     console.log(`[dev] ${label} built in ${((Date.now() - start) / 1000).toFixed(1)}s`);
@@ -216,10 +224,9 @@ function buildSync(label, cmd, args, cwd, env) {
 }
 
 function pmRun(script, cwd, env) {
-  const opts = { ...(cwd ? { cwd } : {}), ...(env ? { env } : {}) };
+  const opts = { cwd: cwd || ROOT, ...(env ? { env } : {}) };
   switch (pm) {
     case "bun":    return run("bun", ["run", script], opts);
-    case "deno":   return run("deno", ["task", script], opts);
     case "pnpm":   return run("pnpm", [script], opts);
     case "yarn":   return run("yarn", [script], opts);
     default:       return run("npm", ["run", script], opts);
@@ -229,10 +236,8 @@ function pmRun(script, cwd, env) {
 function pmFrontendDev() {
   const feDir = { cwd: join(ROOT, "frontend") };
   switch (pm) {
-    case "pnpm":   return run("pnpm", ["--filter", "frontend", "dev"]);
-    case "yarn":   return run("npx", ["next", "dev"], feDir);
+    case "pnpm":   return run("pnpm", ["--filter", "frontend", "dev"], { cwd: ROOT });
     case "bun":    return run("npx", ["next", "dev"], feDir);
-    case "deno":   return run("npx", ["next", "dev"], feDir);
     default:       return run("npx", ["next", "dev"], feDir);
   }
 }
@@ -277,7 +282,7 @@ function buildJava() {
     console.log("[dev]   `java` is on PATH but `javac` is not (a JRE-only install). Maven needs a JDK,");
     console.log("[dev]   otherwise it fails with: error: release version 21 not supported.");
     console.log("[dev]   Fix one of:");
-    console.log("[dev]     • sudo apt-get install -y openjdk-25-jdk-headless");
+    console.log("[dev]     • sudo apt-get install -y openjdk-21-jdk-headless");
     console.log("[dev]     • nix develop        (flake.nix already provides pkgs.jdk21)");
     return false;
   }
@@ -298,9 +303,13 @@ function buildGo() {
   return buildSync("Go backend", "go", ["build", "-o", "../go-backend"], join(ROOT, "backend/go"));
 }
 
+function calcBinPath(dir) {
+  return join(dir, "build", IS_WIN ? "calc_server.exe" : "calc_server");
+}
+
 function buildCalc() {
   const dir = join(ROOT, "backend/cpp-backend");
-  const bin = join(dir, "build/calc_server");
+  const bin = calcBinPath(dir);
   if (existsSync(bin)) {
     console.log("[dev] Calculator backend binary found.");
     return true;
@@ -331,7 +340,7 @@ function ensureRustProductsJson() {
   } catch {
     // If symlink fails (e.g. on Windows), copy instead
     try {
-      execSync(`cp "${source}" "${target}"`, { stdio: "ignore" });
+      copyFileSync(source, target);
       console.log("[dev] Copied products.json → backend/rust/");
     } catch {
       console.log("[dev] Warning: Could not create products.json symlink for Rust backend.");
@@ -341,7 +350,9 @@ function ensureRustProductsJson() {
 
 // ── MongoDB ──
 
-function ensureMongoDB() {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function ensureMongoDB() {
   if (isMongoRunning()) {
     console.log("[dev] MongoDB already running.");
     return;
@@ -378,16 +389,14 @@ function ensureMongoDB() {
   }
 
   console.log("[dev] Waiting for MongoDB to be ready...");
-  let retries = 30;
-  const interval = setInterval(() => {
+  for (let i = 0; i < 30; i++) {
     if (isMongoRunning()) {
-      clearInterval(interval);
       console.log("[dev] MongoDB is ready.");
-    } else if (--retries <= 0) {
-      clearInterval(interval);
-      console.log("[dev] MongoDB did not become ready. Java backend may fail to connect.");
+      return;
     }
-  }, 1000);
+    await sleep(1000);
+  }
+  console.log("[dev] MongoDB did not become ready. Java backend may fail to connect.");
 }
 
 // ── Main ──
@@ -407,53 +416,82 @@ async function main() {
   // Step 2: Prepare Rust products.json symlink
   if (rustOk) ensureRustProductsJson();
 
-  // Step 3: Ensure MongoDB is running (Java needs it)
-  if (javaOk) ensureMongoDB();
+  // Step 3: Ensure MongoDB is running (Java needs it) — await the readiness
+  // poll so Spring Boot cannot race mongod coming up.
+  if (javaOk) await ensureMongoDB();
 
   // Step 4: Start all services
   const procs = [];
+  const start = (name, child) => procs.push({ name, child });
 
   if (rustOk) {
     console.log("[dev] Starting Rust backend → http://localhost:3002");
-    procs.push(run("cargo", ["run", "--release"], { cwd: join(ROOT, "backend/rust") }));
+    start("Rust backend", run("cargo", ["run", "--release"], { cwd: join(ROOT, "backend/rust") }));
   }
 
   if (javaOk) {
     console.log("[dev] Starting Java backend → http://localhost:3001");
-    procs.push(pmRun("backend:java", null, javaEnv()));
+    start("Java backend", pmRun("backend:java", null, javaEnv()));
   }
 
   if (goOk) {
     console.log("[dev] Starting Go backend → http://localhost:3003");
-    procs.push(pmRun("backend:go"));
+    start("Go backend", pmRun("backend:go"));
   }
 
   if (calcOk) {
     console.log("[dev] Starting Calculator backend → http://localhost:8084");
-    procs.push(run("./build/calc_server", [], { cwd: join(ROOT, "backend/cpp-backend") }));
+    start("Calculator backend", run(calcBinPath(join(ROOT, "backend/cpp-backend")), [], { cwd: join(ROOT, "backend/cpp-backend") }));
   }
 
   if (!BACKEND_ONLY) {
     console.log("[dev] Starting Frontend → http://localhost:3000");
-    procs.push(pmFrontendDev());
+    start("Frontend", pmFrontendDev());
   }
 
   console.log("\n[dev] All services started. Press Ctrl+C to stop.\n");
 
   // ── Shutdown ──
   let shuttingDown = false;
-  function shutdown() {
+  function shutdown(exitCode = 0) {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log("\n[dev] Shutting down all services...");
-    for (const p of procs) {
-      try { p.kill("SIGTERM"); } catch {}
+    for (const { child } of procs) killTree(child, "SIGTERM");
+
+    // Wait for the children to actually exit; escalate to SIGKILL if they
+    // ignore SIGTERM. A fixed timeout + process.exit(0) used to orphan them.
+    let pending = procs.filter(({ child }) => child.exitCode === null && child.signalCode === null).length;
+    if (pending === 0) process.exit(exitCode);
+    const forceKill = setTimeout(() => {
+      for (const { child } of procs) killTree(child, "SIGKILL");
+      process.exit(exitCode);
+    }, 5000);
+    for (const { child } of procs) {
+      child.once("close", () => {
+        if (--pending <= 0) {
+          clearTimeout(forceKill);
+          process.exit(exitCode);
+        }
+      });
     }
-    setTimeout(() => process.exit(0), 1000);
+  }
+
+  // If any service dies on its own, report it and tear down the rest instead
+  // of leaving a half-running stack with no explanation.
+  for (const { name, child } of procs) {
+    child.once("close", (code, signal) => {
+      if (shuttingDown) return;
+      console.error(`\n[dev] ${name} exited unexpectedly (code=${code}, signal=${signal ?? "none"}). Shutting down remaining services.`);
+      shutdown(1);
+    });
   }
 
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 }
 
-main();
+main().catch((err) => {
+  console.error("[dev] Fatal:", err);
+  process.exit(1);
+});
