@@ -54,14 +54,15 @@ type CartItem struct {
 }
 
 type Order struct {
-	ID        string     `json:"id"`
-	Items     []CartItem `json:"items"`
-	Total     float64    `json:"total"`
-	Currency  string     `json:"currency"`
-	Status    string     `json:"status"`
-	PaymentID string     `json:"payment_id,omitempty"`
-	CreatedAt string     `json:"created_at"`
-	Username  string     `json:"username"`
+	ID           string     `json:"id"`
+	Items        []CartItem `json:"items"`
+	Total        float64    `json:"total"`
+	Currency     string     `json:"currency"`
+	Status       string     `json:"status"`
+	PaymentID    string     `json:"payment_id,omitempty"`
+	DiscountCode string     `json:"discount_code,omitempty"`
+	CreatedAt    string     `json:"created_at"`
+	Username     string     `json:"username"`
 }
 
 var orderStatuses = []string{"pending", "processing", "paid", "shipped", "in transit", "delivered", "cancelled", "payment_failed"}
@@ -436,10 +437,17 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	cookie, err := r.Cookie("session_token")
-	if err == nil {
+	// Accept both cookie names: signup/login set "session_token" on the Go
+	// origin, while the Next.js proxy relays the token as "user_session".
+	var token string
+	if cookie, err := r.Cookie("session_token"); err == nil {
+		token = cookie.Value
+	} else if cookie, err := r.Cookie("user_session"); err == nil {
+		token = cookie.Value
+	}
+	if token != "" {
 		store.mu.Lock()
-		delete(store.Sessions, cookie.Value)
+		delete(store.Sessions, token)
 		store.mu.Unlock()
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -764,8 +772,9 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 		var req struct {
-			Items []CartItem `json:"items"`
-			Total float64    `json:"total"`
+			Items        []CartItem `json:"items"`
+			Total        float64    `json:"total"`
+			DiscountCode string     `json:"discount_code"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			errorResponse(w, "invalid request", 400)
@@ -828,6 +837,28 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[ORDERS] client total %.2f != server-computed %.2f for user=%s (client total ignored)", req.Total, total, username)
 		}
 
+		// Optional discount code: validated server-side and applied to the
+		// server-computed total. The client can never set amounts.
+		discountCode := ""
+		discountIdx := -1
+		if req.DiscountCode != "" {
+			store.mu.RLock()
+			idx, ok := findDiscount(req.DiscountCode)
+			reason := "invalid discount code"
+			if ok {
+				reason = discountInvalidReason(store.Discounts[idx])
+			}
+			if !ok || reason != "" {
+				store.mu.RUnlock()
+				errorResponse(w, reason, 400)
+				return
+			}
+			discountIdx = idx
+			discountCode = store.Discounts[idx].Code
+			total = round2(total * (1 - store.Discounts[idx].Percent/100))
+			store.mu.RUnlock()
+		}
+
 		orderID, err := generateOrderID()
 		if err != nil {
 			log.Printf("[ERROR] order id generation failed: %v", err)
@@ -835,18 +866,22 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		order := Order{
-			ID:        orderID,
-			Items:     items,
-			Total:     total,
-			Currency:  currency,
-			Status:    "processing",
-			CreatedAt: time.Now().Format(time.RFC3339),
-			Username:  username,
+			ID:           orderID,
+			Items:        items,
+			Total:        total,
+			Currency:     currency,
+			Status:       "processing",
+			DiscountCode: discountCode,
+			CreatedAt:    time.Now().Format(time.RFC3339),
+			Username:     username,
 		}
 		points := int(total)
 
 		store.mu.Lock()
 		store.Orders = append(store.Orders, order)
+		if discountIdx >= 0 {
+			store.Discounts[discountIdx].Used++
+		}
 		rebuildOrderIndex()
 		store.Carts[username] = []CartItem{}
 		if store.Rewards[username] == nil {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { validateSession, jsonUnauthorized, jsonServerError } from "@/lib/auth-middleware";
 
 const GO_BACKEND = process.env.GO_BACKEND_URL || "http://localhost:3003";
@@ -10,6 +11,8 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
     const { currentPassword, newPassword } = body;
+    const cookieStore = await cookies();
+    const session = cookieStore.get("user_session")?.value;
 
     if (!currentPassword || typeof currentPassword !== "string") {
       return NextResponse.json({ error: "Current password is required" }, { status: 400 });
@@ -28,9 +31,12 @@ export async function PUT(request: Request) {
     }
 
     const res = await fetch(`${GO_BACKEND}/api/profile/password`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session ? { Cookie: `user_session=${session}` } : {}),
+      },
+      body: JSON.stringify({ old_password: currentPassword, new_password: newPassword }),
     });
 
     if (!res.ok) {
