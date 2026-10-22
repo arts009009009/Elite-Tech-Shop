@@ -1428,31 +1428,34 @@ func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
-
-	store.mu.RLock()
-	isAdmin := false
-	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
-		isAdmin = true
-	}
-	store.mu.RUnlock()
-	if !isAdmin {
+	if !isAdminUser(username) {
 		errorResponse(w, "forbidden", 403)
 		return
 	}
 
-	parts := strings.Split(r.URL.Path, "/")
+	if r.Method != "PUT" && r.Method != "DELETE" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
-	if r.Method == "PUT" && len(parts) >= 5 {
-		productID, err := strconv.Atoi(parts[4])
-		if err != nil {
-			errorResponse(w, "invalid product id", 400)
-			return
-		}
+	// /api/admin/products/{id} -> ["", "api", "admin", "products", "{id}"]
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 5 || parts[4] == "" {
+		errorResponse(w, "bad path", 400)
+		return
+	}
+	productID, err := strconv.Atoi(parts[4])
+	if err != nil {
+		errorResponse(w, "invalid product id", 400)
+		return
+	}
+
+	if r.Method == "PUT" {
 		var updates map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 			errorResponse(w, "invalid request", 400)
@@ -1481,25 +1484,15 @@ func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == "DELETE" && len(parts) >= 5 {
-		productID, err := strconv.Atoi(parts[4])
-		if err != nil {
-			errorResponse(w, "invalid product id", 400)
-			return
+	store.mu.Lock()
+	for i, p := range store.Products {
+		if p.ID == productID {
+			store.Products = append(store.Products[:i], store.Products[i+1:]...)
+			break
 		}
-		store.mu.Lock()
-		for i, p := range store.Products {
-			if p.ID == productID {
-				store.Products = append(store.Products[:i], store.Products[i+1:]...)
-				break
-			}
-		}
-		store.mu.Unlock()
-		jsonResponse(w, map[string]string{"status": "deleted"}, 200)
-		return
 	}
-
-	jsonResponse(w, map[string]string{"error": "method not allowed"}, 405)
+	store.mu.Unlock()
+	jsonResponse(w, map[string]string{"status": "deleted"}, 200)
 }
 
 // --- INVENTORY ---

@@ -22,16 +22,47 @@ const PRICE_MATCH_WEIGHT = 0.20;
 const POPULARITY_WEIGHT = 0.10;
 const DIVERSITY_WEIGHT = 0.10;
 
+const USER_SEGMENTS: UserSegment[] = ["new", "returning", "high-value", "at-risk", "anonymous"];
+
+function normalizeSegment(value: string | null | undefined): UserSegment | null {
+  if (!value) return null;
+  const candidate = value.trim().toLowerCase() as UserSegment;
+  return USER_SEGMENTS.includes(candidate) ? candidate : null;
+}
+
+function safeSearchParams(request: Request): URLSearchParams {
+  try {
+    return new URL(request.url).searchParams;
+  } catch {
+    return new URLSearchParams();
+  }
+}
+
 export function parsePersonalizationHeaders(request: Request): PersonalizationContext {
-  const segment = (request.headers.get("x-user-segment") || "anonymous") as UserSegment;
-  const browseHeader = request.headers.get("x-browse-history") || "";
-  const cartHeader = request.headers.get("x-cart-items") || "";
-  const experimentGroup = request.headers.get("x-experiment-group") || "control";
+  // The same route is reachable through proxy-injected request headers (see
+  // proxy.ts) and through plain fetch() calls where a caller can only pass
+  // query params — accept either so the route is actually reachable with
+  // context. Explicit query params win because the proxy overwrites the
+  // segment header with its own cookie-derived value.
+  const searchParams = safeSearchParams(request);
+
+  const segment =
+    normalizeSegment(searchParams.get("segment")) ||
+    normalizeSegment(request.headers.get("x-user-segment")) ||
+    "anonymous";
+
+  const browseSource =
+    searchParams.get("history") || request.headers.get("x-browse-history") || "";
+  const cartSource = searchParams.get("cart") || request.headers.get("x-cart-items") || "";
+  const experimentGroup =
+    searchParams.get("experiment") ||
+    request.headers.get("x-experiment-group") ||
+    "control";
 
   return {
     segment,
-    browseHistory: parseHeaderList(browseHeader),
-    cartItems: parseHeaderList(cartHeader),
+    browseHistory: parseHeaderList(browseSource),
+    cartItems: parseHeaderList(cartSource),
     purchaseHistory: [],
     categoryAffinity: {},
     priceRange: { min: 0, max: Infinity },
@@ -41,7 +72,24 @@ export function parsePersonalizationHeaders(request: Request): PersonalizationCo
 
 function parseHeaderList(header: string): number[] {
   if (!header) return [];
-  return header.split(",").map(Number).filter((n) => !isNaN(n) && n > 0);
+  return header
+    .split(",")
+    .map((part) => Number(part.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .map((n) => Math.trunc(n));
+}
+
+// Fisher–Yates shuffle: unlike sort(() => Math.random() - 0.5) every
+// permutation is equally likely.
+export function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = result[i];
+    result[i] = result[j];
+    result[j] = tmp;
+  }
+  return result;
 }
 
 export function scoreProducts(
