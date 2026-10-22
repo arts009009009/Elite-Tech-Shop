@@ -13,8 +13,13 @@ export async function GET(request: Request) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 100);
-    const skip = parseInt(searchParams.get("skip") || "0");
+    // Parse defensively: Number.parseInt("abc") is NaN, and Math.min(NaN, 100)
+    // stays NaN — which the backend answers with a 400 that used to surface as
+    // an empty 200 here. Fall back to the defaults and clamp to sane bounds.
+    const parsedLimit = Number.parseInt(searchParams.get("limit") || "100", 10);
+    const parsedSkip = Number.parseInt(searchParams.get("skip") || "0", 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 100;
+    const skip = Number.isFinite(parsedSkip) ? Math.max(parsedSkip, 0) : 0;
 
     const products = await getProducts(limit, skip);
     return NextResponse.json({ configured: true, products, total: products.length });

@@ -77,11 +77,15 @@ check_system_deps() {
   check_dep java   || missing+=("java (https://adoptium.net)")
   # `java` alone is not enough: compiling the backend needs a JDK (javac).
   # A JRE-only install makes `mvn package` fail with "release version 21 not supported".
-  check_dep javac  || missing+=('JDK with javac — a JRE is not enough (apt: openjdk-25-jdk-headless, or use `nix develop`)')
+  check_dep javac  || missing+=('JDK 21 with javac — a JRE is not enough (apt: openjdk-21-jdk-headless, or use `nix develop`)')
   check_dep go     || missing+=("go (https://go.dev/dl)")
   check_dep cargo  || missing+=("rust (https://rustup.rs)")
   check_dep pnpm   || missing+=("pnpm (npm install -g pnpm)")
   check_dep mvn    || missing+=("maven (https://maven.apache.org)")
+  # Both are required by the dev script: cmake builds the calculator backend,
+  # docker compose brings up the MongoDB dev container.
+  check_dep cmake  || missing+=("cmake (https://cmake.org)")
+  check_dep docker || missing+=("docker (https://docs.docker.com/get-docker/)")
 
   if [ ${#missing[@]} -gt 0 ]; then
     warn "Missing system dependencies:"
@@ -93,19 +97,51 @@ check_system_deps() {
   return 0
 }
 
+# rustup installs into ~/.cargo/bin and the Go tarball into /usr/local/go —
+# neither is on PATH by default. Export them for this session so the final
+# "Ready!" check and `pnpm run dev` actually see the toolchains we installed.
+add_toolchains_to_path() {
+  if [ -f "$HOME/.cargo/env" ]; then
+    . "$HOME/.cargo/env"
+  fi
+  if [ -d /usr/local/go/bin ]; then
+    case ":$PATH:" in
+      *:/usr/local/go/bin:*) ;;
+      *) export PATH="/usr/local/go/bin:$PATH" ;;
+    esac
+  fi
+}
+
 # ── Install deps via package manager fallback ─────────────
 
 install_with_brew() {
   info "Installing dependencies via Homebrew..."
-  brew install node java go rust pnpm maven
+  local formula
+  # The `rust` formula is obsolete — install rustup instead (below).
+  # Install formulas one by one so a single miss doesn't abort the script.
+  for formula in node java go pnpm maven cmake; do
+    if brew install "$formula"; then
+      ok "Installed $formula"
+    else
+      warn "brew install $formula failed — install it manually if it is required."
+    fi
+  done
+  if ! check_dep rustup; then
+    info "Installing rustup..."
+    if ! curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; then
+      warn "rustup install failed — install it manually from https://rustup.rs"
+    fi
+  fi
 }
 
 install_with_apt() {
   info "Installing dependencies via apt (Node.js + Rust)..."
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-  sudo apt-get install -y nodejs maven openjdk-21-jdk-headless
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-  curl -LsSf https://get.go.dev/installation | sh
+  sudo apt-get install -y nodejs maven cmake openjdk-21-jdk-headless
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    || warn "rustup install failed — install it manually from https://rustup.rs"
+  curl -LsSf https://get.go.dev/installation | sh \
+    || warn "Go install failed — install it manually from https://go.dev/dl"
   npm install -g pnpm
 }
 
@@ -116,7 +152,11 @@ echo -e "${CYAN}╔════════════════════�
 echo -e "${CYAN}║       Elite Shop — Setup             ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
 echo ""
-info "Platform: $OS $(uname -m)${IS_WSL:+ (WSL2)}"
+PLATFORM_LABEL="$OS $(uname -m)"
+if $IS_WSL; then
+  PLATFORM_LABEL="$PLATFORM_LABEL (WSL2)"
+fi
+info "Platform: $PLATFORM_LABEL"
 
 # Windows (native, not WSL)
 if [ "$OS" = "windows" ] && ! $IS_WSL; then

@@ -10,6 +10,18 @@ const scriptSrc =
     ? "'self' 'unsafe-inline'"
     : "'self' 'unsafe-inline' 'unsafe-eval'";
 
+// connect-src must list every backend the browser talks to. Build it from the
+// environment so a deployed origin isn't silently broken by hard-coded
+// localhost origins (the local dev values remain the defaults).
+// NOTE: 'unsafe-inline' is kept in script-src/style-src deliberately —
+// removing it is a much larger, cross-cutting change.
+const backendOrigins = [
+  process.env.JAVA_BACKEND_URL || process.env.NEXT_PUBLIC_JAVA_BACKEND_URL || "http://localhost:3001",
+  process.env.RUST_BACKEND_URL || process.env.NEXT_PUBLIC_RUST_BACKEND_URL || "http://localhost:3002",
+  process.env.GO_BACKEND_URL || process.env.NEXT_PUBLIC_GO_BACKEND_URL || "http://localhost:3003",
+];
+const connectSrc = [`'self'`, ...new Set(backendOrigins)].join(" ");
+
 const nextConfig: NextConfig = {
   turbopack: {
     // Workspace root: the "Source Code" directory that holds the lockfile.

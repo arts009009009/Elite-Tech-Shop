@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useState, useCallback, useEffect, useContext, useMemo } from "react";
+import { createContext, useState, useCallback, useEffect, useContext, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import type { CustomTheme } from "./ThemeCustomizerContext";
 import { useThemeCustomizer, DEFAULT_THEME } from "./ThemeCustomizerContext";
@@ -48,23 +48,32 @@ export const PROFILE_THEMES: Record<ThemeProfile, CustomTheme> = {
 
 export function ThemeProfileProvider({ children }: { children: ReactNode }) {
   const { setCustomTheme } = useThemeCustomizer();
-  const [profile, setProfileState] = useState<ThemeProfile>(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(PROFILE_KEY) as ThemeProfile | null;
-        if (saved && ["default", "hacker", "developer", "user"].includes(saved)) return saved;
-      }
-    } catch {}
-    return "default";
-  });
+  // localStorage is unavailable during SSR/prerender — default then hydrate
+  // after mount (SSR-safe hydration pattern).
+  const [profile, setProfileState] = useState<ThemeProfile>("default");
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resolve saved profile after mount
+    try {
+      const saved = localStorage.getItem(PROFILE_KEY) as ThemeProfile | null;
+      if (saved && ["default", "hacker", "developer", "user"].includes(saved)) setProfileState(saved);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
     document.body.classList.remove("hacker", "developer", "user");
     if (profile !== "default") {
       document.body.classList.add(profile);
     }
     try { localStorage.setItem(PROFILE_KEY, profile); } catch {}
   }, [profile]);
+
+  // Declared after the persist effect: on the mount pass the persist effect
+  // sees the flag still false and skips writing the default over the saved
+  // profile; it flips before any post-hydration change can re-run it.
+  useEffect(() => { hydratedRef.current = true; }, []);
 
   const setProfile = useCallback((p: ThemeProfile) => {
     setProfileState(p);

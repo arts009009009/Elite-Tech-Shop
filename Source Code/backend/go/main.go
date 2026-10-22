@@ -1051,26 +1051,50 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 
 // --- REWARDS HANDLERS ---
 
+// perkCosts is the server-side reward perk registry. The client-supplied cost
+// is never trusted.
+var perkCosts = map[string]int{
+	"free_shipping":  200,
+	"discount_10":    500,
+	"discount_20":    1000,
+	"exclusive_item": 2500,
+	"vip_access":     5000,
+	"free_return":    350,
+}
+
+// snapshotRewards deep-copies reward data (bounded to known perks) so it can
+// be serialized after the store lock is released. Must be called with the
+// store lock held.
+func snapshotRewards(reward *RewardData) RewardData {
+	snap := RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
+	if reward != nil {
+		snap.Points = reward.Points
+		snap.Lifetime = reward.Lifetime
+		for perk := range reward.Redeemed {
+			if _, known := perkCosts[perk]; known {
+				snap.Redeemed[perk] = true
+			}
+		}
+	}
+	return snap
+}
+
 func handleRewards(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
 		getCors(w, r)
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
 
 	store.mu.RLock()
-	reward := store.Rewards[username]
+	snap := snapshotRewards(store.Rewards[username])
 	store.mu.RUnlock()
-
-	if reward == nil {
-		reward = &RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
-	}
-	jsonResponse(w, reward, 200)
+	jsonResponse(w, &snap, 200)
 }
 
 func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
@@ -1083,7 +1107,7 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "method not allowed", 405)
 		return
 	}
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -1091,10 +1115,20 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Perk string `json:"perk"`
-		Cost int    `json:"cost"`
+		Cost int    `json:"cost"` // ignored; the server-side registry is authoritative
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		errorResponse(w, "invalid request", 400)
+		return
+	}
+
+	cost, known := perkCosts[req.Perk]
+	if !known {
+		errorResponse(w, "unknown perk", 400)
+		return
+	}
+	if cost <= 0 {
+		errorResponse(w, "invalid perk cost", 400)
 		return
 	}
 
@@ -1107,7 +1141,7 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 		store.Rewards[username] = reward
 	}
 
-	if reward.Points < req.Cost {
+	if reward.Points < cost {
 		errorResponse(w, "insufficient points", 400)
 		return
 	}
@@ -1116,12 +1150,81 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reward.Points -= req.Cost
+	reward.Points -= cost
 	reward.Redeemed[req.Perk] = true
-	jsonResponse(w, reward, 200)
+	snap := snapshotRewards(reward)
+	jsonResponse(w, &snap, 200)
 }
 
 // --- DISCOUNT HANDLERS ---
+
+// discountInvalidReason returns a human-readable reason the code is currently
+// invalid (fully used or expired), or "" if it is valid. The expiry date is
+// treated as end-of-day so codes remain valid through their last day.
+// Must be called with the store lock held.
+func discountInvalidReason(d DiscountCode) string {
+	if d.Used >= d.MaxUses {
+		return "discount code fully used"
+	}
+	if d.ExpiresAt != "" {
+		exp, err := time.Parse("2006-01-02", d.ExpiresAt)
+		if err == nil && time.Now().After(exp.Add(24*time.Hour-time.Second)) {
+			return "discount code expired"
+		}
+	}
+	return ""
+}
+
+// findDiscount returns the index of the matching discount code.
+// Must be called with the store lock held.
+func findDiscount(code string) (int, bool) {
+	for i, d := range store.Discounts {
+		if strings.EqualFold(d.Code, code) {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+type DiscountListItem struct {
+	Code        string  `json:"code"`
+	Type        string  `json:"type"`
+	Value       float64 `json:"value"`
+	MinPurchase float64 `json:"min_purchase"`
+	ExpiresAt   string  `json:"expires_at"`
+	MaxUses     int     `json:"max_uses"`
+	UsedCount   int     `json:"used_count"`
+}
+
+func handleDiscountList(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
+	getCors(w, r)
+	if r.Method != "GET" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
+
+	store.mu.RLock()
+	list := make([]DiscountListItem, 0, len(store.Discounts))
+	for _, d := range store.Discounts {
+		if discountInvalidReason(d) != "" {
+			continue
+		}
+		list = append(list, DiscountListItem{
+			Code:      d.Code,
+			Type:      "percentage",
+			Value:     d.Percent,
+			ExpiresAt: d.ExpiresAt,
+			MaxUses:   d.MaxUses,
+			UsedCount: d.Used,
+		})
+	}
+	store.mu.RUnlock()
+	jsonResponse(w, list, 200)
+}
 
 func handleDiscountValidate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
@@ -1145,28 +1248,21 @@ func handleDiscountValidate(w http.ResponseWriter, r *http.Request) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
-	for _, d := range store.Discounts {
-		if strings.EqualFold(d.Code, req.Code) {
-			if d.Used >= d.MaxUses {
-				errorResponse(w, "discount code fully used", 400)
-				return
-			}
-			if d.ExpiresAt != "" {
-				exp, err := time.Parse("2006-01-02", d.ExpiresAt)
-				if err == nil && time.Now().After(exp) {
-					errorResponse(w, "discount code expired", 400)
-					return
-				}
-			}
-			jsonResponse(w, map[string]interface{}{
-				"valid":   true,
-				"percent": d.Percent,
-				"code":    d.Code,
-			}, 200)
-			return
-		}
+	idx, ok := findDiscount(req.Code)
+	if !ok {
+		errorResponse(w, "invalid discount code", 400)
+		return
 	}
-	errorResponse(w, "invalid discount code", 400)
+	d := store.Discounts[idx]
+	if reason := discountInvalidReason(d); reason != "" {
+		errorResponse(w, reason, 400)
+		return
+	}
+	jsonResponse(w, map[string]interface{}{
+		"valid":   true,
+		"percent": d.Percent,
+		"code":    d.Code,
+	}, 200)
 }
 
 func handleDiscountApply(w http.ResponseWriter, r *http.Request) {
@@ -1191,22 +1287,22 @@ func handleDiscountApply(w http.ResponseWriter, r *http.Request) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	for i, d := range store.Discounts {
-		if strings.EqualFold(d.Code, req.Code) {
-			if d.Used >= d.MaxUses {
-				errorResponse(w, "discount code fully used", 400)
-				return
-			}
-			store.Discounts[i].Used++
-			jsonResponse(w, map[string]interface{}{
-				"valid":   true,
-				"percent": d.Percent,
-				"code":    d.Code,
-			}, 200)
-			return
-		}
+	idx, ok := findDiscount(req.Code)
+	if !ok {
+		errorResponse(w, "invalid discount code", 400)
+		return
 	}
-	errorResponse(w, "invalid discount code", 400)
+	d := store.Discounts[idx]
+	if reason := discountInvalidReason(d); reason != "" {
+		errorResponse(w, reason, 400)
+		return
+	}
+	store.Discounts[idx].Used++
+	jsonResponse(w, map[string]interface{}{
+		"valid":   true,
+		"percent": d.Percent,
+		"code":    d.Code,
+	}, 200)
 }
 
 // --- ADMIN HANDLERS ---

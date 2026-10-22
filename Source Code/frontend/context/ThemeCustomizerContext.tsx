@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useState, useCallback, useEffect, useContext, useMemo } from "react";
+import { createContext, useState, useCallback, useEffect, useContext, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
 export type DesignSystem = "modern" | "classic";
@@ -94,7 +94,6 @@ export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem("elite_design_system");
       if (saved === "classic" || saved === "modern") setDesignSystemState(saved);
     } catch {}
-    hydratedRef.current = true;
   }, []);
 
   useEffect(() => {
@@ -148,31 +147,33 @@ export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
   }, [customTheme, animateTheme]);
 
   const setCustomTheme = useCallback((partial: Partial<CustomTheme>) => {
-    setCustomThemeState((prev) => {
-      const updated = { ...prev, ...partial };
-      for (const [name, palette] of Object.entries(PRESET_PALETTES)) {
-        if (themesEqual(updated, palette)) { setCurrentPalette(name); return updated; }
-      }
-      setCurrentPalette("Custom"); return updated;
-    });
-  }, []);
+    // Compute the merged theme and matching palette in the handler — updaters
+    // must stay pure (setState inside an updater double-runs in StrictMode).
+    const updated = { ...customTheme, ...partial };
+    let matched = "Custom";
+    for (const [name, palette] of Object.entries(PRESET_PALETTES)) {
+      if (themesEqual(updated, palette)) { matched = name; break; }
+    }
+    setCustomThemeState(updated);
+    setCurrentPalette(matched);
+  }, [customTheme]);
 
   const toggleCustomizer = useCallback(() => setIsCustomizing((prev) => !prev), []);
   const resetTheme = useCallback(() => { setCustomThemeState(DEFAULT_THEME); setCurrentPalette("Custom"); }, []);
   const applyPalette = useCallback((name: string) => { const palette = PRESET_PALETTES[name]; if (palette) { setCustomThemeState(palette); setCurrentPalette(name); } }, []);
 
   const saveUserTheme = useCallback((name: string) => {
-    setUserThemes((prev) => {
-      const filtered = prev.filter((t) => t.name !== name);
-      const updated = [...filtered, { name, theme: { ...customTheme }, createdAt: Date.now() }];
-      try { localStorage.setItem("user_themes", JSON.stringify(updated)); } catch {}
-      return updated;
-    });
-  }, [customTheme]);
+    const filtered = userThemes.filter((t) => t.name !== name);
+    const updated = [...filtered, { name, theme: { ...customTheme }, createdAt: Date.now() }];
+    setUserThemes(updated);
+    try { localStorage.setItem("user_themes", JSON.stringify(updated)); } catch {}
+  }, [customTheme, userThemes]);
 
   const deleteUserTheme = useCallback((name: string) => {
-    setUserThemes((prev) => { const updated = prev.filter((t) => t.name !== name); try { localStorage.setItem("user_themes", JSON.stringify(updated)); } catch {} return updated; });
-  }, []);
+    const updated = userThemes.filter((t) => t.name !== name);
+    setUserThemes(updated);
+    try { localStorage.setItem("user_themes", JSON.stringify(updated)); } catch {}
+  }, [userThemes]);
 
   const importTheme = useCallback((themeJson: string): boolean => {
     try {
@@ -186,10 +187,15 @@ export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const exportCurrentTheme = useCallback(() => JSON.stringify(customTheme, null, 2), [customTheme]);
-  const toggleThemeAnimation = useCallback(() => { setAnimateTheme((prev) => { const next = !prev; try { localStorage.setItem("theme_animation", String(next)); } catch {} return next; }); }, []);
+  const toggleThemeAnimation = useCallback(() => { setAnimateTheme((prev) => !prev); }, []);
   const toggleHighContrast = useCallback(() => setHighContrast((prev) => !prev), []);
   const toggleReducedMotion = useCallback(() => setReducedMotion((prev) => !prev), []);
   const setDesignSystem = useCallback((ds: DesignSystem) => setDesignSystemState(ds), []);
+
+  // Declared after every persist effect: on the mount pass the persist effects
+  // see this flag still false and skip writing defaults over stored settings;
+  // it flips before any post-hydration state change can re-run them.
+  useEffect(() => { hydratedRef.current = true; }, []);
 
   return (
     <ThemeCustomizerContext.Provider value={useMemo(() => ({ customTheme, isCustomizing, setCustomTheme, toggleCustomizer, resetTheme, currentPalette, presetPalettes: PRESET_PALETTES, applyPalette, userThemes, saveUserTheme, deleteUserTheme, importTheme, exportCurrentTheme, animateTheme, toggleThemeAnimation, highContrast, toggleHighContrast, reducedMotion, toggleReducedMotion, designSystem, setDesignSystem }), [customTheme, isCustomizing, setCustomTheme, toggleCustomizer, resetTheme, currentPalette, applyPalette, userThemes, saveUserTheme, deleteUserTheme, importTheme, exportCurrentTheme, animateTheme, toggleThemeAnimation, highContrast, toggleHighContrast, reducedMotion, toggleReducedMotion, designSystem, setDesignSystem])}>

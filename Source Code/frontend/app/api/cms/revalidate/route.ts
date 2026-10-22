@@ -1,26 +1,40 @@
 import { NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
+import type { NextRequest } from "next/server";
+import { revalidatePath, revalidateTag } from "next/cache";
 
-const REVALIDATION_SECRET = process.env.REVALIDATION_SECRET || "elite-revalidation-secret";
+export async function POST(request: NextRequest) {
+  // Fail closed: without an explicitly configured secret this endpoint must
+  // stay unusable rather than fall back to a committed default value that
+  // would leave cache purges open to anyone.
+  const secret = process.env.REVALIDATION_SECRET;
+  if (!secret) {
+    return NextResponse.json({ error: "Revalidation is not configured" }, { status: 503 });
+  }
 
-export async function POST(request: Request) {
+  // Header-only authentication: a body secret is fine for POST, but keeping
+  // it out of the URL/query string means it never lands in access logs.
+  if (request.headers.get("x-revalidation-secret") !== secret) {
+    return NextResponse.json({ error: "Invalid secret" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-    const { secret, tags, paths } = body;
-
-    if (secret !== REVALIDATION_SECRET) {
-      return NextResponse.json({ error: "Invalid secret" }, { status: 401 });
-    }
+    const { tags, paths } = body;
 
     if (tags && Array.isArray(tags)) {
       for (const tag of tags) {
-        revalidateTag(tag, "max");
+        if (typeof tag === "string" && tag) revalidateTag(tag, "max");
       }
     }
 
+    // Paths are page routes, not cache tags — revalidateTag(path, "max")
+    // never matched anything. A pattern such as /product/[slug] needs the
+    // "page" type.
     if (paths && Array.isArray(paths)) {
       for (const path of paths) {
-        revalidateTag(path, "max");
+        if (typeof path === "string" && path.startsWith("/")) {
+          revalidatePath(path, path.includes("[") ? "page" : undefined);
+        }
       }
     }
 

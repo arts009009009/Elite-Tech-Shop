@@ -37,11 +37,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load persisted stock after mount
     const loaded = loadStock();
     if (Object.keys(loaded).length > 0) setStock(loaded);
-    hydratedRef.current = true;
   }, []);
 
   useEffect(() => { stockRef.current = stock; }, [stock]);
   useEffect(() => { if (hydratedRef.current) saveStock(stock); }, [stock]);
+  // Declared after the save effect: on the mount pass the save effect sees the
+  // flag still false, so defaults never overwrite the stored inventory; it
+  // flips before any post-hydration change can re-run the save effect.
+  useEffect(() => { hydratedRef.current = true; }, []);
 
   const initializeStock = useCallback((productIds: number[]) => {
     setStock((prev) => {
