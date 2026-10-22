@@ -1,4 +1,4 @@
-type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS";
+type HttpMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS";
 
 type ApiFetchOptions<T = unknown> = {
   timeout?: number;
