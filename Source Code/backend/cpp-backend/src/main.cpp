@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
+#include <iostream>
 #include <string>
 
 namespace {
@@ -114,6 +115,9 @@ double optional_number(const crow::json::rvalue& body, const std::string& key,
 }
 
 std::string require_variable(const crow::json::rvalue& body) {
+    if (!body.has("variable")) {
+        throw calc::CalcError("missing required field \"variable\"");
+    }
     const crow::json::rvalue& value = body["variable"];
     if (value.t() != crow::json::type::String) {
         throw calc::CalcError("field \"variable\" must be a string");
@@ -134,11 +138,11 @@ std::int64_t microseconds_between(std::chrono::steady_clock::time_point start,
 }  // namespace
 
 int main() {
-    crow::App<crow::CORSHandler> app;
+    crow::App<AllowedOriginCors, crow::CORSHandler> app;
 
     auto& cors = app.get_middleware<crow::CORSHandler>();
     cors.global()
-        .origin("*")
+        .origin("")  // the explicit allowed origins are echoed by AllowedOriginCors
         .methods(crow::HTTPMethod::GET, crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)
         .headers("Origin", "Content-Type", "Accept", "Authorization")
         .max_age(3600);

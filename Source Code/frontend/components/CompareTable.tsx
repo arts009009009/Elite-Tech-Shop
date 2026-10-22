@@ -90,8 +90,10 @@ export default function CompareTable({ products }: { products: Product[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.label}>
+          {rows.map((row, index) => (
+            // label alone can collide (e.g. a spec literally named "Price"),
+            // so the index keeps the key unique.
+            <tr key={`${row.label}-${index}`}>
               <td style={{ ...tdStyle, fontWeight: 600 }}>{row.label}</td>
               {row.cells}
             </tr>
