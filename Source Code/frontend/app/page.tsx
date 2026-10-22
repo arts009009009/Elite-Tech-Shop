@@ -80,7 +80,6 @@ export default function Home() {
         return;
       }
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 
   const fetchProducts = useCallback(async (lang: string) => {
@@ -95,7 +94,11 @@ export default function Home() {
       );
       setProducts(data.products || []);
       try {
-        sessionStorage.setItem("products", JSON.stringify(data.products || []));
+        // Cache per language and only ever store an array so a later read
+        // can't blow up products.filter.
+        if (Array.isArray(data.products)) {
+          sessionStorage.setItem(`products:${lang}`, JSON.stringify(data.products));
+        }
       } catch {}
     } catch (err) {
       console.error("Failed to fetch products:", err);

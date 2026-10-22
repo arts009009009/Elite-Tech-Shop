@@ -1762,7 +1762,7 @@ func handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -1822,14 +1822,17 @@ func handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
 	summary.TotalUsers = len(store.Users)
 	summary.TotalProducts = len(store.Products)
 	summary.TotalReviews = len(store.Reviews)
+	summary.TotalRevenue = round2(summary.TotalRevenue)
 	if summary.TotalOrders > 0 {
-		summary.AvgOrderValue = summary.TotalRevenue / float64(summary.TotalOrders)
+		summary.AvgOrderValue = round2(summary.TotalRevenue / float64(summary.TotalOrders))
 	}
 
 	for _, tp := range productRevenue {
+		tp.Revenue = round2(tp.Revenue)
 		summary.TopProducts = append(summary.TopProducts, *tp)
 	}
 	for _, dr := range dayData {
+		dr.Revenue = round2(dr.Revenue)
 		summary.RevenueByDay = append(summary.RevenueByDay, *dr)
 	}
 
@@ -1865,7 +1868,7 @@ func handleUserActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
