@@ -303,24 +303,32 @@ export default function Checkout() {
 
             {userCtx.user && orderId && (
               <div className="co-card">
-                <h3 className="co-section-title">Quick Pay</h3>
+                <h3 className="co-section-title">Quick Pay — Order {orderId}</h3>
                 <OneTapPayment
-                  amount={total}
-                  currency={cartCtx.cart[0]?.currency || "USD"}
+                  amount={createdTotal}
+                  currency={createdCurrency}
                   orderId={orderId}
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
                 />
+                <button
+                  onClick={handlePayLater}
+                  style={{ width: "100%", marginTop: 12, padding: 12, background: "transparent", border: "1px solid var(--border, rgba(255,255,255,0.2))", color: "var(--text, #e0e0e0)", borderRadius: 10, fontSize: 14, cursor: "pointer" }}
+                >
+                  Pay later
+                </button>
               </div>
             )}
 
-            <button
-              className="co-apply-btn"
-              onClick={handleCheckout}
-              disabled={placing || !userCtx.user}
-            >
-              {placing ? "Placing order..." : "Place Order"}
-            </button>
+            {!orderId && (
+              <button
+                className="co-apply-btn"
+                onClick={handleCheckout}
+                disabled={placing || !userCtx.user}
+              >
+                {placing ? "Placing order..." : "Place Order"}
+              </button>
+            )}
           </div>
         )}
       </div>
