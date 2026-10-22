@@ -35,7 +35,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load persisted stock after mount
-    setStock(loadStock());
+    const loaded = loadStock();
+    if (Object.keys(loaded).length > 0) setStock(loaded);
     hydratedRef.current = true;
   }, []);
 
