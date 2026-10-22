@@ -25,8 +25,22 @@ function loadStock(): Record<number, StockEntry> {
 function saveStock(stock: Record<number, StockEntry>) { try { localStorage.setItem("inventory_stock", JSON.stringify(stock)); } catch {} }
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
-  const [stock, setStock] = useState<Record<number, StockEntry>>(loadStock);
-  useEffect(() => { saveStock(stock); }, [stock]);
+  const [stock, setStock] = useState<Record<number, StockEntry>>({});
+  // Mirror of the committed state so deductStock can synchronously compute and
+  // return a real result without reading localStorage during render.
+  const stockRef = useRef(stock);
+  // localStorage is unavailable during SSR/prerender, so persistence is
+  // deferred until after hydration (SSR-safe pattern).
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load persisted stock after mount
+    setStock(loadStock());
+    hydratedRef.current = true;
+  }, []);
+
+  useEffect(() => { stockRef.current = stock; }, [stock]);
+  useEffect(() => { if (hydratedRef.current) saveStock(stock); }, [stock]);
 
   const initializeStock = useCallback((productIds: number[]) => {
     setStock((prev) => {
