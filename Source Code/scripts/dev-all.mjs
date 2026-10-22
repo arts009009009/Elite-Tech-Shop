@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync, execSync } from "child_process";
-import { existsSync, readdirSync, symlinkSync } from "fs";
+import { copyFileSync, existsSync, readdirSync, readFileSync, symlinkSync } from "fs";
 import { join } from "path";
+import { fileURLToPath } from "url";
 
-const ROOT = process.cwd();
+// Derive the project root from this script's location so every join(ROOT, ...)
+// is correct no matter which directory the script is launched from.
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BACKEND_ONLY = process.argv.includes("--backend-only");
+const IS_WIN = process.platform === "win32";
+
+const BUILD_TIMEOUT_MS = 1800 * 1000; // Rust/Java cold builds can exceed 10 min
 
 // ── Helpers ──
 
@@ -61,9 +67,11 @@ function findJdk() {
 let jdkHome = null;
 
 function ensureJdk() {
-  if (has("javac")) return true;
+  // Prefer an explicit JAVA_HOME (findJdk checks it first) even when some
+  // other javac is also on PATH; only then fall back to `javac` on PATH.
   jdkHome = findJdk();
-  return Boolean(jdkHome);
+  if (jdkHome) return true;
+  return has("javac");
 }
 
 function javaEnv() {

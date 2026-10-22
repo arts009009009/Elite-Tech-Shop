@@ -8,17 +8,21 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"math"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -53,10 +57,14 @@ type Order struct {
 	ID        string     `json:"id"`
 	Items     []CartItem `json:"items"`
 	Total     float64    `json:"total"`
+	Currency  string     `json:"currency"`
 	Status    string     `json:"status"`
+	PaymentID string     `json:"payment_id,omitempty"`
 	CreatedAt string     `json:"created_at"`
 	Username  string     `json:"username"`
 }
+
+var orderStatuses = []string{"pending", "processing", "paid", "shipped", "in transit", "delivered", "cancelled", "payment_failed"}
 
 type Review struct {
 	ID        int    `json:"id"`
@@ -146,8 +154,9 @@ func init() {
 func hashPassword(password string) string {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("[WARN] bcrypt failed, using insecure fallback: %v", err)
-		return password
+		// Never fall back to the plaintext password; callers must treat "" as failure.
+		log.Printf("[ERROR] bcrypt failed: %v", err)
+		return ""
 	}
 	return string(hash)
 }
@@ -157,26 +166,20 @@ func checkPassword(hashedPassword, password string) bool {
 	return err == nil
 }
 
-func generateToken() string {
+func generateToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		log.Printf("[WARN] crypto/rand failed, using fallback: %v", err)
-		for i := range b {
-			b[i] = byte(time.Now().UnixNano() & 0xff)
-		}
+		return "", err
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
-func generateOrderID() string {
+func generateOrderID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		log.Printf("[WARN] crypto/rand failed, using fallback: %v", err)
-		for i := range b {
-			b[i] = byte(time.Now().UnixNano() & 0xff)
-		}
+		return "", err
 	}
-	return "ORD-" + hex.EncodeToString(b)
+	return "ORD-" + hex.EncodeToString(b), nil
 }
 
 var allowedOrigins = map[string]bool{
