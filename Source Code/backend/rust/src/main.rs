@@ -654,4 +654,69 @@ mod tests {
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
+
+    async fn get_json(app: Router, uri: &str) -> serde_json::Value {
+        let req = Request::builder()
+            .uri(uri)
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_total_counts_matches_before_pagination() {
+        let json = get_json(app(), "/api/products?limit=1").await;
+        let products = json["products"].as_array().unwrap();
+        assert_eq!(products.len(), 1);
+        assert_eq!(json["total"], 2);
+    }
+
+    #[tokio::test]
+    async fn test_skip_pagination() {
+        let json = get_json(app(), "/api/products?limit=1&skip=1").await;
+        let products = json["products"].as_array().unwrap();
+        assert_eq!(products.len(), 1);
+        assert_eq!(products[0]["id"], 2);
+        assert_eq!(json["total"], 2);
+    }
+
+    #[tokio::test]
+    async fn test_invalid_limit_and_skip_do_not_fail() {
+        for uri in [
+            "/api/products?limit=abc",
+            "/api/products?limit=-5",
+            "/api/products?skip=-1",
+            "/api/products?limit=999999",
+            "/api/products?limit=",
+        ] {
+            let json = get_json(app(), uri).await;
+            let products = json["products"].as_array().unwrap();
+            assert!(products.len() <= 2, "unexpected product count for {}", uri);
+            assert_eq!(json["total"], 2, "wrong total for {}", uri);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_search_matches_localized_titles() {
+        // "Portable" only appears in the French title of product 1
+        let json = get_json(app(), "/api/products?search=PORTABLE").await;
+        let products = json["products"].as_array().unwrap();
+        assert_eq!(products.len(), 1);
+        assert_eq!(products[0]["id"], 1);
+        assert_eq!(json["total"], 1);
+    }
+
+    #[test]
+    fn test_search_matches_without_index() {
+        let product = test_product();
+        assert!(search_matches(None, &product, "test laptop"));
+        assert!(search_matches(None, &product, "لابتوب"));
+        assert!(search_matches(None, &product, "ordinateur portable"));
+        assert!(!search_matches(None, &product, "nope"));
+    }
 }

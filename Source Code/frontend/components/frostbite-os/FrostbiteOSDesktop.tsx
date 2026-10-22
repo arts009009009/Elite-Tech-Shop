@@ -153,7 +153,9 @@ function FrostbiteOSDesktopInner() {
     });
     setFocusedId(appId);
     setTimeout(() => {
-      const winEl = document.querySelector(`.fs-win`) as HTMLElement | null;
+      // Target the window we just opened, not whichever .fs-win happens to be
+      // first in the DOM.
+      const winEl = document.querySelector(`.fs-win[data-win-id="${appId}"]`) as HTMLElement | null;
       if (winEl) triggerGlitch(winEl);
     }, 50);
   }, [triggerGlitch]);
@@ -220,10 +222,18 @@ function FrostbiteOSDesktopInner() {
   }, []);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape" && focusedId) closeWin(focusedId); };
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !focusedId) return;
+      // Don't hijack Escape while the user is typing in a text field (the
+      // in-app windows and surrounding page both use inputs).
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
+      // Minimize (keep running) rather than close the focused window.
+      minimizeWin(focusedId);
+    };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [focusedId, closeWin]);
+  }, [focusedId, minimizeWin]);
 
   const dockApps = useMemo(() => APPS.filter((a) => a.dock), []);
   const runningIds = useMemo(() => new Set(windows.map((w) => w.id)), [windows]);
@@ -280,6 +290,7 @@ function FrostbiteOSDesktopInner() {
         return (
           <div
             key={win.id}
+            data-win-id={win.id}
             className={`fs-win ${focusedId === win.id ? "fs-win-focus" : ""} ${win.maximized ? (win.id === "frostcraft" ? "fs-win-max-full" : "fs-win-max") : ""}`}
             style={{ left: win.x, top: win.y, width: win.w, height: win.h, display: win.minimized ? "none" : "flex", zIndex: focusedId === win.id ? 200 : 100 }}
             onMouseDown={() => focusWin(win.id)}

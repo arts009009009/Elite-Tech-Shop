@@ -90,7 +90,7 @@ class AuthControllerTest {
 
     @Test
     void sendPassword_withBlankEmail_returnsError() {
-        Map<String, String> body = Map.of("   ");
+        Map<String, String> body = Map.of("email", "   ");
         ResponseEntity<Map<String, Object>> result = controller.sendPassword(body, request);
 
         assertEquals(400, result.getStatusCode().value());

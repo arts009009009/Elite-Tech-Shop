@@ -1895,12 +1895,24 @@ func handleUserActivity(w http.ResponseWriter, r *http.Request) {
 
 // --- ROUTING ---
 
+// csrfMiddleware protects the cookie-authenticated API from cross-site
+// request forgery by enforcing an origin allowlist on state-changing
+// methods. Browsers always send Origin on cross-origin POST/PUT/DELETE;
+// requests with neither Origin nor Referer (curl, server-to-server proxies)
+// are allowed.
 func csrfMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" || r.Method == "PUT" || r.Method == "DELETE" || r.Method == "PATCH" {
-			token := r.Header.Get("X-CSRF-Token")
-			if token == "" {
-				errorResponse(w, "csrf token required", 403)
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				if ref := r.Header.Get("Referer"); ref != "" {
+					if u, err := url.Parse(ref); err == nil && u.Scheme != "" && u.Host != "" {
+						origin = u.Scheme + "://" + u.Host
+					}
+				}
+			}
+			if origin != "" && !allowedOrigins[origin] {
+				errorResponse(w, "cross-origin request rejected", 403)
 				return
 			}
 		}
@@ -1945,71 +1957,141 @@ func (w *statusWriter) WriteHeader(code int) {
 }
 
 type ipRequest struct {
-	count   int
-	resetAt time.Time
+	count    int
+	resetAt  time.Time
+	lastSeen time.Time
 }
 
-var rateLimiterStore sync.Map
-var rateLimiterCount int64
+var (
+	rateLimiterMu      sync.Mutex
+	rateLimiterEntries = make(map[string]*ipRequest)
+)
 
 const maxRateLimiterEntries = 10000
 
+// isLoopbackOrPrivate reports whether addr is a loopback or RFC1918 address,
+// i.e. likely a local reverse proxy whose X-Forwarded-For we may trust.
+func isLoopbackOrPrivate(addr string) bool {
+	ip := net.ParseIP(addr)
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate())
+}
+
+// clientIP determines the client address for rate limiting. X-Forwarded-For /
+// X-Real-IP are only trusted when the direct peer is loopback or private
+// (a local reverse proxy); otherwise they are fully client-controlled and
+// ignored.
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	if !isLoopbackOrPrivate(host) {
+		return host
+	}
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		if cand := strings.TrimSpace(strings.Split(fwd, ",")[0]); cand != "" {
+			return cand
+		}
+	}
+	if fwd := r.Header.Get("X-Real-IP"); fwd != "" {
+		if cand := strings.TrimSpace(fwd); cand != "" {
+			return cand
+		}
+	}
+	return host
+}
+
+// evictOldestRateEntry removes the least-recently-seen bucket.
+// Must be called with rateLimiterMu held.
+func evictOldestRateEntry() {
+	var oldestKey string
+	var oldest time.Time
+	first := true
+	for k, e := range rateLimiterEntries {
+		if first || e.lastSeen.Before(oldest) {
+			oldestKey, oldest, first = k, e.lastSeen, false
+		}
+	}
+	if !first {
+		delete(rateLimiterEntries, oldestKey)
+	}
+}
+
+// sweepRateLimiter removes buckets whose window has expired.
+// Must be called with rateLimiterMu held.
+func sweepRateLimiter(now time.Time) {
+	for ip, e := range rateLimiterEntries {
+		if now.After(e.resetAt) {
+			delete(rateLimiterEntries, ip)
+		}
+	}
+}
+
 func rateLimit(next http.Handler) http.Handler {
-	go func() {
-		for {
-			time.Sleep(time.Minute)
-			now := time.Now()
-			rateLimiterStore.Range(func(key, value interface{}) bool {
-				entry := value.(*ipRequest)
-				if now.After(entry.resetAt) {
-					rateLimiterStore.Delete(key)
-					atomic.AddInt64(&rateLimiterCount, -1)
-				}
-				return true
-			})
-		}
-	}()
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			ip = strings.Split(fwd, ",")[0]
-		} else if fwd := r.Header.Get("X-Real-IP"); fwd != "" {
-			ip = fwd
-		}
+		ip := clientIP(r)
+		now := time.Now()
 
-		val, loaded := rateLimiterStore.LoadOrStore(ip, &ipRequest{
-			count:   0,
-			resetAt: time.Now().Add(time.Minute),
-		})
-		if !loaded {
-			newCount := atomic.AddInt64(&rateLimiterCount, 1)
-			if newCount > maxRateLimiterEntries {
-				rateLimiterStore.Delete(ip)
-				atomic.AddInt64(&rateLimiterCount, -1)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusTooManyRequests)
-				json.NewEncoder(w).Encode(map[string]string{"error": "rate limit exceeded"})
-				return
+		rateLimiterMu.Lock()
+		entry, ok := rateLimiterEntries[ip]
+		if !ok {
+			// At capacity: evict the oldest entry instead of rejecting the
+			// newcomer (which would let one attacker lock out new IPs).
+			if len(rateLimiterEntries) >= maxRateLimiterEntries {
+				evictOldestRateEntry()
 			}
+			entry = &ipRequest{resetAt: now.Add(time.Minute)}
+			rateLimiterEntries[ip] = entry
 		}
-		entry := val.(*ipRequest)
-
-		if time.Now().After(entry.resetAt) {
+		if now.After(entry.resetAt) {
 			entry.count = 0
-			entry.resetAt = time.Now().Add(time.Minute)
+			entry.resetAt = now.Add(time.Minute)
 		}
-
 		entry.count++
-		if entry.count > 100 {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusTooManyRequests)
-			json.NewEncoder(w).Encode(map[string]string{"error": "rate limit exceeded"})
+		entry.lastSeen = now
+		limited := entry.count > 100
+		rateLimiterMu.Unlock()
+
+		if limited {
+			errorResponse(w, "rate limit exceeded", 429)
 			return
 		}
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// sweepStale prunes expired sessions and stale rate-limit buckets. Started
+// once from main().
+func sweepStale() {
+	now := time.Now()
+
+	store.mu.Lock()
+	for tok, sess := range store.Sessions {
+		if now.Unix() > sess.Expires {
+			delete(store.Sessions, tok)
+		}
+	}
+	store.mu.Unlock()
+
+	rateLimiterMu.Lock()
+	sweepRateLimiter(now)
+	rateLimiterMu.Unlock()
+}
+
+func startSweeper(stop <-chan struct{}) {
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				sweepStale()
+			case <-stop:
+				return
+			}
+		}
+	}()
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -2060,6 +2142,7 @@ func main() {
 	mux.HandleFunc("/api/rewards/redeem", handleRewardsRedeem)
 
 	// Discounts
+	mux.HandleFunc("/api/discounts", handleDiscountList)
 	mux.HandleFunc("/api/discounts/validate", handleDiscountValidate)
 	mux.HandleFunc("/api/discounts/apply", handleDiscountApply)
 
@@ -2090,7 +2173,7 @@ func main() {
 	slog.Info("Go backend starting", "addr", ":3003", "go_version", runtime.Version())
 	server := &http.Server{
 		Addr:              ":3003",
-		Handler:           recoveryMiddleware(securityHeaders(rateLimit(requestLogger(mux)))),
+		Handler:           recoveryMiddleware(securityHeaders(csrfMiddleware(rateLimit(requestLogger(mux))))),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -2100,6 +2183,9 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	sweeperStop := make(chan struct{})
+	startSweeper(sweeperStop)
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed: %v", err)
@@ -2107,6 +2193,7 @@ func main() {
 	}()
 
 	<-quit
+	close(sweeperStop)
 	log.Println("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

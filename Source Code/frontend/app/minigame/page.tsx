@@ -49,6 +49,7 @@ export default function MinigamePage() {
   const [selected, setSelected] = useState(0);
   const [pointerLocked, setPointerLocked] = useState(false);
   const [graphicsLevel, setGraphicsLevel] = useState<1 | 4 | 16>(1);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const selectedRef = useRef(0);
   const graphicsLevelRef = useRef(1);
   const rebuildRef = useRef<((subdiv: number) => void) | null>(null);
@@ -87,6 +88,11 @@ export default function MinigamePage() {
 
       console.log("[minigame] Loading WASM...");
       const resp = await fetch("/minigame_bg.wasm");
+      // A 404 answers with an HTML body — passing that to
+      // WebAssembly.instantiate only produces a cryptic compile error.
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}: ${resp.statusText} for /minigame_bg.wasm`);
+      }
       const bytes = await resp.arrayBuffer();
       console.log("[minigame] WASM loaded, size:", bytes.byteLength);
 
@@ -512,7 +518,12 @@ export default function MinigamePage() {
 
     const cleanupRef = { current: null as (() => void) | null };
 
-    init().catch((e: Error) => console.error("[minigame] ERROR:", e));
+    init().catch((e: unknown) => {
+      console.error("[minigame] ERROR:", e);
+      if (!destroyed) {
+        setLoadError(e instanceof Error ? e.message : String(e));
+      }
+    });
     return () => { destroyed = true; cleanupRef.current?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -554,6 +565,29 @@ export default function MinigamePage() {
       <div style={{ position: "fixed", bottom: 78, left: "50%", transform: "translateX(-50%)", zIndex: 100, color: "white", fontFamily: "monospace", fontSize: 12, pointerEvents: "none", textShadow: "1px 1px 2px #000", textAlign: "center" }}>
         {BLOCK_NAMES[hotbar[selected]]}
       </div>
+
+      {loadError && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0, 0, 0, 0.9)", color: "white", fontFamily: "monospace", textAlign: "center", padding: 24 }}>
+          <div style={{ fontSize: 22, fontWeight: "bold", marginBottom: 12 }}>Unable to start Minecraft Alpha</div>
+          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 20, maxWidth: 480 }}>{loadError}</div>
+          <button
+            onClick={() => router.push("/")}
+            style={{
+              padding: "14px 32px",
+              fontSize: 16,
+              fontFamily: "monospace",
+              fontWeight: "bold",
+              color: "white",
+              background: "rgba(220,38,38,0.8)",
+              border: "2px solid #ef4444",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Exit Game
+          </button>
+        </div>
+      )}
 
       {!pointerLocked && (
         <div onClick={() => canvasRef.current?.requestPointerLock()} style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.6)" }}>
