@@ -198,21 +198,27 @@ case "$choice" in
     ok "Run: nix develop"
     ;;
   2)
-    if check_system_deps 2>/dev/null; then
-      ok "All dependencies found!"
-      pnpm install
-    else
+    if ! check_system_deps; then
       if command -v brew &>/dev/null; then
         install_with_brew
       elif command -v apt-get &>/dev/null; then
         install_with_apt
       else
         err "No supported package manager found (brew/apt)."
-        err "Install dependencies manually: node, java, go, rust, pnpm, maven"
+        err "Install dependencies manually: node, JDK 21, go, rust, pnpm, maven, cmake"
         exit 1
       fi
-      pnpm install
     fi
+    # rustup (~/.cargo/bin) and the Go tarball (/usr/local/go/bin) install
+    # outside PATH — export them before re-checking and running pnpm.
+    add_toolchains_to_path
+    if check_system_deps; then
+      ok "All dependencies found!"
+    else
+      warn "Some dependencies are still missing (see above)."
+      warn "The dev script (pnpm run dev) will skip services whose toolchains are absent."
+    fi
+    pnpm install
     ok "Ready! Run: pnpm run dev"
     ;;
   *)

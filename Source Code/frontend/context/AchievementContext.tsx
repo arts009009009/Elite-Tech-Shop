@@ -237,7 +237,6 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
     setTotalReviews(progress.totalReviews);
     setReferralCount(progress.referralCount);
     setDiscountCount(progress.discountCount);
-    hydratedRef.current = true;
   }, []);
 
   useEffect(() => {
@@ -251,6 +250,11 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
       saveProgress({ totalOrders, totalSpent, totalReviews, referralCount, discountCount });
     }
   }, [totalOrders, totalSpent, totalReviews, referralCount, discountCount]);
+
+  // Declared after the save effects: on the mount pass they see the flag still
+  // false, so defaults never overwrite persisted data; it flips before any
+  // post-hydration change can re-run them.
+  useEffect(() => { hydratedRef.current = true; }, []);
 
   const isUnlocked = useCallback(
     (id: string) => unlockedBadges.includes(id),
