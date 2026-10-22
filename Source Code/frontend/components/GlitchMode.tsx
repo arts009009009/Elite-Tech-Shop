@@ -50,10 +50,18 @@ function restoreNode(node: Node) {
 export function GlitchProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState(false);
   const [crashed, setCrashed] = useState(false);
-  const [crashId] = useState("");
+  const [crashId, setCrashId] = useState("");
   const intRef = useRef<ReturnType<typeof setInterval>[]>([]);
   const toutRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const audioRef = useRef<AudioContext | null>(null);
+
+  // The app's ThemeCustomizer toggles a `reduced-motion` body class; respect it
+  // (plus the OS-level preference) before scrambling text or playing audio.
+  const prefersReducedMotion = useCallback(() => {
+    try {
+      return document.body.classList.contains("reduced-motion") || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch { return false; }
+  }, []);
 
   const playStatic = useCallback(() => {
     try {
@@ -73,7 +81,10 @@ export function GlitchProvider({ children }: { children: React.ReactNode }) {
     toutRef.current = [];
   }, []);
 
-  const activate = useCallback(() => {
+  // Returns true when glitch effects actually started; false when skipped
+  // because the user has requested reduced motion.
+  const activate = useCallback((): boolean => {
+    if (prefersReducedMotion()) return false;
     const root = document.body;
     capturing = true;
     scrambleNode(root);
