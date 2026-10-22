@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-function getApproxStats() {
+function getApproxStats(frameDelta: number) {
   let ramPct = 30;
   let ramUsed = 0;
   let ramTotal = 0;
@@ -16,11 +16,10 @@ function getApproxStats() {
     }
   } catch {}
 
-  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
-  const start = performance.now();
-  while (performance.now() - start < 3) {}
-  const elapsed = performance.now() - start;
-  const cpuPct = Math.min(100, Math.round((elapsed / 3) * cores * 12 + Math.random() * 8));
+  // Derive a plausible CPU load from observed frame timing instead of a busy
+  // wait: ~16.7ms frames (60fps) read as idle, dropped frames read as load.
+  const loadFromFrames = (frameDelta - 16.7) / 16.7;
+  const cpuPct = Math.min(100, Math.max(2, Math.round(8 + loadFromFrames * 60 + Math.random() * 8)));
 
   const gpuPct = Math.min(100, Math.round(cpuPct * 0.6 + Math.random() * 15 + 5));
 
