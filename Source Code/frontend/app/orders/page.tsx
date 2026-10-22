@@ -11,9 +11,11 @@ import { formatCurrency } from "@/lib/utils";
 const statuses = [
   { label: "All Status", value: "all" },
   { label: "Processing", value: "processing" },
+  { label: "Paid", value: "paid" },
   { label: "Shipped", value: "shipped" },
   { label: "In Transit", value: "in transit" },
   { label: "Delivered", value: "delivered" },
+  { label: "Cancelled", value: "cancelled" },
 ];
 
 type OrderItem = { id: number; title: string; price: number; currency: string; quantity: number };
