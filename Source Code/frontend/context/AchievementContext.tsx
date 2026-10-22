@@ -38,6 +38,17 @@ interface AchievementProviderProps {
 }
 
 const STORAGE_KEY = "elite-shop-unlocked-badges";
+const PROGRESS_KEY = "elite-shop-achievement-progress";
+
+type AchievementProgress = {
+  totalOrders: number;
+  totalSpent: number;
+  totalReviews: number;
+  referralCount: number;
+  discountCount: number;
+};
+
+const ZERO_PROGRESS: AchievementProgress = { totalOrders: 0, totalSpent: 0, totalReviews: 0, referralCount: 0, discountCount: 0 };
 
 const BADGES: Badge[] = [
   {
@@ -148,7 +159,10 @@ function loadUnlockedBadges(): string[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      // Validate: a corrupted value (e.g. "{}" or a non-array) must not crash
+      // the provider subtree when .includes is called on it.
+      const parsed: unknown = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === "string");
     }
   } catch {
     // ignore
@@ -160,6 +174,42 @@ function saveUnlockedBadges(badges: string[]): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(badges));
+  } catch {
+    // ignore
+  }
+}
+
+function toValidCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function loadProgress(): AchievementProgress {
+  if (typeof window === "undefined") return ZERO_PROGRESS;
+  try {
+    const stored = localStorage.getItem(PROGRESS_KEY);
+    if (stored) {
+      const parsed: unknown = JSON.parse(stored);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const p = parsed as Record<string, unknown>;
+        return {
+          totalOrders: toValidCount(p.totalOrders),
+          totalSpent: toValidCount(p.totalSpent),
+          totalReviews: toValidCount(p.totalReviews),
+          referralCount: toValidCount(p.referralCount),
+          discountCount: toValidCount(p.discountCount),
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return ZERO_PROGRESS;
+}
+
+function saveProgress(progress: AchievementProgress): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
   } catch {
     // ignore
   }

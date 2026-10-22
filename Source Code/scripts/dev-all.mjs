@@ -79,18 +79,26 @@ function javaEnv() {
   return { ...process.env, JAVA_HOME: jdkHome, PATH: `${join(jdkHome, "bin")}:${process.env.PATH || ""}` };
 }
 
+// Keep this detection in sync with scripts/install-all.mjs — mixing package
+// managers is how the repo ended up with multiple lockfiles.
 function detectPM() {
+  // 1. Honor the "packageManager" field in package.json.
+  try {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    const name = String(pkg.packageManager || "").split("@")[0]; // "yarn@4.18.1" → "yarn"
+    if (["npm", "yarn", "pnpm", "bun"].includes(name)) return name;
+  } catch {}
+
+  // 2. Fall back to how this process was launched, then to PATH detection.
   const ua = process.env.npm_config_user_agent || "";
   const execPath = process.env.npm_execpath || "";
   if (ua.includes("yarn") || execPath.includes("yarn")) return "yarn";
   if (ua.includes("pnpm") || execPath.includes("pnpm")) return "pnpm";
   if (ua.includes("bun") || execPath.includes("bun")) return "bun";
-  if (ua.includes("deno") || execPath.includes("deno")) return "deno";
   if (has("npm")) return "npm";
   if (has("yarn")) return "yarn";
   if (has("pnpm")) return "pnpm";
   if (has("bun")) return "bun";
-  if (has("deno")) return "deno";
   return "npm";
 }
 
@@ -98,9 +106,33 @@ const pm = detectPM();
 console.log(`[dev] Package manager: ${pm}`);
 
 function run(cmd, args, opts = {}) {
-  const child = spawn(cmd, args, { stdio: "inherit", shell: true, ...opts });
+  // npm/npx/pnpm/yarn/bun are .cmd shims on Windows and need a shell there;
+  // everywhere else spawn directly so signals reach the real process.
+  const shell = IS_WIN && /^(npm|npx|pnpm|yarn|bun)$/.test(cmd);
+  const child = spawn(cmd, args, {
+    stdio: "inherit",
+    ...opts,
+    shell,
+    // Own process group (POSIX) so shutdown can signal the whole tree —
+    // killing only the shell/npm wrapper leaves grandchildren alive.
+    detached: !IS_WIN,
+  });
   child.on("error", (err) => console.error(`[dev] Process error (${cmd}):`, err.message));
   return child;
+}
+
+// Signal a child and everything it spawned (next dev, cargo run, java, ...).
+function killTree(child, signal) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  try {
+    if (IS_WIN) {
+      spawnSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+    } else {
+      process.kill(-child.pid, signal);
+    }
+  } catch {
+    try { child.kill(signal); } catch {}
+  }
 }
 
 // ── Dependency guard ──
@@ -113,7 +145,6 @@ function installCmd() {
   switch (pm) {
     case "pnpm": return ["pnpm", ["install"]];
     case "bun":  return ["bun", ["install"]];
-    case "deno": return ["deno", ["install"]];
     default:     return [pm === "yarn" ? "yarn" : "npm", ["install"]];
   }
 }
@@ -123,7 +154,15 @@ function installSync(label, cwd) {
   console.log(`[dev] ${label} dependencies not installed — running \`${cmd} ${args.join(" ")}\`...`);
   const start = Date.now();
   try {
-    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: 600000 });
+    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: BUILD_TIMEOUT_MS });
+    if (result.error) {
+      if (result.error.code === "ETIMEDOUT") {
+        console.log(`[dev] ${label} install timed out after ${BUILD_TIMEOUT_MS / 1000}s.`);
+      } else {
+        console.log(`[dev] ${label} install failed: ${result.error.message}`);
+      }
+      return false;
+    }
     if (result.status !== 0) {
       console.log(`[dev] ${label} install failed (exit ${result.status}).`);
       return false;
