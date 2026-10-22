@@ -17,21 +17,49 @@ const statuses = [
 ];
 
 type OrderItem = { id: number; title: string; price: number; currency: string; quantity: number };
-type Order = { id: string; items: OrderItem[]; total: number; currency: string; date: string; user: string };
+type Order = { id: string; items: OrderItem[]; total: number; currency: string; date: string; user: string; status?: string };
 
-function getStatusColor(date: string): { label: string; color: string } {
-  const orderDate = new Date(date);
-  const now = new Date();
-  const daysDiff = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
-  if (daysDiff <= 1) return { label: "Processing", color: "#ffd700" };
-  if (daysDiff <= 3) return { label: "Shipped", color: "#00d4ff" };
-  if (daysDiff <= 7) return { label: "In Transit", color: "#A020F0" };
-  return { label: "Delivered", color: "#00ff41" };
+const STATUS_STYLES: Record<string, { label: string; color: string }> = {
+  pending: { label: "Pending", color: "#ffd700" },
+  processing: { label: "Processing", color: "#ffd700" },
+  paid: { label: "Paid", color: "#00d4ff" },
+  shipped: { label: "Shipped", color: "#00d4ff" },
+  "in transit": { label: "In Transit", color: "#A020F0" },
+  delivered: { label: "Delivered", color: "#00ff41" },
+  cancelled: { label: "Cancelled", color: "#ff4444" },
+  payment_failed: { label: "Payment Failed", color: "#ff4444" },
+};
+
+function getStatusInfo(order: Order): { label: string; color: string } {
+  // Prefer the server's real status; only fall back to the age heuristic
+  // for legacy orders that predate the status field.
+  const key = order.status?.toLowerCase();
+  if (key && STATUS_STYLES[key]) return STATUS_STYLES[key];
+  if (key) return { label: order.status as string, color: "#00d4ff" };
+  if (order.date) {
+    const orderDate = new Date(order.date);
+    if (!Number.isNaN(orderDate.getTime())) {
+      const now = new Date();
+      const daysDiff = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff <= 1) return { label: "Processing", color: "#ffd700" };
+      if (daysDiff <= 3) return { label: "Shipped", color: "#00d4ff" };
+      if (daysDiff <= 7) return { label: "In Transit", color: "#A020F0" };
+      return { label: "Delivered", color: "#00ff41" };
+    }
+  }
+  return { label: "Processing", color: "#ffd700" };
+}
+
+function formatDate(value: string): string {
+  if (!value) return "Date unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString();
 }
 
 function OrderCard({ order }: { order: Order }) {
   const totalLabel = formatCurrency(order.total, order.currency);
-  const status = getStatusColor(order.date);
+  const status = getStatusInfo(order);
   const [showReview, setShowReview] = useState(false);
 
   return (
@@ -40,7 +68,7 @@ function OrderCard({ order }: { order: Order }) {
         <div className="flex items-center justify-between mb-2">
           <div>
             <p className="font-bold text-sm">Order #{order.id.toString().slice(-8)}</p>
-            <p className="text-xs opacity-60">{order.date}</p>
+            <p className="text-xs opacity-60">{formatDate(order.date)}</p>
           </div>
           <span className="badge" style={{
             background: status.label === "Delivered" ? "rgba(0,255,65,0.15)" : status.label === "Processing" ? "rgba(255,215,0,0.15)" : "rgba(0,212,255,0.15)",
