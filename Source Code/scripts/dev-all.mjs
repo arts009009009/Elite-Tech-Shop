@@ -461,13 +461,14 @@ async function main() {
 
     // Wait for the children to actually exit; escalate to SIGKILL if they
     // ignore SIGTERM. A fixed timeout + process.exit(0) used to orphan them.
-    let pending = procs.filter(({ child }) => child.exitCode === null && child.signalCode === null).length;
+    const live = procs.filter(({ child }) => child.exitCode === null && child.signalCode === null);
+    let pending = live.length;
     if (pending === 0) process.exit(exitCode);
     const forceKill = setTimeout(() => {
       for (const { child } of procs) killTree(child, "SIGKILL");
       process.exit(exitCode);
     }, 5000);
-    for (const { child } of procs) {
+    for (const { child } of live) {
       child.once("close", () => {
         if (--pending <= 0) {
           clearTimeout(forceKill);
@@ -487,8 +488,8 @@ async function main() {
     });
   }
 
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", () => shutdown(0));
+  process.on("SIGTERM", () => shutdown(0));
 }
 
 main().catch((err) => {

@@ -738,7 +738,7 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -771,23 +771,87 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 			errorResponse(w, "invalid request", 400)
 			return
 		}
+		if len(req.Items) == 0 {
+			errorResponse(w, "items required", 400)
+			return
+		}
+
+		// Server-side price recompute: the client total is never trusted.
+		store.mu.RLock()
+		priceByID := make(map[int]Product, len(store.Products))
+		for _, p := range store.Products {
+			priceByID[p.ID] = p
+		}
+		items := make([]CartItem, 0, len(req.Items))
+		var total float64
+		currency := ""
+		invalidPrice := false
+		for _, it := range req.Items {
+			if it.Quantity < 1 {
+				it.Quantity = 1
+			}
+			if it.Quantity > 999 {
+				it.Quantity = 999
+			}
+			if p, ok := priceByID[it.ProductID]; ok {
+				it.Price = p.Price
+				if it.Name == "" {
+					it.Name = p.Name
+				}
+				if it.Image == "" {
+					it.Image = p.Image
+				}
+				if p.Currency != "" {
+					it.Currency = p.Currency
+				}
+			} else if math.IsNaN(it.Price) || math.IsInf(it.Price, 0) || it.Price < 0 {
+				// Unknown product: accept the client price only if it is finite and >= 0.
+				invalidPrice = true
+				break
+			}
+			total += it.Price * float64(it.Quantity)
+			if currency == "" && it.Currency != "" {
+				currency = it.Currency
+			}
+			items = append(items, it)
+		}
+		store.mu.RUnlock()
+		if invalidPrice {
+			errorResponse(w, "invalid item price", 400)
+			return
+		}
+		if currency == "" {
+			currency = "USD"
+		}
+		total = round2(total)
+		if round2(req.Total) != total {
+			log.Printf("[ORDERS] client total %.2f != server-computed %.2f for user=%s (client total ignored)", req.Total, total, username)
+		}
+
+		orderID, err := generateOrderID()
+		if err != nil {
+			log.Printf("[ERROR] order id generation failed: %v", err)
+			errorResponse(w, "could not generate order id", 500)
+			return
+		}
 		order := Order{
-			ID:        generateOrderID(),
-			Items:     req.Items,
-			Total:     req.Total,
+			ID:        orderID,
+			Items:     items,
+			Total:     total,
+			Currency:  currency,
 			Status:    "processing",
 			CreatedAt: time.Now().Format(time.RFC3339),
 			Username:  username,
 		}
+		points := int(total)
+
 		store.mu.Lock()
-		orderIdx := len(store.Orders)
 		store.Orders = append(store.Orders, order)
-		store.OrdersByUsername[username] = append(store.OrdersByUsername[username], orderIdx)
+		rebuildOrderIndex()
 		store.Carts[username] = []CartItem{}
 		if store.Rewards[username] == nil {
 			store.Rewards[username] = &RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
 		}
-		points := int(req.Total)
 		store.Rewards[username].Points += points
 		store.Rewards[username].Lifetime += points
 		store.mu.Unlock()
@@ -805,32 +869,95 @@ func handleOrderItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
+	isAdmin := isAdminUser(username)
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 {
+	if len(parts) < 4 {
 		errorResponse(w, "bad path", 400)
 		return
 	}
-	orderID := parts[4]
+	orderID := parts[3]
 
-	if r.Method == "DELETE" {
+	switch r.Method {
+	case "GET":
+		store.mu.RLock()
+		var found *Order
+		for i := range store.Orders {
+			o := &store.Orders[i]
+			if o.ID == orderID && (o.Username == username || isAdmin) {
+				cp := *o
+				found = &cp
+				break
+			}
+		}
+		store.mu.RUnlock()
+		if found == nil {
+			errorResponse(w, "order not found", 404)
+			return
+		}
+		jsonResponse(w, found, 200)
+
+	case "PUT":
+		var req struct {
+			Status    string `json:"status"`
+			PaymentID string `json:"payment_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			errorResponse(w, "invalid request", 400)
+			return
+		}
+		valid := false
+		for _, s := range orderStatuses {
+			if s == req.Status {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			errorResponse(w, "invalid status", 400)
+			return
+		}
+		store.mu.Lock()
+		var found *Order
+		for i := range store.Orders {
+			o := &store.Orders[i]
+			if o.ID == orderID && (o.Username == username || isAdmin) {
+				o.Status = req.Status
+				if req.PaymentID != "" {
+					o.PaymentID = req.PaymentID
+				}
+				cp := *o
+				found = &cp
+				break
+			}
+		}
+		store.mu.Unlock()
+		if found == nil {
+			errorResponse(w, "order not found", 404)
+			return
+		}
+		jsonResponse(w, found, 200)
+
+	case "DELETE":
 		store.mu.Lock()
 		for i, o := range store.Orders {
 			if o.ID == orderID && o.Username == username {
 				store.Orders = append(store.Orders[:i], store.Orders[i+1:]...)
+				rebuildOrderIndex()
 				break
 			}
 		}
 		store.mu.Unlock()
 		jsonResponse(w, map[string]string{"status": "cancelled"}, 200)
-		return
+
+	default:
+		errorResponse(w, "method not allowed", 405)
 	}
-	errorResponse(w, "method not allowed", 405)
 }
 
 // --- REVIEW HANDLERS ---
@@ -870,7 +997,7 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 		jsonResponse(w, reviews, 200)
 
 	case "POST":
-		username := getUsername(r)
+		username := getSessionUsername(r)
 		if username == "" {
 			errorResponse(w, "unauthorized", 401)
 			return
@@ -894,7 +1021,12 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if len(req.Comment) > 1000 {
-			req.Comment = req.Comment[:1000]
+			// Truncate on a rune boundary so we never split a UTF-8 sequence.
+			cut := 1000
+			for cut > 0 && !utf8.RuneStart(req.Comment[cut]) {
+				cut--
+			}
+			req.Comment = req.Comment[:cut]
 		}
 		store.mu.Lock()
 		revIdx := len(store.Reviews)

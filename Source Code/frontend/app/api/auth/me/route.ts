@@ -5,12 +5,13 @@ const JAVA_BACKEND = process.env.JAVA_BACKEND_URL || "http://localhost:3001";
 
 export async function GET(request: NextRequest) {
   try {
-    // Forward only the session cookie the backend actually reads — mirroring
+    // Forward only the cookie the backend reads (@CookieValue("admin_session")
+    // in AuthController /me) — mirroring the minimal-forwarding pattern in
     // lib/auth-middleware.ts — instead of leaking every cookie the browser
-    // sent to this origin.
-    const session = request.cookies.get("user_session")?.value;
+    // sent to this origin to the backend.
+    const session = request.cookies.get("admin_session")?.value;
     const res = await fetch(`${JAVA_BACKEND}/api/auth/me`, {
-      headers: session ? { cookie: `user_session=${session}` } : {},
+      headers: session ? { cookie: `admin_session=${session}` } : {},
       cache: "no-store",
     });
     const data = await res.json();
