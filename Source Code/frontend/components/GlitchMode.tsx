@@ -140,9 +140,12 @@ export function GlitchProvider({ children }: { children: React.ReactNode }) {
       document.querySelectorAll(".glitch-shutter, .glitch-blackout, .glitch-rgb").forEach(e => e.remove());
       restoreNode(document.body);
       setActive(false);
+      setCrashId(Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, "0"));
+      setCrashed(true);
     }, 20000);
     toutRef.current.push(crashTimer);
-  }, [playStatic, stopAll]);
+    return true;
+  }, [playStatic, stopAll, prefersReducedMotion]);
 
   const deactivate = useCallback(() => {
     stopAll();
@@ -157,9 +160,18 @@ export function GlitchProvider({ children }: { children: React.ReactNode }) {
     restoreNode(document.body);
   }, []);
 
-  useEffect(() => () => { stopAll(); if (audioRef.current) { audioRef.current.close().catch(() => {}); audioRef.current = null; } document.body.classList.remove("glitch-active","glitch-flicker","glitch-shake","glitch-invert","glitch-overdrive"); document.querySelectorAll(".glitch-shutter,.glitch-blackout,.glitch-rgb").forEach(e => e.remove()); }, [stopAll]);
+  useEffect(() => () => { stopAll(); if (audioRef.current) { audioRef.current.close().catch(() => {}); audioRef.current = null; } document.body.classList.remove("glitch-active","glitch-flicker","glitch-shake","glitch-invert","glitch-overdrive"); document.querySelectorAll(".glitch-shutter,.glitch-blackout,.glitch-rgb").forEach(e => e.remove()); restoreNode(document.body); }, [stopAll]);
 
-  const toggle = useCallback(() => { setActive(p => { if (p) deactivate(); else activate(); return !p; }); }, [activate, deactivate]);
+  const toggle = useCallback(() => {
+    // Compute the next state in the handler (updaters must stay pure — side
+    // effects inside them double-run under StrictMode).
+    if (active) {
+      setActive(false);
+      deactivate();
+    } else if (activate()) {
+      setActive(true);
+    }
+  }, [active, activate, deactivate]);
 
   const ctxValue = useMemo(() => ({ active, toggle }), [active, toggle]);
 
