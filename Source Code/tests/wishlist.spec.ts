@@ -8,7 +8,8 @@ test.describe("Wishlist", () => {
     await page.goto("/wishlist");
     await settle(page);
     await expect(page.locator("h2", { hasText: "Wishlist" })).toBeVisible();
-    await expect(page.locator("text=Login")).toBeVisible();
+    // Scoped to the body copy: `text=Login` would also match the navbar link.
+    await expect(page.getByText("Login Wishlist")).toBeVisible();
   });
 
   test("empty wishlist for a fresh account", async ({ page }) => {

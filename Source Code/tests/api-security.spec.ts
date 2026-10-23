@@ -25,9 +25,19 @@ test.describe("API security contract", () => {
   });
 
   test("revalidate is fail-closed without a valid secret", async ({ request }) => {
-    const res = await request.post("/api/revalidate", { data: { secret: "wrong" } });
+    // GET-only by design; the secret is accepted from a header only (query
+    // strings land in access logs, and ?secret= is CSRF-triggerable).
+    const post = await request.post("/api/revalidate", { data: {} });
+    expect(post.status()).toBe(405);
+
+    const bad = await request.get("/api/revalidate?path=/", {
+      headers: { "x-revalidation-secret": "wrong" },
+    });
     // 401 (secret set but wrong) or 503 (secret unset) — never 200.
-    expect([401, 503]).toContain(res.status());
+    expect([401, 503]).toContain(bad.status());
+
+    const none = await request.get("/api/revalidate?path=/");
+    expect([401, 503]).toContain(none.status());
   });
 
   test("stripe webhook rejects unsigned payloads", async ({ request }) => {
@@ -48,6 +58,12 @@ test.describe("API security contract", () => {
     const res = await request.get("/api/cms/products?limit=abc&offset=xyz");
     expect(res.ok()).toBe(true);
     const body = await res.json();
-    expect(Array.isArray(body.products)).toBe(true);
+    if (body.configured === false) {
+      // Contentful not configured in this environment: a helpful message,
+      // not a crash or a NaN-driven 400.
+      expect(typeof body.message).toBe("string");
+    } else {
+      expect(Array.isArray(body.products)).toBe(true);
+    }
   });
 });

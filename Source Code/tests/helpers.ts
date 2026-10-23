@@ -22,10 +22,12 @@ export async function signup(page: Page, prefix = "testuser") {
   return username;
 }
 
-/** Adds the first product on the home page to the cart via its detail page. */
+/** Adds the first product on the products page to the cart via its detail page. */
 export async function addFirstProductToCart(page: Page) {
-  await page.goto("/");
-  await page.waitForSelector(".spinner", { state: "detached", timeout: 15000 }).catch(() => {});
+  // Product detail links live on /products (the home page uses ProductCard
+  // buttons, which contain no <a href="/product/..."> links).
+  await page.goto("/products");
+  await settle(page);
   const productLink = page.locator('a[href^="/product/"]').first();
   await productLink.click();
   await settle(page);

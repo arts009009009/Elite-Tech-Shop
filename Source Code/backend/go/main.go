@@ -2062,38 +2062,75 @@ func sweepRateLimiter(now time.Time) {
 	}
 }
 
-func rateLimit(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := clientIP(r)
-		now := time.Now()
+// rateLimitWith returns middleware allowing at most limit requests per minute
+// per client IP. The bucket key namespaces separate budgets (e.g. the global
+// budget vs the much tighter auth brute-force budget) so heavy traffic in one
+// class cannot exhaust the other.
+func rateLimitWith(limit int, key string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			bucket := key + "|" + clientIP(r)
+			now := time.Now()
 
-		rateLimiterMu.Lock()
-		entry, ok := rateLimiterEntries[ip]
-		if !ok {
-			// At capacity: evict the oldest entry instead of rejecting the
-			// newcomer (which would let one attacker lock out new IPs).
-			if len(rateLimiterEntries) >= maxRateLimiterEntries {
-				evictOldestRateEntry()
+			rateLimiterMu.Lock()
+			entry, ok := rateLimiterEntries[bucket]
+			if !ok {
+				// At capacity: evict the oldest entry instead of rejecting the
+				// newcomer (which would let one attacker lock out new IPs).
+				if len(rateLimiterEntries) >= maxRateLimiterEntries {
+					evictOldestRateEntry()
+				}
+				entry = &ipRequest{resetAt: now.Add(time.Minute)}
+				rateLimiterEntries[bucket] = entry
 			}
-			entry = &ipRequest{resetAt: now.Add(time.Minute)}
-			rateLimiterEntries[ip] = entry
-		}
-		if now.After(entry.resetAt) {
-			entry.count = 0
-			entry.resetAt = now.Add(time.Minute)
-		}
-		entry.count++
-		entry.lastSeen = now
-		limited := entry.count > 100
-		rateLimiterMu.Unlock()
+			if now.After(entry.resetAt) {
+				entry.count = 0
+				entry.resetAt = now.Add(time.Minute)
+			}
+			entry.count++
+			entry.lastSeen = now
+			limited := entry.count > limit
+			rateLimiterMu.Unlock()
 
-		if limited {
-			errorResponse(w, "rate limit exceeded", 429)
-			return
-		}
+			if limited {
+				w.Header().Set("Retry-After", "60")
+				errorResponse(w, "rate limit exceeded", 429)
+				return
+			}
 
-		next.ServeHTTP(w, r)
-	})
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// envPositiveInt reads a positive integer override from the environment.
+func envPositiveInt(name string, fallback int) int {
+	if raw := os.Getenv(name); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil && v > 0 {
+			return v
+		}
+	}
+	return fallback
+}
+
+var (
+	// Global budget: one page load fires 10+ API requests (navbar alone hits
+	// /me, /rewards, /discounts, /recommendations, /reviews), and every user
+	// behind a NAT or reverse proxy shares one IP. The old hardcoded
+	// 100 req/min silently broke sessions under modest parallelism (429s
+	// happened before the logger, so they left no trace).
+	globalRateLimitRPM = envPositiveInt("ELITE_RATE_LIMIT_RPM", 600)
+	// Auth budget: brute-force protection for login/signup/otp endpoints.
+	authRateLimitRPM = envPositiveInt("ELITE_AUTH_RATE_LIMIT_RPM", 10)
+)
+
+func rateLimit(next http.Handler) http.Handler {
+	return rateLimitWith(globalRateLimitRPM, "global")(next)
+}
+
+// authRateLimit wraps handlers whose endpoints are brute-force targets.
+func authRateLimit(next http.Handler) http.Handler {
+	return rateLimitWith(authRateLimitRPM, "auth")(next)
 }
 
 // sweepStale prunes expired sessions and stale rate-limit buckets. Started
@@ -2150,12 +2187,13 @@ func main() {
 	mux.HandleFunc("/api/health", handleHealth)
 	mux.HandleFunc("/", handleLanding)
 
-	// Auth
-	mux.HandleFunc("/api/auth/signup", handleSignup)
-	mux.HandleFunc("/api/auth/login", handleLogin)
+	// Auth. Login/signup/otp are brute-force targets and get their own tight
+	// per-IP budget so probing can't exhaust the global one (or vice versa).
+	mux.Handle("/api/auth/signup", authRateLimit(http.HandlerFunc(handleSignup)))
+	mux.Handle("/api/auth/login", authRateLimit(http.HandlerFunc(handleLogin)))
 	mux.HandleFunc("/api/auth/logout", handleLogout)
 	mux.HandleFunc("/api/auth/me", handleMe)
-	mux.HandleFunc("/api/auth/send-password", handleSendPassword)
+	mux.Handle("/api/auth/send-password", authRateLimit(http.HandlerFunc(handleSendPassword)))
 
 	// Cart
 	mux.HandleFunc("/api/cart", handleCart)
@@ -2208,7 +2246,7 @@ func main() {
 	slog.Info("Go backend starting", "addr", ":3003", "go_version", runtime.Version())
 	server := &http.Server{
 		Addr:              ":3003",
-		Handler:           recoveryMiddleware(securityHeaders(csrfMiddleware(rateLimit(requestLogger(mux))))),
+		Handler:           recoveryMiddleware(securityHeaders(csrfMiddleware(requestLogger(rateLimit(mux))))),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

@@ -124,6 +124,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (existing) return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
       return [...prev, { ...product, quantity: 1 }];
     });
+    // Success feedback: the only toast this function used to dispatch was the
+    // failure one, so adding to cart gave no visible confirmation at all.
+    window.dispatchEvent(new CustomEvent("notify", { detail: "Added to Cart!" }));
     try {
       const result = await serverAddToCart(product);
       if (result.success && Array.isArray(result.data)) {

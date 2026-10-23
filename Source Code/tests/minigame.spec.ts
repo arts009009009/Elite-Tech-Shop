@@ -11,7 +11,7 @@ test.describe("Minigame", () => {
     // The game is a canvas; if the WASM/JS fails to load the page must show
     // the graceful error UI instead of an unhandled Next.js crash.
     const canvas = page.locator("canvas").first();
-    const errorUi = page.locator("text=/Error loading|Minecraft/i").first();
+    const errorUi = page.locator("text=/Error loading/i").first();
     await expect(canvas.or(errorUi)).toBeVisible({ timeout: 20000 });
   });
 

@@ -227,7 +227,28 @@ export default function Checkout() {
           </div>
         )}
 
-        {cartCtx.cart.length === 0 ? (
+        {/* Two-step checkout: after the order is created the cart is empty,
+            so the Quick Pay / Pay-later step must live OUTSIDE the
+            cart-empty ternary — otherwise it unmounts the instant the order
+            succeeds and the user can never pay. */}
+        {userCtx.user && orderId ? (
+          <div className="co-card">
+            <h3 className="co-section-title">Quick Pay — Order {orderId}</h3>
+            <OneTapPayment
+              amount={createdTotal}
+              currency={createdCurrency}
+              orderId={orderId}
+              onSuccess={handlePaymentSuccess}
+              onError={handlePaymentError}
+            />
+            <button
+              onClick={handlePayLater}
+              style={{ width: "100%", marginTop: 12, padding: 12, background: "transparent", border: "1px solid var(--border, rgba(255,255,255,0.2))", color: "var(--text, #e0e0e0)", borderRadius: 10, fontSize: 14, cursor: "pointer" }}
+            >
+              Pay later
+            </button>
+          </div>
+        ) : cartCtx.cart.length === 0 ? (
           <div className="co-card co-empty">
             <p className="co-empty-title">Your cart is empty</p>
             <p>Add some products to get started.</p>
@@ -300,25 +321,6 @@ export default function Checkout() {
               </div>
               <p className="co-points-note">You&apos;ll earn ~{Math.round(total)} rewards points</p>
             </div>
-
-            {userCtx.user && orderId && (
-              <div className="co-card">
-                <h3 className="co-section-title">Quick Pay — Order {orderId}</h3>
-                <OneTapPayment
-                  amount={createdTotal}
-                  currency={createdCurrency}
-                  orderId={orderId}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                />
-                <button
-                  onClick={handlePayLater}
-                  style={{ width: "100%", marginTop: 12, padding: 12, background: "transparent", border: "1px solid var(--border, rgba(255,255,255,0.2))", color: "var(--text, #e0e0e0)", borderRadius: 10, fontSize: 14, cursor: "pointer" }}
-                >
-                  Pay later
-                </button>
-              </div>
-            )}
 
             {!orderId && (
               <button

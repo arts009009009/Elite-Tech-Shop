@@ -36,19 +36,11 @@ const gridItemStyle: React.CSSProperties = {
   display: "flex",
 };
 
-const flashSales = [
-  {
-    id: "flash-1",
-    title: "MacBook Air M4 — Limited Time",
-    discount: 15,
-    endsAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "flash-2",
-    title: "ROG Zephyrus G16 Deal",
-    discount: 10,
-    endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-  },
+// Flash-sale end times are computed inside the component (useMemo) so the
+// module-scope Date.now() doesn't diverge between server and client renders.
+const FLASH_SALE_BASE = [
+  { id: "flash-1", title: "MacBook Air M4 — Limited Time", discount: 15, hoursAhead: 4 },
+  { id: "flash-2", title: "ROG Zephyrus G16 Deal", discount: 10, hoursAhead: 2 },
 ];
 
 export default function Home() {
@@ -62,6 +54,16 @@ export default function Home() {
   const [category, setCategory] = useState("");
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const parentRef = useRef<HTMLDivElement | null>(null);
+
+  const flashSales = useMemo(
+    () => FLASH_SALE_BASE.map(({ id, title, discount, hoursAhead }) => ({
+      id,
+      title,
+      discount,
+      endsAt: new Date(Date.now() + hoursAhead * 60 * 60 * 1000).toISOString(),
+    })),
+    []
+  );
 
   useEffect(() => {
     // sessionStorage is unavailable during Next.js prerender, so the cache
