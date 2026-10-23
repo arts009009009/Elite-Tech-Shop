@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import ProductCard from "@/components/ProductCard";
 import { useUser } from "@/context/UserContext";
+import { useCart } from "@/context/CartContext";
 import productTranslations from "@/data/products.json";
 import uiStrings from "@/data/navbar-translate.json";
 import { useLanguage } from "@/context/LanguageContext";
@@ -31,30 +32,41 @@ type Product = { id: number; title: string; price: number; currency: string; cat
 
 export default function Wishlist() {
   const userCtx = useUser();
+  const cartCtx = useCart();
   const { language } = useLanguage();
   const username = userCtx.user?.username ?? null;
   const { addPoints } = useRewards();
   const [products, setProducts] = useState<Product[]>([]);
-  const [wishlist, setWishlist] = useState<number[]>(() => {
-    if (username) {
-      try { const saved = localStorage.getItem(`wishlist_${username}`); return saved ? JSON.parse(saved) : []; }
-      catch { return []; }
-    }
-    return [];
-  });
+  // Default-init (SSR-safe); the effect below hydrates from localStorage.
+  const [wishlist, setWishlist] = useState<number[]>([]);
   const [sortBy, setSortBy] = useState<string>("default");
-  const productsInitialized = useRef(false);
 
   useEffect(() => {
-    if (!username) return;
+    if (!username) { setWishlist([]); return; }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initializing from localStorage
-    try { const saved = localStorage.getItem(`wishlist_${username}`); setWishlist(saved ? JSON.parse(saved) : []); }
+    try { const saved = localStorage.getItem(`wishlist_${username}`); const parsed = saved ? JSON.parse(saved) : []; setWishlist(Array.isArray(parsed) ? parsed : []); }
     catch { setWishlist([]); }
   }, [username]);
 
+  // ProductCard writes the wishlist and dispatches "wishlist-updated";
+  // listen so this page never shows a stale list.
   useEffect(() => {
-    if (productsInitialized.current) return;
-    productsInitialized.current = true;
+    if (!username) return;
+    const handleUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ username?: string }>).detail;
+      if (detail?.username && detail.username !== username) return;
+      try {
+        const saved = localStorage.getItem(`wishlist_${username}`);
+        const parsed = saved ? JSON.parse(saved) : [];
+        setWishlist(Array.isArray(parsed) ? parsed : []);
+      } catch { setWishlist([]); }
+    };
+    window.addEventListener("wishlist-updated", handleUpdate);
+    return () => window.removeEventListener("wishlist-updated", handleUpdate);
+  }, [username]);
+
+  // Recompute products whenever the language changes (no one-shot guard).
+  useEffect(() => {
     const lang = language as Lang;
     try {
       const translatedProducts = productTranslations.products.map((p: RawProduct) => ({
@@ -66,7 +78,7 @@ export default function Wishlist() {
         description: p[lang]?.description ?? p.en.description ?? "",
         image: p.image ?? "",
       }));
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- lazy init via ref prevents double-render
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- derived from the language prop
       setProducts(translatedProducts);
     } catch { setProducts([]); }
   }, [language]);
@@ -91,7 +103,9 @@ export default function Wishlist() {
   const addAllToCart = () => {
     if (!username) return;
     try {
-      filtered.forEach((p) => { window.dispatchEvent(new CustomEvent("add-to-cart", { detail: p })); });
+      // Add directly through the cart context (the old window event had no
+      // listener anywhere, so this button silently did nothing).
+      filtered.forEach((p) => cartCtx.addToCart(p));
       addPoints(filtered.length * 5);
       window.dispatchEvent(new CustomEvent("notify", { detail: `Added ${filtered.length} items to cart! +${filtered.length * 5} bonus points` }));
     } catch { window.dispatchEvent(new CustomEvent("notify", { detail: "Failed to add items to cart." })); }

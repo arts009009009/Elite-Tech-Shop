@@ -6,6 +6,9 @@ import Navbar from "@/components/Navbar";
 
 const Recovery = dynamic(() => import("@/components/recovery"), { ssr: false });
 
+// Must match the admin account seeded by the Java backend.
+const ADMIN_EMAIL = "admin@elite.shop";
+
 function AdminLoginContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -23,7 +26,7 @@ function AdminLoginContent() {
       const res = await fetch("/api/auth/send-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "admin" }),
+        body: JSON.stringify({ email: ADMIN_EMAIL }),
       });
       const data = await res.json();
       if (data.success) {
@@ -48,11 +51,15 @@ function AdminLoginContent() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "admin", password }),
+        body: JSON.stringify({ email: ADMIN_EMAIL, password }),
       });
       const data = await res.json();
       if (data.success) {
-        router.push(data.redirect || "/admin/dashboard");
+        // Only honor same-site absolute paths to avoid open redirects.
+        const target = typeof data.redirect === "string" && data.redirect.startsWith("/") && !data.redirect.startsWith("//")
+          ? data.redirect
+          : "/admin/dashboard";
+        router.push(target);
       } else {
         setErrorMsg(data.error === "invalid_credentials" ? "Invalid password." : data.error);
         setShowRecovery(true);
