@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useState, useCallback, useEffect, useContext, useMemo } from "react";
+import { createContext, useState, useCallback, useEffect, useContext, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
 export type DesignSystem = "modern" | "classic";
@@ -48,70 +48,76 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
-  const [customTheme, setCustomThemeState] = useState<CustomTheme>(() => {
+  // localStorage/matchMedia are unavailable during SSR/prerender, so all
+  // persisted state defaults here and is resolved after mount (SSR-safe
+  // hydration pattern, see ThemeModeContext).
+  const [customTheme, setCustomThemeState] = useState<CustomTheme>(DEFAULT_THEME);
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  const [currentPalette, setCurrentPalette] = useState("Custom");
+  const [userThemes, setUserThemes] = useState<UserSavedTheme[]>([]);
+  const [animateTheme, setAnimateTheme] = useState(true);
+  const [highContrast, setHighContrast] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [designSystem, setDesignSystemState] = useState<DesignSystem>("modern");
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted settings after mount
     try {
       const stored = JSON.parse(localStorage.getItem("custom_theme") || "null");
       if (stored && stored._version === THEME_VERSION) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _version, ...theme } = stored;
-        return theme;
-      }
-      return DEFAULT_THEME;
-    }
-    catch { return DEFAULT_THEME; }
-  });
-  const [isCustomizing, setIsCustomizing] = useState(false);
-  const [currentPalette, setCurrentPalette] = useState("Custom");
-  const [userThemes, setUserThemes] = useState<UserSavedTheme[]>(() => {
-    try { return JSON.parse(localStorage.getItem("user_themes") || "[]"); }
-    catch { return []; }
-  });
-  const [animateTheme, setAnimateTheme] = useState(() => { try { const v = localStorage.getItem("theme_animation"); return v === null ? true : v === "true"; } catch { return true; } });
-  const [highContrast, setHighContrast] = useState(() => {
-    try {
-      if (typeof window !== "undefined") {
-        return localStorage.getItem("elite_high_contrast") === "true" || window.matchMedia("(prefers-contrast: more)").matches;
+        setCustomThemeState(theme);
+        for (const [name, palette] of Object.entries(PRESET_PALETTES)) {
+          if (themesEqual(theme, palette)) { setCurrentPalette(name); break; }
+        }
       }
     } catch {}
-    return false;
-  });
-  const [reducedMotion, setReducedMotion] = useState(() => {
     try {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("elite_reduced_motion") === "true";
-        if (stored) document.body.classList.add("reduced-motion");
-        return stored;
+      const stored: unknown = JSON.parse(localStorage.getItem("user_themes") || "[]");
+      if (Array.isArray(stored)) setUserThemes(stored as UserSavedTheme[]);
+    } catch {}
+    try {
+      const v = localStorage.getItem("theme_animation");
+      if (v !== null) setAnimateTheme(v === "true");
+    } catch {}
+    try {
+      if (localStorage.getItem("elite_high_contrast") === "true" || window.matchMedia("(prefers-contrast: more)").matches) {
+        setHighContrast(true);
       }
     } catch {}
-    return false;
-  });
-  const [designSystem, setDesignSystemState] = useState<DesignSystem>(() => {
     try {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem("elite_design_system");
-        if (saved === "classic" || saved === "modern") return saved;
-      }
+      if (localStorage.getItem("elite_reduced_motion") === "true") setReducedMotion(true);
     } catch {}
-    return "modern";
-  });
+    try {
+      const saved = localStorage.getItem("elite_design_system");
+      if (saved === "classic" || saved === "modern") setDesignSystemState(saved);
+    } catch {}
+  }, []);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     document.body.classList.toggle("high-contrast", highContrast);
     try { localStorage.setItem("elite_high_contrast", String(highContrast)); } catch {}
   }, [highContrast]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     try { localStorage.setItem("elite_reduced_motion", String(reducedMotion)); } catch {}
     document.body.classList.toggle("reduced-motion", reducedMotion);
   }, [reducedMotion]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     try { localStorage.setItem("elite_design_system", designSystem); } catch {}
     document.body.classList.toggle("design-system-classic", designSystem === "classic");
   }, [designSystem]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     try { localStorage.setItem("custom_theme", JSON.stringify({ ...customTheme, _version: THEME_VERSION })); } catch {}
+    try { localStorage.setItem("theme_animation", String(animateTheme)); } catch {}
     const root = document.documentElement;
     const isDefault = themesEqual(customTheme, DEFAULT_THEME);
     const set = (key: string, val: string) => root.style.setProperty(key, val);
@@ -141,31 +147,33 @@ export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
   }, [customTheme, animateTheme]);
 
   const setCustomTheme = useCallback((partial: Partial<CustomTheme>) => {
-    setCustomThemeState((prev) => {
-      const updated = { ...prev, ...partial };
-      for (const [name, palette] of Object.entries(PRESET_PALETTES)) {
-        if (themesEqual(updated, palette)) { setCurrentPalette(name); return updated; }
-      }
-      setCurrentPalette("Custom"); return updated;
-    });
-  }, []);
+    // Compute the merged theme and matching palette in the handler — updaters
+    // must stay pure (setState inside an updater double-runs in StrictMode).
+    const updated = { ...customTheme, ...partial };
+    let matched = "Custom";
+    for (const [name, palette] of Object.entries(PRESET_PALETTES)) {
+      if (themesEqual(updated, palette)) { matched = name; break; }
+    }
+    setCustomThemeState(updated);
+    setCurrentPalette(matched);
+  }, [customTheme]);
 
   const toggleCustomizer = useCallback(() => setIsCustomizing((prev) => !prev), []);
   const resetTheme = useCallback(() => { setCustomThemeState(DEFAULT_THEME); setCurrentPalette("Custom"); }, []);
   const applyPalette = useCallback((name: string) => { const palette = PRESET_PALETTES[name]; if (palette) { setCustomThemeState(palette); setCurrentPalette(name); } }, []);
 
   const saveUserTheme = useCallback((name: string) => {
-    setUserThemes((prev) => {
-      const filtered = prev.filter((t) => t.name !== name);
-      const updated = [...filtered, { name, theme: { ...customTheme }, createdAt: Date.now() }];
-      try { localStorage.setItem("user_themes", JSON.stringify(updated)); } catch {}
-      return updated;
-    });
-  }, [customTheme]);
+    const filtered = userThemes.filter((t) => t.name !== name);
+    const updated = [...filtered, { name, theme: { ...customTheme }, createdAt: Date.now() }];
+    setUserThemes(updated);
+    try { localStorage.setItem("user_themes", JSON.stringify(updated)); } catch {}
+  }, [customTheme, userThemes]);
 
   const deleteUserTheme = useCallback((name: string) => {
-    setUserThemes((prev) => { const updated = prev.filter((t) => t.name !== name); try { localStorage.setItem("user_themes", JSON.stringify(updated)); } catch {} return updated; });
-  }, []);
+    const updated = userThemes.filter((t) => t.name !== name);
+    setUserThemes(updated);
+    try { localStorage.setItem("user_themes", JSON.stringify(updated)); } catch {}
+  }, [userThemes]);
 
   const importTheme = useCallback((themeJson: string): boolean => {
     try {
@@ -179,10 +187,15 @@ export function ThemeCustomizerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const exportCurrentTheme = useCallback(() => JSON.stringify(customTheme, null, 2), [customTheme]);
-  const toggleThemeAnimation = useCallback(() => { setAnimateTheme((prev) => { const next = !prev; try { localStorage.setItem("theme_animation", String(next)); } catch {} return next; }); }, []);
+  const toggleThemeAnimation = useCallback(() => { setAnimateTheme((prev) => !prev); }, []);
   const toggleHighContrast = useCallback(() => setHighContrast((prev) => !prev), []);
   const toggleReducedMotion = useCallback(() => setReducedMotion((prev) => !prev), []);
   const setDesignSystem = useCallback((ds: DesignSystem) => setDesignSystemState(ds), []);
+
+  // Declared after every persist effect: on the mount pass the persist effects
+  // see this flag still false and skip writing defaults over stored settings;
+  // it flips before any post-hydration state change can re-run them.
+  useEffect(() => { hydratedRef.current = true; }, []);
 
   return (
     <ThemeCustomizerContext.Provider value={useMemo(() => ({ customTheme, isCustomizing, setCustomTheme, toggleCustomizer, resetTheme, currentPalette, presetPalettes: PRESET_PALETTES, applyPalette, userThemes, saveUserTheme, deleteUserTheme, importTheme, exportCurrentTheme, animateTheme, toggleThemeAnimation, highContrast, toggleHighContrast, reducedMotion, toggleReducedMotion, designSystem, setDesignSystem }), [customTheme, isCustomizing, setCustomTheme, toggleCustomizer, resetTheme, currentPalette, applyPalette, userThemes, saveUserTheme, deleteUserTheme, importTheme, exportCurrentTheme, animateTheme, toggleThemeAnimation, highContrast, toggleHighContrast, reducedMotion, toggleReducedMotion, designSystem, setDesignSystem])}>

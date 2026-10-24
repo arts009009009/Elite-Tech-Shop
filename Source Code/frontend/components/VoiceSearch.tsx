@@ -47,6 +47,7 @@ const VoiceSearch = memo(function VoiceSearch({ onResult }: VoiceSearchProps) {
 
     return () => {
       recognition.abort();
+      recognitionRef.current = null;
     };
   }, [onResult]);
 

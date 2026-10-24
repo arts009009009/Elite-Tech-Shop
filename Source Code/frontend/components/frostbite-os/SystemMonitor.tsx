@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-function getApproxStats() {
+function getApproxStats(frameDelta: number) {
   let ramPct = 30;
   let ramUsed = 0;
   let ramTotal = 0;
@@ -16,11 +16,10 @@ function getApproxStats() {
     }
   } catch {}
 
-  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
-  const start = performance.now();
-  while (performance.now() - start < 3) {}
-  const elapsed = performance.now() - start;
-  const cpuPct = Math.min(100, Math.round((elapsed / 3) * cores * 12 + Math.random() * 8));
+  // Derive a plausible CPU load from observed frame timing instead of a busy
+  // wait: ~16.7ms frames (60fps) read as idle, dropped frames read as load.
+  const loadFromFrames = (frameDelta - 16.7) / 16.7;
+  const cpuPct = Math.min(100, Math.max(2, Math.round(8 + loadFromFrames * 60 + Math.random() * 8)));
 
   const gpuPct = Math.min(100, Math.round(cpuPct * 0.6 + Math.random() * 15 + 5));
 
@@ -105,35 +104,60 @@ export default function SystemMonitor({ visible = true, onClose, asApp = false }
   const [uptime, setUptime] = useState(0);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [config, setConfig] = useState<MonitorConfig>(() => {
-    try {
-      const saved = localStorage.getItem("fs-monitor-config");
-      if (saved) return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
-    } catch {}
-    return DEFAULT_CONFIG;
-  });
+  const [config, setConfig] = useState<MonitorConfig>(DEFAULT_CONFIG);
   const dragRef = useRef<{ ox: number; oy: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const startTime = useRef<number>(0);
+  // localStorage is unavailable during SSR/prerender — persist only after the
+  // saved config has been hydrated (SSR-safe hydration pattern).
+  const hydratedRef = useRef(false);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load saved config after mount
+    try {
+      const saved = localStorage.getItem("fs-monitor-config");
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          setConfig({ ...DEFAULT_CONFIG, ...(parsed as Partial<MonitorConfig>) });
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
     try {
       localStorage.setItem("fs-monitor-config", JSON.stringify(config));
     } catch {}
   }, [config]);
 
+  // Declared after the persist effect: on the mount pass it sees the flag
+  // still false, so defaults never overwrite the saved config.
+  useEffect(() => { hydratedRef.current = true; }, []);
+
   useEffect(() => {
     startTime.current = Date.now();
-    const id = setInterval(() => {
-      setStats(getApproxStats());
+    // Non-blocking frame-timing sampler feeding getApproxStats (replaces the
+    // old busy-wait that froze the main thread every 2s).
+    let raf = 0;
+    let last = performance.now();
+    let avgDelta = 16.7;
+    const sampleFrames = (now: number) => {
+      avgDelta = avgDelta * 0.9 + (now - last) * 0.1;
+      last = now;
+      raf = requestAnimationFrame(sampleFrames);
+    };
+    raf = requestAnimationFrame(sampleFrames);
+    const tick = () => {
+      setStats(getApproxStats(avgDelta));
       setUptime(Date.now() - startTime.current);
-    }, 2000);
-    // getApproxStats() is intentionally invoked here rather than during render:
-    // it busy-waits ~3ms and reads performance.memory, so it must not run in
-    // the render path. Seeding it once on mount avoids a blank first 2s.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStats(getApproxStats());
-    return () => clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed first reading on mount
+    tick();
+    const id = setInterval(tick, 2000);
+    return () => { clearInterval(id); cancelAnimationFrame(raf); };
   }, []);
 
   const updateConfig = useCallback((patch: Partial<MonitorConfig>) => {
@@ -157,12 +181,18 @@ export default function SystemMonitor({ visible = true, onClose, asApp = false }
         dragRef.current = null;
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
+        dragCleanupRef.current = null;
       };
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
+      dragCleanupRef.current = onUp;
     },
     [asApp]
   );
+
+  // Unmounting mid-drag (e.g. route change) must not leak the window-level
+  // mousemove/mouseup listeners.
+  useEffect(() => () => { dragCleanupRef.current?.(); }, []);
 
   const combined = Math.round(stats.cpu * 0.5 + stats.ram * 0.3 + stats.gpu * 0.2);
   const isFireAuto = combined > 50;

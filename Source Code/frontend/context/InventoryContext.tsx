@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useState, useCallback, useEffect, useContext, useMemo } from "react";
+import { createContext, useState, useCallback, useEffect, useContext, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
 type StockEntry = { productId: number; quantity: number; lowStockThreshold: number; lastUpdated: string };
@@ -25,8 +25,26 @@ function loadStock(): Record<number, StockEntry> {
 function saveStock(stock: Record<number, StockEntry>) { try { localStorage.setItem("inventory_stock", JSON.stringify(stock)); } catch {} }
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
-  const [stock, setStock] = useState<Record<number, StockEntry>>(loadStock);
-  useEffect(() => { saveStock(stock); }, [stock]);
+  const [stock, setStock] = useState<Record<number, StockEntry>>({});
+  // Mirror of the committed state so deductStock can synchronously compute and
+  // return a real result without reading localStorage during render.
+  const stockRef = useRef(stock);
+  // localStorage is unavailable during SSR/prerender, so persistence is
+  // deferred until after hydration (SSR-safe pattern).
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load persisted stock after mount
+    const loaded = loadStock();
+    if (Object.keys(loaded).length > 0) setStock(loaded);
+  }, []);
+
+  useEffect(() => { stockRef.current = stock; }, [stock]);
+  useEffect(() => { if (hydratedRef.current) saveStock(stock); }, [stock]);
+  // Declared after the save effect: on the mount pass the save effect sees the
+  // flag still false, so defaults never overwrite the stored inventory; it
+  // flips before any post-hydration change can re-run the save effect.
+  useEffect(() => { hydratedRef.current = true; }, []);
 
   const initializeStock = useCallback((productIds: number[]) => {
     setStock((prev) => {
@@ -48,22 +66,26 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   }, [stock]);
 
   const deductStock = useCallback((productId: number, quantity: number): boolean => {
-    let success = false;
+    const entry = stockRef.current[productId];
+    if (!entry || entry.quantity < quantity) return false;
+    const newQty = entry.quantity - quantity;
+    const now = new Date().toISOString();
+    // Optimistically mirror the result so repeated calls in the same tick see
+    // consistent stock; the state itself is updated with a pure updater.
+    stockRef.current = { ...stockRef.current, [productId]: { ...entry, quantity: newQty, lastUpdated: now } };
     setStock((prev) => {
-      const entry = prev[productId];
-      if (!entry || entry.quantity < quantity) return prev;
-      success = true;
-      const newQty = entry.quantity - quantity;
-      const updated = { ...prev, [productId]: { ...entry, quantity: newQty, lastUpdated: new Date().toISOString() } };
-      if (newQty <= updated[productId].lowStockThreshold && newQty > 0) {
-        window.dispatchEvent(new CustomEvent("notify", { detail: `Low stock alert: Product #${productId} has only ${newQty} left!` }));
-      }
-      if (newQty === 0) {
-        window.dispatchEvent(new CustomEvent("notify", { detail: `Product #${productId} is now out of stock!` }));
-      }
-      return updated;
+      const cur = prev[productId];
+      if (!cur || cur.quantity < quantity) return prev;
+      return { ...prev, [productId]: { ...cur, quantity: cur.quantity - quantity, lastUpdated: now } };
     });
-    return success;
+    // Notify outside the updater so StrictMode can't double-fire these toasts.
+    if (newQty <= entry.lowStockThreshold && newQty > 0) {
+      window.dispatchEvent(new CustomEvent("notify", { detail: `Low stock alert: Product #${productId} has only ${newQty} left!` }));
+    }
+    if (newQty === 0) {
+      window.dispatchEvent(new CustomEvent("notify", { detail: `Product #${productId} is now out of stock!` }));
+    }
+    return true;
   }, []);
 
   const restock = useCallback((productId: number, quantity: number) => {
@@ -81,7 +103,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const lowStockItems = Object.values(stock).filter((entry) => entry.quantity > 0 && entry.quantity <= entry.lowStockThreshold);
+  const lowStockItems = useMemo(
+    () => Object.values(stock).filter((entry) => entry.quantity > 0 && entry.quantity <= entry.lowStockThreshold),
+    [stock]
+  );
 
   return (
     <InventoryContext.Provider value={useMemo(() => ({ stock, getStock, isInStock, deductStock, restock, setThreshold, lowStockItems, initializeStock }), [stock, getStock, isInStock, deductStock, restock, setThreshold, lowStockItems, initializeStock])}>

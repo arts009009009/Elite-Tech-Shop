@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
+#include <iostream>
 #include <string>
 
 namespace {
@@ -17,8 +18,41 @@ namespace {
 constexpr int kPort = 8084;
 constexpr const char* kHost = "127.0.0.1";
 constexpr std::size_t kMaxExpressionLength = 4096;
+constexpr std::size_t kMaxDifferentiateExpressionLength = 2000;
 constexpr int kDefaultPlotSteps = 500;
 constexpr int kMaxPlotSteps = 20000;
+
+// Explicit origins allowed to call this service cross-origin (mirrors the
+// allowed origins used by the other backends in this repository).
+constexpr const char* kAllowedOrigins[] = {
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+};
+
+// Crow's CORS rule stores a single origin, so the wildcard is disabled on the
+// CORSHandler rule and this middleware echoes exactly one of the allowed
+// origins (or drops the header entirely for anything else).
+struct AllowedOriginCors {
+    struct context {};
+
+    void before_handle(crow::request&, crow::response&, context&) {}
+
+    void after_handle(crow::request& request, crow::response& response, context&) {
+        const std::string origin = request.get_header_value("Origin");
+        bool allowed = false;
+        for (const char* candidate : kAllowedOrigins) {
+            if (origin == candidate) {
+                allowed = true;
+                break;
+            }
+        }
+        if (allowed) {
+            response.set_header("Access-Control-Allow-Origin", origin);
+        } else {
+            response.headers.erase("Access-Control-Allow-Origin");
+        }
+    }
+};
 
 crow::response json_error(int status, const std::string& message) {
     crow::json::wvalue body;
@@ -81,6 +115,9 @@ double optional_number(const crow::json::rvalue& body, const std::string& key,
 }
 
 std::string require_variable(const crow::json::rvalue& body) {
+    if (!body.has("variable")) {
+        throw calc::CalcError("missing required field \"variable\"");
+    }
     const crow::json::rvalue& value = body["variable"];
     if (value.t() != crow::json::type::String) {
         throw calc::CalcError("field \"variable\" must be a string");
@@ -101,11 +138,11 @@ std::int64_t microseconds_between(std::chrono::steady_clock::time_point start,
 }  // namespace
 
 int main() {
-    crow::App<crow::CORSHandler> app;
+    crow::App<AllowedOriginCors, crow::CORSHandler> app;
 
     auto& cors = app.get_middleware<crow::CORSHandler>();
     cors.global()
-        .origin("*")
+        .origin("")  // the explicit allowed origins are echoed by AllowedOriginCors
         .methods(crow::HTTPMethod::GET, crow::HTTPMethod::POST, crow::HTTPMethod::OPTIONS)
         .headers("Origin", "Content-Type", "Accept", "Authorization")
         .max_age(3600);
@@ -135,7 +172,9 @@ int main() {
             } catch (const calc::CalcError& error) {
                 return json_error(400, error.what());
             } catch (const std::exception& error) {
-                return json_error(500, std::string("internal error: ") + error.what());
+                std::cerr << "internal error in " << request.url << ": " << error.what()
+                          << std::endl;
+                return json_error(500, "internal error");
             } catch (...) {
                 return json_error(500, "internal error: unknown exception");
             }
@@ -146,6 +185,9 @@ int main() {
             try {
                 const crow::json::rvalue body = parse_body(request);
                 const std::string expression = require_expression(body);
+                if (expression.size() > kMaxDifferentiateExpressionLength) {
+                    throw calc::CalcError("expression too complex");
+                }
                 const std::string variable =
                     body.has("variable") ? require_variable(body) : std::string("x");
 
@@ -164,7 +206,9 @@ int main() {
             } catch (const calc::CalcError& error) {
                 return json_error(400, error.what());
             } catch (const std::exception& error) {
-                return json_error(500, std::string("internal error: ") + error.what());
+                std::cerr << "internal error in " << request.url << ": " << error.what()
+                          << std::endl;
+                return json_error(500, "internal error");
             } catch (...) {
                 return json_error(500, "internal error: unknown exception");
             }
@@ -222,7 +266,9 @@ int main() {
             } catch (const calc::CalcError& error) {
                 return json_error(400, error.what());
             } catch (const std::exception& error) {
-                return json_error(500, std::string("internal error: ") + error.what());
+                std::cerr << "internal error in " << request.url << ": " << error.what()
+                          << std::endl;
+                return json_error(500, "internal error");
             } catch (...) {
                 return json_error(500, "internal error: unknown exception");
             }

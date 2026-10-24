@@ -21,12 +21,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>({ displayName: "", avatar: "", bio: "" });
 
   useEffect(() => {
-    goFetch("/api/auth/me").then(r => {
-      if (r.ok) return r.json();
-      throw new Error("not logged in");
-    }).then((data: { username: string; email: string }) => {
-      setUser({ username: data.username, email: data.email });
-    }).catch(() => {});
+    // Hydrate the session after mount. A transient backend blip must not
+    // permanently log the user out, so retry once on network/5xx failures —
+    // but never on 401/404 (those simply mean "not logged in").
+    let cancelled = false;
+    const hydrate = (attempt: number) => {
+      goFetch("/api/auth/me")
+        .then((r) => {
+          if (r.ok) return r.json();
+          if (r.status >= 500 && attempt === 0) throw new Error("retry");
+          throw new Error("not logged in");
+        })
+        .then((data: { username: string; email: string }) => {
+          if (!cancelled && data?.username) setUser({ username: data.username, email: data.email });
+        })
+        .catch((err: unknown) => {
+          if (!cancelled && err instanceof Error && err.message === "retry") {
+            setTimeout(() => hydrate(attempt + 1), 1500);
+          }
+        });
+    };
+    hydrate(0);
+    return () => { cancelled = true; };
   }, []);
 
   const login = useCallback(async (u: User) => {

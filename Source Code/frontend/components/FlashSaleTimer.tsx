@@ -37,14 +37,18 @@ function FlashSaleBanner({ sales }: { sales: FlashSale[] }) {
 function FlashSaleCard({ sale }: { sale: FlashSale }) {
   const { language } = useLanguage();
   const offLabel = useMemo(() => uiStrings["OFF"]?.[language] ?? "OFF", [language]);
-  const [time, setTime] = useState<{ hours: number; minutes: number; seconds: number; expired: boolean }>(() => getTimeLeft(sale.endsAt));
+  // `getTimeLeft` depends on Date.now(), so computing it in the useState
+  // initializer makes server and client renders differ (hydration mismatch).
+  // Render nothing until mounted, then start the countdown.
+  const [time, setTime] = useState<{ hours: number; minutes: number; seconds: number; expired: boolean } | null>(null);
 
   useEffect(() => {
+    setTime(getTimeLeft(sale.endsAt));
     const interval = setInterval(() => setTime(getTimeLeft(sale.endsAt)), 1000);
     return () => clearInterval(interval);
   }, [sale.endsAt]);
 
-  if (time.expired) return null;
+  if (time === null || time.expired) return null;
 
   return (
     <div style={{

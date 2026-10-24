@@ -1,12 +1,15 @@
 "use client";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 
 type Props = { wishlistIds: number[]; username: string };
 
 export default function WishlistShare({ wishlistIds, username }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/wishlist/shared/${username}` : "";
+
+  useEffect(() => () => { if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current); }, []);
 
   const shareData = useMemo(() => ({
     title: `${username}'s Wishlist - Elite Tech Shop`,
@@ -15,7 +18,13 @@ export default function WishlistShare({ wishlistIds, username }: Props) {
   }), [username, wishlistIds.length, shareUrl]);
 
   const handleCopyLink = useCallback(async () => {
-    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); window.dispatchEvent(new CustomEvent("notify", { detail: "Link copied to clipboard!" })); }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => { setCopied(false); copiedTimerRef.current = null; }, 2000);
+      window.dispatchEvent(new CustomEvent("notify", { detail: "Link copied to clipboard!" }));
+    }
     catch { window.dispatchEvent(new CustomEvent("notify", { detail: "Failed to copy link." })); }
   }, [shareUrl]);
 

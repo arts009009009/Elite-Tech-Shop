@@ -36,23 +36,33 @@ export default function ReviewForm({ productId, author, onSubmitted }: Props) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!comment.trim()) return;
-    addReview(productId, author, rating, comment.trim());
+    if (!comment.trim() || pending) return;
+    setPending(true);
+    setError(null);
+    const ok = await addReview(productId, author, rating, comment.trim());
+    setPending(false);
+    if (!ok) {
+      setError("Failed to submit review. Please try again.");
+      window.dispatchEvent(new CustomEvent("notify", { detail: "Failed to submit review." }));
+      return;
+    }
     setSubmitted(true);
     setComment("");
     onSubmitted?.();
     window.dispatchEvent(new CustomEvent("notify", { detail: "Review submitted! Thank you." }));
-  }, [productId, author, rating, comment, addReview, onSubmitted]);
+  }, [productId, author, rating, comment, pending, addReview, onSubmitted]);
 
   if (submitted) {
     return (
       <div>
         <p style={{ color: "#68d391", textAlign: "center", margin: 0 }}>✓ Review submitted successfully!</p>
         <button
-          onClick={() => setSubmitted(false)}
+          onClick={() => { setError(null); setSubmitted(false); }}
           style={{
             marginTop: 8,
             padding: "2px 10px",
@@ -106,9 +116,14 @@ export default function ReviewForm({ productId, author, onSubmitted }: Props) {
             boxSizing: "border-box",
           }}
         />
+        {error && (
+          <p style={{ color: "#fc8181", fontSize: 13, margin: 0 }} role="alert">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
-          disabled={!comment.trim()}
+          disabled={!comment.trim() || pending}
           style={{
             padding: "8px 16px",
             fontSize: 14,
@@ -116,11 +131,11 @@ export default function ReviewForm({ productId, author, onSubmitted }: Props) {
             background: "transparent",
             color: "var(--accent, #00d4ff)",
             borderRadius: 8,
-            cursor: comment.trim() ? "pointer" : "not-allowed",
-            opacity: comment.trim() ? 1 : 0.5,
+            cursor: comment.trim() && !pending ? "pointer" : "not-allowed",
+            opacity: comment.trim() && !pending ? 1 : 0.5,
           }}
         >
-          Submit Review
+          {pending ? "Submitting..." : "Submit Review"}
         </button>
       </div>
     </form>

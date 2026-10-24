@@ -108,7 +108,7 @@ const Ctx = createContext<ChaosCtx>({
 
 export const useChaos = () => useContext(Ctx);
 
-function getApproxStats() {
+function getApproxStats(frameDelta: number) {
   let ramPct = 30;
   try {
     const perf = performance as unknown as Record<string, unknown>;
@@ -118,11 +118,10 @@ function getApproxStats() {
     }
   } catch {}
 
-  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
-  const start = performance.now();
-  while (performance.now() - start < 3) {}
-  const elapsed = performance.now() - start;
-  const cpuPct = Math.min(100, Math.round((elapsed / 3) * cores * 12 + Math.random() * 8));
+  // Derive a plausible CPU load from observed frame timing instead of a busy
+  // wait: ~16.7ms frames (60fps) read as idle, dropped frames read as load.
+  const loadFromFrames = (frameDelta - 16.7) / 16.7;
+  const cpuPct = Math.min(100, Math.max(2, Math.round(8 + loadFromFrames * 60 + Math.random() * 8)));
 
   const gpuPct = Math.min(100, Math.round(cpuPct * 0.6 + Math.random() * 15 + 5));
 
@@ -139,15 +138,15 @@ export function ChaosProvider({ children }: { children: React.ReactNode }) {
   const desktopRef = useRef<HTMLElement | null>(null);
 
   const toggleChaos = useCallback(() => {
-    setChaosEnabled((p) => {
-      if (!p) {
-        setActivePresetState((cur) => (cur.id === "off" ? CHAOS_PRESETS[1] : cur));
-      } else {
-        setActivePresetState(CHAOS_PRESETS[0]);
-      }
-      return !p;
-    });
-  }, []);
+    // Compute the next value in the handler — updaters must stay pure.
+    const next = !chaosEnabled;
+    setChaosEnabled(next);
+    if (next) {
+      setActivePresetState((cur) => (cur.id === "off" ? CHAOS_PRESETS[1] : cur));
+    } else {
+      setActivePresetState(CHAOS_PRESETS[0]);
+    }
+  }, [chaosEnabled]);
 
   const setActivePreset = useCallback((preset: ChaosPreset) => {
     setActivePresetState(preset);
@@ -189,8 +188,20 @@ export function ChaosProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!chaosEnabled || activePreset.id === "off") return;
 
+    // Non-blocking frame-timing sampler feeding getApproxStats (replaces the
+    // old busy-wait that froze the main thread every 2s).
+    let raf = 0;
+    let last = performance.now();
+    let avgDelta = 16.7;
+    const sampleFrames = (now: number) => {
+      avgDelta = avgDelta * 0.9 + (now - last) * 0.1;
+      last = now;
+      raf = requestAnimationFrame(sampleFrames);
+    };
+    raf = requestAnimationFrame(sampleFrames);
+
     const id = setInterval(() => {
-      const { cpu, ram, gpu } = getApproxStats();
+      const { cpu, ram, gpu } = getApproxStats(avgDelta);
       setCpuLoad(cpu);
       setRamLoad(ram);
       setGpuLoad(gpu);
@@ -213,7 +224,7 @@ export function ChaosProvider({ children }: { children: React.ReactNode }) {
         desktopRef.current.style.setProperty("--chaos-icon-speed", String(activePreset.iconMorphSpeed));
       }
     }, 2000);
-    return () => clearInterval(id);
+    return () => { clearInterval(id); cancelAnimationFrame(raf); };
   }, [chaosEnabled, activePreset]);
 
   const triggerGlitch = useCallback(

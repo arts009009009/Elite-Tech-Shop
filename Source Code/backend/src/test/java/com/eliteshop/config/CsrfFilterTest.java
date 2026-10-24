@@ -150,6 +150,29 @@ class CsrfFilterTest {
         assertFalse(csrfFilter.validateToken("session-4", csrfToken));
     }
 
+    // --- TTL pruning tests ---
+
+    @Test
+    void pruneExpiredTokens_dropsStaleTokensKeepsFreshOnes() {
+        long dayMs = 24 * 60 * 60 * 1000L;
+        String staleToken = csrfFilter.generateToken("stale-session", System.currentTimeMillis() - dayMs - 60_000);
+        String freshToken = csrfFilter.generateToken("fresh-session");
+
+        csrfFilter.pruneExpiredTokens(dayMs);
+
+        assertFalse(csrfFilter.validateToken("stale-session", staleToken),
+            "expired token should have been pruned");
+        assertTrue(csrfFilter.validateToken("fresh-session", freshToken),
+            "fresh token must survive pruning");
+    }
+
+    @Test
+    void pruneExpiredTokens_isIdempotentAndSafeWithNoEntries() {
+        assertDoesNotThrow(() -> csrfFilter.pruneExpiredTokens(24 * 60 * 60 * 1000L));
+        csrfFilter.pruneExpiredTokens(24 * 60 * 60 * 1000L);
+        assertDoesNotThrow(() -> csrfFilter.pruneExpiredTokens(24 * 60 * 60 * 1000L));
+    }
+
     // --- POST with empty session cookie ---
 
     @Test

@@ -1,10 +1,48 @@
 import { NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 const GO_BACKEND = process.env.GO_BACKEND_URL || "http://localhost:3003";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const SIGNATURE_TOLERANCE_SECONDS = 300;
 
 function isValidOrderId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(value);
+}
+
+// Verifies a Stripe-Signature header (t=<ts>,v1=<hmac>) per Stripe's docs:
+// HMAC-SHA256 of "<timestamp>.<raw body>" with the webhook secret, compared
+// timing-safe against every v1 value, with a replay window on the timestamp.
+function verifyStripeSignature(
+  body: string,
+  header: string,
+  secret: string
+): boolean {
+  const parts = header.split(",").map((part) => part.trim());
+  const timestamp = parts.find((part) => part.startsWith("t="))?.slice(2);
+  const signatures = parts
+    .filter((part) => part.startsWith("v1="))
+    .map((part) => part.slice(3));
+
+  if (!timestamp || signatures.length === 0) return false;
+
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts)) return false;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (Math.abs(nowSeconds - ts) > SIGNATURE_TOLERANCE_SECONDS) return false;
+
+  const expected = createHmac("sha256", secret)
+    .update(`${timestamp}.${body}`)
+    .digest("hex");
+  const expectedBuffer = Buffer.from(expected, "hex");
+
+  return signatures.some((signature) => {
+    if (!/^[0-9a-f]+$/i.test(signature)) return false;
+    const candidate = Buffer.from(signature, "hex");
+    return (
+      candidate.length === expectedBuffer.length &&
+      timingSafeEqual(candidate, expectedBuffer)
+    );
+  });
 }
 
 export async function POST(request: Request) {
@@ -20,23 +58,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing signature" }, { status: 400 });
     }
 
-    // Verify Stripe signature using timing-safe comparison
-    const expectedSig = STRIPE_WEBHOOK_SECRET;
-    if (!expectedSig) {
-      return NextResponse.json(
-        { error: "Webhook secret not configured" },
-        { status: 500 }
-      );
-    }
-
-    // In production, use stripe.webhooks.constructEvent for full verification
-    // const event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
-    // For now, verify the signature format at minimum
-    if (!signature.startsWith("v1=")) {
-      return NextResponse.json(
-        { error: "Invalid signature format" },
-        { status: 400 }
-      );
+    if (!verifyStripeSignature(body, signature, STRIPE_WEBHOOK_SECRET)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
     const event = JSON.parse(body);

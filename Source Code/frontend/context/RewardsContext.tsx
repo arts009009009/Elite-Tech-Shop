@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useState, useCallback, useEffect, useContext, useMemo } from "react";
+import { createContext, useState, useCallback, useEffect, useContext, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
 export type RewardTier = "bronze" | "silver" | "gold" | "platinum";
@@ -41,7 +41,20 @@ export function RewardsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleReset = () => { setPoints(0); setLifetimePoints(0); setRedeemedPerks([]); };
     window.addEventListener("rewards-reset", handleReset);
-    return () => window.removeEventListener("rewards-reset", handleReset);
+    // ReferralContext announces bonuses via this event (it renders outside
+    // this provider's hook scope in some trees).
+    const handleAddPoints = (event: Event) => {
+      const amount = Number((event as CustomEvent<number>).detail);
+      if (Number.isFinite(amount) && amount > 0) {
+        setPoints(prev => prev + amount);
+        setLifetimePoints(prev => prev + amount);
+      }
+    };
+    window.addEventListener("add-reward-points", handleAddPoints);
+    return () => {
+      window.removeEventListener("rewards-reset", handleReset);
+      window.removeEventListener("add-reward-points", handleAddPoints);
+    };
   }, []);
 
   const calculateTier = useCallback((lifetime: number): RewardTier => {
@@ -54,6 +67,7 @@ export function RewardsProvider({ children }: { children: ReactNode }) {
   const tier = calculateTier(lifetimePoints);
 
   const addPoints = useCallback(async (amount: number) => {
+    if (!Number.isFinite(amount) || amount <= 0) return;
     const bonusMap: Record<RewardTier, number> = { bronze: 0, silver: 0.05, gold: 0.10, platinum: 0.15 };
     const bonus = bonusMap[tier];
     const totalPoints = Math.round(amount * (1 + bonus));
@@ -61,14 +75,18 @@ export function RewardsProvider({ children }: { children: ReactNode }) {
     setLifetimePoints(prev => prev + totalPoints);
   }, [tier]);
 
+  const redeemingRef = useRef<Set<string>>(new Set());
+
   const redeemPerk = useCallback(async (perkId: string): Promise<boolean> => {
     if (redeemedPerks.includes(perkId)) return false;
+    if (redeemingRef.current.has(perkId)) return false;
     const perk = ALL_PERKS.find(p => p.id === perkId);
     if (!perk) return false;
     const perkTierIndex = Object.keys(TIER_THRESHOLDS).indexOf(perk.tier);
     const userTierIndex = Object.keys(TIER_THRESHOLDS).indexOf(tier);
     if (userTierIndex < perkTierIndex) return false;
     if (points < perk.cost) return false;
+    redeemingRef.current.add(perkId);
     try {
       const res = await goFetch("/api/rewards/redeem", {
         method: "POST",
@@ -83,14 +101,21 @@ export function RewardsProvider({ children }: { children: ReactNode }) {
         window.dispatchEvent(new CustomEvent("notify", { detail: `Perk redeemed: ${perk.name}!` }));
         return true;
       }
-    } catch {}
-    // Client-side fallback so redemption always works even if the backend is unreachable
-    if (points < perk.cost) return false;
-    setPoints((prev) => prev - perk.cost);
-    setLifetimePoints((prev) => prev);
-    setRedeemedPerks((prev) => [...prev, perkId]);
-    window.dispatchEvent(new CustomEvent("notify", { detail: `Perk redeemed: ${perk.name}!` }));
-    return true;
+      // The server explicitly rejected the redemption (insufficient points,
+      // unknown perk, ...): never grant it client-side.
+      window.dispatchEvent(new CustomEvent("notify", { detail: "Redemption rejected by the server." }));
+      return false;
+    } catch {
+      // Network-level failure only: fall back to a local redemption so an
+      // unreachable backend doesn't brick the feature.
+      if (points < perk.cost) return false;
+      setPoints((prev) => prev - perk.cost);
+      setRedeemedPerks((prev) => [...prev, perkId]);
+      window.dispatchEvent(new CustomEvent("notify", { detail: `Perk redeemed offline: ${perk.name}!` }));
+      return true;
+    } finally {
+      redeemingRef.current.delete(perkId);
+    }
   }, [points, redeemedPerks, tier]);
 
   const nextTierNames = Object.keys(TIER_THRESHOLDS) as RewardTier[];

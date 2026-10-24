@@ -160,7 +160,9 @@ export default function Checkout() {
   const [discountInput, setDiscountInput] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [placing, setPlacing] = useState(false);
-  const [orderId] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [createdTotal, setCreatedTotal] = useState(0);
+  const [createdCurrency, setCreatedCurrency] = useState("USD");
 
   const subtotal = cartCtx.cart.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
   const total = Math.max(0, subtotal - discountAmount);
@@ -177,28 +179,38 @@ export default function Checkout() {
     if (!userCtx.user) { window.dispatchEvent(new CustomEvent("notify", { detail: "Please login before checkout!" })); return; }
     if (placing) return;
     setPlacing(true);
-    initializeStock(cartCtx.cart.map((item) => item.id));
-    await cartCtx.placeOrder(userCtx.user.username);
-    const earnedPoints = Math.round(total);
-    addPoints(earnedPoints);
-    window.dispatchEvent(new CustomEvent("notify", { detail: `Order placed successfully! Earned ${earnedPoints} rewards points.` }));
-    setPlacing(false);
-    router.push("/orders");
-  }, [cartCtx, userCtx, total, addPoints, initializeStock, placing, router]);
+    try {
+      const result = await cartCtx.placeOrder(userCtx.user.username, appliedCode || undefined);
+      if (!result.success || !result.order) {
+        // placeOrder already notified; keep the user on this page.
+        return;
+      }
+      const order = result.order;
+      initializeStock(cartCtx.cart.map((item) => item.id));
+      setOrderId(order.id);
+      setCreatedTotal(order.total);
+      setCreatedCurrency(order.currency || "USD");
+      const earnedPoints = Math.round(order.total);
+      addPoints(earnedPoints);
+      window.dispatchEvent(new CustomEvent("notify", { detail: `Order created! Pay now or later. Earned ${earnedPoints} rewards points.` }));
+    } finally {
+      setPlacing(false);
+    }
+  }, [cartCtx, userCtx, appliedCode, addPoints, initializeStock, placing]);
 
-  const handlePaymentSuccess = useCallback(async (paymentId: string) => {
+  const handlePaymentSuccess = useCallback((paymentId: string) => {
     window.dispatchEvent(new CustomEvent("notify", { detail: `Payment successful! ID: ${paymentId}` }));
-    if (!userCtx.user) return;
-    initializeStock(cartCtx.cart.map((item) => item.id));
-    await cartCtx.placeOrder(userCtx.user.username);
-    const earnedPoints = Math.round(total);
-    addPoints(earnedPoints);
+    if (orderId) cartCtx.markOrderPaid(orderId, paymentId);
     router.push("/orders");
-  }, [cartCtx, userCtx, total, addPoints, initializeStock, router]);
+  }, [cartCtx, orderId, router]);
 
   const handlePaymentError = useCallback((error: string) => {
     window.dispatchEvent(new CustomEvent("notify", { detail: `Payment failed: ${error}` }));
   }, []);
+
+  const handlePayLater = useCallback(() => {
+    router.push("/orders");
+  }, [router]);
 
   return (
     <>
@@ -215,7 +227,28 @@ export default function Checkout() {
           </div>
         )}
 
-        {cartCtx.cart.length === 0 ? (
+        {/* Two-step checkout: after the order is created the cart is empty,
+            so the Quick Pay / Pay-later step must live OUTSIDE the
+            cart-empty ternary — otherwise it unmounts the instant the order
+            succeeds and the user can never pay. */}
+        {userCtx.user && orderId ? (
+          <div className="co-card">
+            <h3 className="co-section-title">Quick Pay — Order {orderId}</h3>
+            <OneTapPayment
+              amount={createdTotal}
+              currency={createdCurrency}
+              orderId={orderId}
+              onSuccess={handlePaymentSuccess}
+              onError={handlePaymentError}
+            />
+            <button
+              onClick={handlePayLater}
+              style={{ width: "100%", marginTop: 12, padding: 12, background: "transparent", border: "1px solid var(--border, rgba(255,255,255,0.2))", color: "var(--text, #e0e0e0)", borderRadius: 10, fontSize: 14, cursor: "pointer" }}
+            >
+              Pay later
+            </button>
+          </div>
+        ) : cartCtx.cart.length === 0 ? (
           <div className="co-card co-empty">
             <p className="co-empty-title">Your cart is empty</p>
             <p>Add some products to get started.</p>
@@ -289,26 +322,15 @@ export default function Checkout() {
               <p className="co-points-note">You&apos;ll earn ~{Math.round(total)} rewards points</p>
             </div>
 
-            {userCtx.user && orderId && (
-              <div className="co-card">
-                <h3 className="co-section-title">Quick Pay</h3>
-                <OneTapPayment
-                  amount={total}
-                  currency={cartCtx.cart[0]?.currency || "USD"}
-                  orderId={orderId}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                />
-              </div>
+            {!orderId && (
+              <button
+                className="co-apply-btn"
+                onClick={handleCheckout}
+                disabled={placing || !userCtx.user}
+              >
+                {placing ? "Placing order..." : "Place Order"}
+              </button>
             )}
-
-            <button
-              className="co-apply-btn"
-              onClick={handleCheckout}
-              disabled={placing || !userCtx.user}
-            >
-              {placing ? "Placing order..." : "Place Order"}
-            </button>
           </div>
         )}
       </div>

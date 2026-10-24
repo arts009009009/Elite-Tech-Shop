@@ -18,17 +18,28 @@ interface Order {
   user: string;
 }
 
+// Escape dynamic values before interpolating them into the generated HTML —
+// product titles / customer names are user-controlled (stored XSS otherwise).
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function generateInvoiceHTML(order: Order): string {
-  const orderShort = order.id.slice(-8);
+  const orderShort = escapeHtml(order.id.slice(-8));
   const itemsHTML = order.items
     .map((item) => {
       const subtotal = (item.price * item.quantity).toFixed(2);
       return `
         <tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #eee;">${item.title}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;">${escapeHtml(item.title)}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;">${item.price.toFixed(2)} ${item.currency}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;">${subtotal} ${item.currency}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;">${item.price.toFixed(2)} ${escapeHtml(item.currency)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;">${subtotal} ${escapeHtml(item.currency)}</td>
         </tr>`;
     })
     .join("");
@@ -61,11 +72,11 @@ function generateInvoiceHTML(order: Order): string {
         <p style="margin:0 0 4px 0;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:1px;">Order</p>
         <p style="margin:0 0 12px 0;font-size:16px;font-weight:600;color:#333;">#${orderShort}</p>
         <p style="margin:0 0 4px 0;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:1px;">Date</p>
-        <p style="margin:0;font-size:15px;color:#444;">${order.date}</p>
+        <p style="margin:0;font-size:15px;color:#444;">${escapeHtml(order.date)}</p>
       </div>
       <div style="text-align:right;">
         <p style="margin:0 0 4px 0;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:1px;">Customer</p>
-        <p style="margin:0;font-size:15px;color:#444;">${order.user}</p>
+        <p style="margin:0;font-size:15px;color:#444;">${escapeHtml(order.user)}</p>
       </div>
     </div>
 
@@ -84,7 +95,7 @@ function generateInvoiceHTML(order: Order): string {
       <tfoot>
         <tr>
           <td colspan="3" style="padding:14px 12px;text-align:right;font-size:16px;font-weight:700;color:#333;border-top:2px solid #333;">Total</td>
-          <td style="padding:14px 12px;text-align:right;font-size:16px;font-weight:700;color:#00d4ff;border-top:2px solid #333;">${order.total.toFixed(2)} ${order.currency}</td>
+          <td style="padding:14px 12px;text-align:right;font-size:16px;font-weight:700;color:#00d4ff;border-top:2px solid #333;">${order.total.toFixed(2)} ${escapeHtml(order.currency)}</td>
         </tr>
       </tfoot>
     </table>

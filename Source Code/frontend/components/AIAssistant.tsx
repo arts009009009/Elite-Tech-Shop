@@ -45,13 +45,20 @@ export default function AIAssistant() {
     return (key: string) => typedTranslations[key]?.[lang] ?? key;
   }, [language]);
 
-  const initializedRef = useRef(false);
+  const welcomeLangRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!initializedRef.current && messages.length === 0) {
-      initializedRef.current = true;
+    if (welcomeLangRef.current === null) {
+      welcomeLangRef.current = language;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- inject the welcome message once on mount
       setMessages([{ id: "ai-welcome", text: t("AIWelcome"), sender: "bot" }]);
+      return;
     }
-  }, [t, messages.length]);
+    // Re-translate the injected welcome message when the language changes.
+    if (welcomeLangRef.current !== language) {
+      welcomeLangRef.current = language;
+      setMessages((prev) => prev.map((m) => (m.id === "ai-welcome" ? { ...m, text: t("AIWelcome") } : m)));
+    }
+  }, [language, t]);
 
   const scrollToBottom = useCallback(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, []);
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
@@ -82,21 +89,29 @@ export default function AIAssistant() {
 
   const addMessage = useCallback((text: string, sender: "bot" | "user") => { setMessages((prev) => [...prev, { id: generateId(), text, sender }]); }, []);
 
+  // Schedules a reply and prunes its id from timersRef once it fires, so the
+  // array doesn't grow forever over a long-lived session.
+  const scheduleReply = useCallback((text: string, delay: number) => {
+    const timer = setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== timer);
+      addMessage(findBestResponse(text), "bot");
+    }, delay);
+    timersRef.current.push(timer);
+  }, [addMessage]);
+
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text) return;
     addMessage(text, "user");
     setInput("");
-    const timer = setTimeout(() => { addMessage(findBestResponse(text), "bot"); }, 500 + Math.random() * 500);
-    timersRef.current.push(timer);
-  }, [input, addMessage]);
+    scheduleReply(text, 500 + Math.random() * 500);
+  }, [input, addMessage, scheduleReply]);
 
   const handleSuggestion = useCallback((suggestion: string) => {
     addMessage(suggestion, "user");
     setInput("");
-    const timer = setTimeout(() => { addMessage(findBestResponse(suggestion), "bot"); }, 400);
-    timersRef.current.push(timer);
-  }, [addMessage]);
+    scheduleReply(suggestion, 400);
+  }, [addMessage, scheduleReply]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }, [handleSend]);
 

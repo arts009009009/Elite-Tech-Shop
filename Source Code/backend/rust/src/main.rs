@@ -65,6 +65,62 @@ struct Product {
     image: Option<String>,
 }
 
+/// Leniently parse an optional query parameter as a non-negative integer.
+///
+/// Malformed input (`limit=abc`, `limit=-1`, `limit=10.5`, ...) becomes `None`
+/// so the handler can fall back to its default instead of returning 400.
+fn lenient_u32<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct LenientU32;
+
+    impl<'de> serde::de::Visitor<'de> for LenientU32 {
+        type Value = Option<u32>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a non-negative integer")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(value.trim().parse::<u32>().ok())
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(u32::try_from(value).ok())
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(u32::try_from(value).ok())
+        }
+
+        fn visit_f64<E>(self, _value: f64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+    }
+
+    deserializer.deserialize_any(LenientU32)
+}
+
 #[derive(Debug, Deserialize)]
 struct ProductQuery {
     lang: Option<String>,
@@ -72,7 +128,10 @@ struct ProductQuery {
     search: Option<String>,
     min_price: Option<f64>,
     max_price: Option<f64>,
+    #[serde(default, deserialize_with = "lenient_u32")]
     limit: Option<u32>,
+    #[serde(default, deserialize_with = "lenient_u32")]
+    skip: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -116,6 +175,30 @@ impl RawProduct {
             _ => &self.en,
         }
     }
+
+    /// Lowercased concatenation of every localized title of this product, so
+    /// `?search=` also matches non-English titles (ar/ru/fr/es).
+    fn search_text(&self) -> String {
+        let mut text = self.en.title.to_lowercase();
+        for locale in [&self.ar, &self.ru, &self.fr, &self.es].into_iter().flatten() {
+            text.push(' ');
+            text.push_str(&locale.title.to_lowercase());
+        }
+        text
+    }
+}
+
+/// Match `needle` (already lowercased) against the pre-computed search index,
+/// falling back to the product's localized titles when the index is missing.
+fn search_matches(
+    index: Option<&HashMap<u32, String>>,
+    product: &RawProduct,
+    needle: &str,
+) -> bool {
+    index
+        .and_then(|idx| idx.get(&product.id))
+        .map(|titles| titles.contains(needle))
+        .unwrap_or_else(|| product.search_text().contains(needle))
 }
 
 fn get_locale_price(raw: &RawProduct, lang: &str) -> f64 {
@@ -177,7 +260,11 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
         return Json(serde_json::json!(ProductsResponse { products: vec![], total: 0 }));
     };
     let lang = query.lang.unwrap_or_else(|| "en".to_string());
-    let limit = query.limit.unwrap_or(MAX_LIMIT).min(MAX_LIMIT) as usize;
+    // Malformed/negative `limit`/`skip` values arrive as `None` from the
+    // lenient deserializer. The frontend fetches /api/products without a
+    // limit, so the default stays MAX_LIMIT; `skip` defaults to 0.
+    let limit = query.limit.unwrap_or(MAX_LIMIT).clamp(1, MAX_LIMIT) as usize;
+    let skip = query.skip.unwrap_or(0) as usize;
 
     let search_lower = query.search.as_ref().map(|s| s.to_lowercase());
 
@@ -190,13 +277,9 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
                 .is_none_or(|c| c == &p.category)
         })
         .filter(|p| {
-            search_lower.as_ref().is_none_or(|s| {
-                SEARCH_INDEX
-                    .get()
-                    .and_then(|idx| idx.get(&p.id))
-                    .map(|title| title.contains(s.as_str()))
-                    .unwrap_or(false)
-            })
+            search_lower
+                .as_ref()
+                .is_none_or(|s| search_matches(SEARCH_INDEX.get(), p, s))
         })
         .filter(|p| {
             let price = get_locale_price(p, &lang);
@@ -205,8 +288,14 @@ async fn list_products(Query(query): Query<ProductQuery>) -> Json<serde_json::Va
         })
         .collect();
     filtered.sort_by_key(|p| p.id);
-    let products: Vec<Product> = filtered.iter().take(limit).map(|p| p.to_product(&lang)).collect();
-    let total = products.len();
+    // `total` counts every match, before pagination is applied.
+    let total = filtered.len();
+    let products: Vec<Product> = filtered
+        .iter()
+        .skip(skip)
+        .take(limit)
+        .map(|p| p.to_product(&lang))
+        .collect();
     Json(serde_json::json!(ProductsResponse { products, total }))
 }
 
@@ -270,11 +359,12 @@ async fn main() {
     let count = list.products.len();
     let _ = PRODUCTS.set(list.products);
 
-    // Pre-compute lowercase search index for O(1) lookups
+    // Pre-compute lowercase search index for O(1) lookups, covering every
+    // localized title (en/ar/ru/fr/es) so ?search= works for any language
     let products = PRODUCTS.get().unwrap();
     let mut search_index = HashMap::with_capacity(products.len());
     for p in products {
-        search_index.insert(p.id, p.en.title.to_lowercase());
+        search_index.insert(p.id, p.search_text());
     }
     let _ = SEARCH_INDEX.set(search_index);
 
@@ -372,7 +462,13 @@ mod tests {
                 specs: vec![],
             }),
             ru: None,
-            fr: None,
+            fr: Some(LocaleProduct {
+                title: "Ordinateur Portable de test".to_string(),
+                price: 999.0,
+                currency: "EUR".to_string(),
+                description: None,
+                specs: vec![],
+            }),
             es: None,
         }
     }
@@ -400,8 +496,17 @@ mod tests {
         let _ = PRODUCTS.set(vec![test_product(), test_product_2()]);
     }
 
+    fn init_search_index() {
+        let mut index = HashMap::new();
+        for p in [test_product(), test_product_2()] {
+            index.insert(p.id, p.search_text());
+        }
+        let _ = SEARCH_INDEX.set(index);
+    }
+
     fn app() -> Router {
         init_products();
+        init_search_index();
         Router::new()
             .route("/", get(index))
             .route("/api/health", get(health))
@@ -548,5 +653,70 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    async fn get_json(app: Router, uri: &str) -> serde_json::Value {
+        let req = Request::builder()
+            .uri(uri)
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_total_counts_matches_before_pagination() {
+        let json = get_json(app(), "/api/products?limit=1").await;
+        let products = json["products"].as_array().unwrap();
+        assert_eq!(products.len(), 1);
+        assert_eq!(json["total"], 2);
+    }
+
+    #[tokio::test]
+    async fn test_skip_pagination() {
+        let json = get_json(app(), "/api/products?limit=1&skip=1").await;
+        let products = json["products"].as_array().unwrap();
+        assert_eq!(products.len(), 1);
+        assert_eq!(products[0]["id"], 2);
+        assert_eq!(json["total"], 2);
+    }
+
+    #[tokio::test]
+    async fn test_invalid_limit_and_skip_do_not_fail() {
+        for uri in [
+            "/api/products?limit=abc",
+            "/api/products?limit=-5",
+            "/api/products?skip=-1",
+            "/api/products?limit=999999",
+            "/api/products?limit=",
+        ] {
+            let json = get_json(app(), uri).await;
+            let products = json["products"].as_array().unwrap();
+            assert!(products.len() <= 2, "unexpected product count for {}", uri);
+            assert_eq!(json["total"], 2, "wrong total for {}", uri);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_search_matches_localized_titles() {
+        // "Portable" only appears in the French title of product 1
+        let json = get_json(app(), "/api/products?search=PORTABLE").await;
+        let products = json["products"].as_array().unwrap();
+        assert_eq!(products.len(), 1);
+        assert_eq!(products[0]["id"], 1);
+        assert_eq!(json["total"], 1);
+    }
+
+    #[test]
+    fn test_search_matches_without_index() {
+        let product = test_product();
+        assert!(search_matches(None, &product, "test laptop"));
+        assert!(search_matches(None, &product, "لابتوب"));
+        assert!(search_matches(None, &product, "ordinateur portable"));
+        assert!(!search_matches(None, &product, "nope"));
     }
 }

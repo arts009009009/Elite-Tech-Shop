@@ -8,17 +8,21 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"math"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -50,13 +54,18 @@ type CartItem struct {
 }
 
 type Order struct {
-	ID        string     `json:"id"`
-	Items     []CartItem `json:"items"`
-	Total     float64    `json:"total"`
-	Status    string     `json:"status"`
-	CreatedAt string     `json:"created_at"`
-	Username  string     `json:"username"`
+	ID           string     `json:"id"`
+	Items        []CartItem `json:"items"`
+	Total        float64    `json:"total"`
+	Currency     string     `json:"currency"`
+	Status       string     `json:"status"`
+	PaymentID    string     `json:"payment_id,omitempty"`
+	DiscountCode string     `json:"discount_code,omitempty"`
+	CreatedAt    string     `json:"created_at"`
+	Username     string     `json:"username"`
 }
+
+var orderStatuses = []string{"pending", "processing", "paid", "shipped", "in transit", "delivered", "cancelled", "payment_failed"}
 
 type Review struct {
 	ID        int    `json:"id"`
@@ -141,13 +150,17 @@ func init() {
 		log.Printf("[WARN] No ADMIN_PASSWORD env var set, using default password. Set ADMIN_PASSWORD in production!")
 	}
 	store.Users[0].PasswordHash = hashPassword(adminPass)
+	if store.Users[0].PasswordHash == "" {
+		log.Fatalf("[FATAL] could not hash admin password: bcrypt failure")
+	}
 }
 
 func hashPassword(password string) string {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("[WARN] bcrypt failed, using insecure fallback: %v", err)
-		return password
+		// Never fall back to the plaintext password; callers must treat "" as failure.
+		log.Printf("[ERROR] bcrypt failed: %v", err)
+		return ""
 	}
 	return string(hash)
 }
@@ -157,26 +170,20 @@ func checkPassword(hashedPassword, password string) bool {
 	return err == nil
 }
 
-func generateToken() string {
+func generateToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		log.Printf("[WARN] crypto/rand failed, using fallback: %v", err)
-		for i := range b {
-			b[i] = byte(time.Now().UnixNano() & 0xff)
-		}
+		return "", err
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
-func generateOrderID() string {
+func generateOrderID() (string, error) {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
-		log.Printf("[WARN] crypto/rand failed, using fallback: %v", err)
-		for i := range b {
-			b[i] = byte(time.Now().UnixNano() & 0xff)
-		}
+		return "", err
 	}
-	return "ORD-" + hex.EncodeToString(b)
+	return "ORD-" + hex.EncodeToString(b), nil
 }
 
 var allowedOrigins = map[string]bool{
@@ -205,7 +212,16 @@ func errorResponse(w http.ResponseWriter, msg string, status int) {
 	jsonResponse(w, map[string]string{"error": msg}, status)
 }
 
-func getUsername(r *http.Request) string {
+// round2 rounds a money amount to 2 decimal places.
+func round2(f float64) float64 {
+	return math.Round(f*100) / 100
+}
+
+var guestIDRe = regexp.MustCompile(`^[a-f0-9-]{8,64}$`)
+
+// getSessionUsername returns the authenticated session username, or "" if the
+// request has no valid session.
+func getSessionUsername(r *http.Request) string {
 	cookie, err := r.Cookie("session_token")
 	if err != nil || cookie.Value == "" {
 		cookie, err = r.Cookie("user_session")
@@ -220,6 +236,35 @@ func getUsername(r *http.Request) string {
 		return ""
 	}
 	return sess.Username
+}
+
+// getUsername returns the session username when present; otherwise it derives a
+// per-visitor guest identity from the X-Guest-Id header so that anonymous
+// visitors do not share cart/wishlist state.
+func getUsername(r *http.Request) string {
+	if u := getSessionUsername(r); u != "" {
+		return u
+	}
+	if id := r.Header.Get("X-Guest-Id"); guestIDRe.MatchString(id) {
+		return "guest:" + id
+	}
+	return "guest"
+}
+
+func isAdminUser(username string) bool {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	idx, ok := store.UsersByUsername[username]
+	return ok && store.Users[idx].Role == "admin"
+}
+
+// rebuildOrderIndex rebuilds the username -> order indices map after any
+// mutation of store.Orders. Must be called with store.mu held for writing.
+func rebuildOrderIndex() {
+	store.OrdersByUsername = make(map[string][]int)
+	for i, o := range store.Orders {
+		store.OrdersByUsername[o.Username] = append(store.OrdersByUsername[o.Username], i)
+	}
 }
 
 func handleSignup(w http.ResponseWriter, r *http.Request) {
@@ -247,10 +292,32 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store.mu.Lock()
-	defer store.mu.Unlock()
+	// Cheap existence check first (read lock only).
+	store.mu.RLock()
+	_, exists := store.UsersByUsername[req.Username]
+	store.mu.RUnlock()
+	if exists {
+		errorResponse(w, "username already exists", 409)
+		return
+	}
 
+	// bcrypt is expensive; never run it while holding the global store lock.
+	hash := hashPassword(req.Password)
+	if hash == "" {
+		errorResponse(w, "could not process password", 500)
+		return
+	}
+	token, err := generateToken()
+	if err != nil {
+		log.Printf("[ERROR] token generation failed: %v", err)
+		errorResponse(w, "could not generate token", 500)
+		return
+	}
+
+	store.mu.Lock()
+	// Re-check under the write lock to avoid a TOCTOU duplicate.
 	if _, exists := store.UsersByUsername[req.Username]; exists {
+		store.mu.Unlock()
 		errorResponse(w, "username already exists", 409)
 		return
 	}
@@ -259,12 +326,11 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 	store.Users = append(store.Users, User{
 		Username:     req.Username,
 		Email:        req.Email,
-		PasswordHash: hashPassword(req.Password),
+		PasswordHash: hash,
 		Role:         "user",
 	})
 	store.UsersByUsername[req.Username] = idx
 
-	token := generateToken()
 	store.Sessions[token] = &Session{
 		Token:    token,
 		Username: req.Username,
@@ -273,6 +339,7 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 
 	store.Wishlists[req.Username] = []int{}
 	store.Rewards[req.Username] = &RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
+	store.mu.Unlock()
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -317,36 +384,49 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		username = req.Email
 	}
 
-	store.mu.Lock()
-	defer store.mu.Unlock()
-
+	// Look the user up under a read lock, then run bcrypt without any lock held.
+	store.mu.RLock()
+	var u User
+	found := false
 	if idx, ok := store.UsersByUsername[username]; ok {
-		u := store.Users[idx]
-		if checkPassword(u.PasswordHash, req.Password) {
-			token := generateToken()
-			store.Sessions[token] = &Session{
-				Token:    token,
-				Username: u.Username,
-				Expires:  time.Now().Add(7 * 24 * time.Hour).Unix(),
-			}
+		u = store.Users[idx]
+		found = true
+	}
+	store.mu.RUnlock()
 
-			http.SetCookie(w, &http.Cookie{
-				Name:     "session_token",
-				Value:    token,
-				Path:     "/",
-				MaxAge:   7 * 24 * 3600,
-				HttpOnly: true,
-				Secure:   true,
-				SameSite: http.SameSiteLaxMode,
-			})
-
-			jsonResponse(w, map[string]interface{}{
-				"token":    token,
-				"username": u.Username,
-				"role":     u.Role,
-			}, 200)
+	if found && checkPassword(u.PasswordHash, req.Password) {
+		token, err := generateToken()
+		if err != nil {
+			log.Printf("[ERROR] token generation failed: %v", err)
+			errorResponse(w, "could not generate token", 500)
 			return
 		}
+
+		store.mu.Lock()
+		store.Sessions[token] = &Session{
+			Token:    token,
+			Username: u.Username,
+			Expires:  time.Now().Add(7 * 24 * time.Hour).Unix(),
+		}
+		store.mu.Unlock()
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "session_token",
+			Value:    token,
+			Path:     "/",
+			MaxAge:   7 * 24 * 3600,
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
+
+		jsonResponse(w, map[string]interface{}{
+			"token":    token,
+			"username": u.Username,
+			"email":    u.Email,
+			"role":     u.Role,
+		}, 200)
+		return
 	}
 	errorResponse(w, "invalid credentials", 401)
 }
@@ -357,10 +437,17 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	cookie, err := r.Cookie("session_token")
-	if err == nil {
+	// Accept both cookie names: signup/login set "session_token" on the Go
+	// origin, while the Next.js proxy relays the token as "user_session".
+	var token string
+	if cookie, err := r.Cookie("session_token"); err == nil {
+		token = cookie.Value
+	} else if cookie, err := r.Cookie("user_session"); err == nil {
+		token = cookie.Value
+	}
+	if token != "" {
 		store.mu.Lock()
-		delete(store.Sessions, cookie.Value)
+		delete(store.Sessions, token)
 		store.mu.Unlock()
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -401,11 +488,9 @@ func handleSendPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Always return success to prevent user enumeration
-	jsonResponse(w, map[string]interface{}{
-		"success": true,
-		"message": "If an account exists, a password reset link has been sent",
-	}, 200)
+	// Password reset mail is not implemented in the Go service; the frontend
+	// proxies this path to the Java service.
+	errorResponse(w, "not implemented", 501)
 }
 
 func handleMe(w http.ResponseWriter, r *http.Request) {
@@ -414,7 +499,7 @@ func handleMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "not logged in", 401)
 		return
@@ -442,18 +527,15 @@ func handleCart(w http.ResponseWriter, r *http.Request) {
 	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" {
-		username = "guest"
-	}
 
 	switch r.Method {
 	case "GET":
 		store.mu.RLock()
-		cart := store.Carts[username]
+		cart := append([]CartItem(nil), store.Carts[username]...)
+		store.mu.RUnlock()
 		if cart == nil {
 			cart = []CartItem{}
 		}
-		store.mu.RUnlock()
 		jsonResponse(w, cart, 200)
 
 	case "POST":
@@ -479,8 +561,9 @@ func handleCart(w http.ResponseWriter, r *http.Request) {
 			cart = append(cart, item)
 		}
 		store.Carts[username] = cart
+		out := append([]CartItem(nil), cart...)
 		store.mu.Unlock()
-		jsonResponse(w, cart, 200)
+		jsonResponse(w, out, 200)
 
 	case "DELETE":
 		store.mu.Lock()
@@ -500,16 +583,13 @@ func handleCartItem(w http.ResponseWriter, r *http.Request) {
 	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" {
-		username = "guest"
-	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 {
+	if len(parts) < 4 {
 		errorResponse(w, "bad path", 400)
 		return
 	}
-	productID, err := strconv.Atoi(parts[4])
+	productID, err := strconv.Atoi(parts[3])
 	if err != nil {
 		errorResponse(w, "invalid product id", 400)
 		return
@@ -537,8 +617,9 @@ func handleCartItem(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		store.Carts[username] = cart
+		out := append([]CartItem(nil), cart...)
 		store.mu.Unlock()
-		jsonResponse(w, cart, 200)
+		jsonResponse(w, out, 200)
 
 	case "DELETE":
 		store.mu.Lock()
@@ -550,8 +631,9 @@ func handleCartItem(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		store.Carts[username] = cart
+		out := append([]CartItem(nil), cart...)
 		store.mu.Unlock()
-		jsonResponse(w, cart, 200)
+		jsonResponse(w, out, 200)
 
 	default:
 		errorResponse(w, "method not allowed", 405)
@@ -567,18 +649,15 @@ func handleWishlist(w http.ResponseWriter, r *http.Request) {
 	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" {
-		username = "guest"
-	}
 
 	switch r.Method {
 	case "GET":
 		store.mu.RLock()
-		wl := store.Wishlists[username]
+		wl := append([]int(nil), store.Wishlists[username]...)
+		store.mu.RUnlock()
 		if wl == nil {
 			wl = []int{}
 		}
-		store.mu.RUnlock()
 		jsonResponse(w, wl, 200)
 
 	case "POST":
@@ -606,8 +685,9 @@ func handleWishlist(w http.ResponseWriter, r *http.Request) {
 			wl = append(wl, req.ProductID)
 			store.Wishlists[username] = wl
 		}
+		out := append([]int(nil), wl...)
 		store.mu.Unlock()
-		jsonResponse(w, wl, 200)
+		jsonResponse(w, out, 200)
 
 	case "DELETE":
 		store.mu.Lock()
@@ -627,16 +707,13 @@ func handleWishlistItem(w http.ResponseWriter, r *http.Request) {
 	}
 	getCors(w, r)
 	username := getUsername(r)
-	if username == "" {
-		username = "guest"
-	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 {
+	if len(parts) < 4 {
 		errorResponse(w, "bad path", 400)
 		return
 	}
-	productID, err := strconv.Atoi(parts[4])
+	productID, err := strconv.Atoi(parts[3])
 	if err != nil {
 		errorResponse(w, "invalid product id", 400)
 		return
@@ -651,12 +728,14 @@ func handleWishlistItem(w http.ResponseWriter, r *http.Request) {
 	wl := store.Wishlists[username]
 	for i, id := range wl {
 		if id == productID {
-			store.Wishlists[username] = append(wl[:i], wl[i+1:]...)
+			wl = append(wl[:i], wl[i+1:]...)
 			break
 		}
 	}
+	store.Wishlists[username] = wl
+	out := append([]int(nil), wl...)
 	store.mu.Unlock()
-	jsonResponse(w, store.Wishlists[username], 200)
+	jsonResponse(w, out, 200)
 }
 
 // --- ORDER HANDLERS ---
@@ -667,7 +746,7 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -693,30 +772,121 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 		var req struct {
-			Items []CartItem `json:"items"`
-			Total float64    `json:"total"`
+			Items        []CartItem `json:"items"`
+			Total        float64    `json:"total"`
+			DiscountCode string     `json:"discount_code"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			errorResponse(w, "invalid request", 400)
 			return
 		}
-		order := Order{
-			ID:        generateOrderID(),
-			Items:     req.Items,
-			Total:     req.Total,
-			Status:    "processing",
-			CreatedAt: time.Now().Format(time.RFC3339),
-			Username:  username,
+		if len(req.Items) == 0 {
+			errorResponse(w, "items required", 400)
+			return
 		}
+
+		// Server-side price recompute: the client total is never trusted.
+		store.mu.RLock()
+		priceByID := make(map[int]Product, len(store.Products))
+		for _, p := range store.Products {
+			priceByID[p.ID] = p
+		}
+		items := make([]CartItem, 0, len(req.Items))
+		var total float64
+		currency := ""
+		invalidPrice := false
+		for _, it := range req.Items {
+			if it.Quantity < 1 {
+				it.Quantity = 1
+			}
+			if it.Quantity > 999 {
+				it.Quantity = 999
+			}
+			if p, ok := priceByID[it.ProductID]; ok {
+				it.Price = p.Price
+				if it.Name == "" {
+					it.Name = p.Name
+				}
+				if it.Image == "" {
+					it.Image = p.Image
+				}
+				if p.Currency != "" {
+					it.Currency = p.Currency
+				}
+			} else if math.IsNaN(it.Price) || math.IsInf(it.Price, 0) || it.Price < 0 {
+				// Unknown product: accept the client price only if it is finite and >= 0.
+				invalidPrice = true
+				break
+			}
+			total += it.Price * float64(it.Quantity)
+			if currency == "" && it.Currency != "" {
+				currency = it.Currency
+			}
+			items = append(items, it)
+		}
+		store.mu.RUnlock()
+		if invalidPrice {
+			errorResponse(w, "invalid item price", 400)
+			return
+		}
+		if currency == "" {
+			currency = "USD"
+		}
+		total = round2(total)
+		if round2(req.Total) != total {
+			log.Printf("[ORDERS] client total %.2f != server-computed %.2f for user=%s (client total ignored)", req.Total, total, username)
+		}
+
+		// Optional discount code: validated server-side and applied to the
+		// server-computed total. The client can never set amounts.
+		discountCode := ""
+		discountIdx := -1
+		if req.DiscountCode != "" {
+			store.mu.RLock()
+			idx, ok := findDiscount(req.DiscountCode)
+			reason := "invalid discount code"
+			if ok {
+				reason = discountInvalidReason(store.Discounts[idx])
+			}
+			if !ok || reason != "" {
+				store.mu.RUnlock()
+				errorResponse(w, reason, 400)
+				return
+			}
+			discountIdx = idx
+			discountCode = store.Discounts[idx].Code
+			total = round2(total * (1 - store.Discounts[idx].Percent/100))
+			store.mu.RUnlock()
+		}
+
+		orderID, err := generateOrderID()
+		if err != nil {
+			log.Printf("[ERROR] order id generation failed: %v", err)
+			errorResponse(w, "could not generate order id", 500)
+			return
+		}
+		order := Order{
+			ID:           orderID,
+			Items:        items,
+			Total:        total,
+			Currency:     currency,
+			Status:       "processing",
+			DiscountCode: discountCode,
+			CreatedAt:    time.Now().Format(time.RFC3339),
+			Username:     username,
+		}
+		points := int(total)
+
 		store.mu.Lock()
-		orderIdx := len(store.Orders)
 		store.Orders = append(store.Orders, order)
-		store.OrdersByUsername[username] = append(store.OrdersByUsername[username], orderIdx)
+		if discountIdx >= 0 {
+			store.Discounts[discountIdx].Used++
+		}
+		rebuildOrderIndex()
 		store.Carts[username] = []CartItem{}
 		if store.Rewards[username] == nil {
 			store.Rewards[username] = &RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
 		}
-		points := int(req.Total)
 		store.Rewards[username].Points += points
 		store.Rewards[username].Lifetime += points
 		store.mu.Unlock()
@@ -734,32 +904,95 @@ func handleOrderItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
+	isAdmin := isAdminUser(username)
 
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 5 {
+	if len(parts) < 4 {
 		errorResponse(w, "bad path", 400)
 		return
 	}
-	orderID := parts[4]
+	orderID := parts[3]
 
-	if r.Method == "DELETE" {
+	switch r.Method {
+	case "GET":
+		store.mu.RLock()
+		var found *Order
+		for i := range store.Orders {
+			o := &store.Orders[i]
+			if o.ID == orderID && (o.Username == username || isAdmin) {
+				cp := *o
+				found = &cp
+				break
+			}
+		}
+		store.mu.RUnlock()
+		if found == nil {
+			errorResponse(w, "order not found", 404)
+			return
+		}
+		jsonResponse(w, found, 200)
+
+	case "PUT":
+		var req struct {
+			Status    string `json:"status"`
+			PaymentID string `json:"payment_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			errorResponse(w, "invalid request", 400)
+			return
+		}
+		valid := false
+		for _, s := range orderStatuses {
+			if s == req.Status {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			errorResponse(w, "invalid status", 400)
+			return
+		}
+		store.mu.Lock()
+		var found *Order
+		for i := range store.Orders {
+			o := &store.Orders[i]
+			if o.ID == orderID && (o.Username == username || isAdmin) {
+				o.Status = req.Status
+				if req.PaymentID != "" {
+					o.PaymentID = req.PaymentID
+				}
+				cp := *o
+				found = &cp
+				break
+			}
+		}
+		store.mu.Unlock()
+		if found == nil {
+			errorResponse(w, "order not found", 404)
+			return
+		}
+		jsonResponse(w, found, 200)
+
+	case "DELETE":
 		store.mu.Lock()
 		for i, o := range store.Orders {
 			if o.ID == orderID && o.Username == username {
 				store.Orders = append(store.Orders[:i], store.Orders[i+1:]...)
+				rebuildOrderIndex()
 				break
 			}
 		}
 		store.mu.Unlock()
 		jsonResponse(w, map[string]string{"status": "cancelled"}, 200)
-		return
+
+	default:
+		errorResponse(w, "method not allowed", 405)
 	}
-	errorResponse(w, "method not allowed", 405)
 }
 
 // --- REVIEW HANDLERS ---
@@ -799,7 +1032,7 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 		jsonResponse(w, reviews, 200)
 
 	case "POST":
-		username := getUsername(r)
+		username := getSessionUsername(r)
 		if username == "" {
 			errorResponse(w, "unauthorized", 401)
 			return
@@ -823,7 +1056,12 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if len(req.Comment) > 1000 {
-			req.Comment = req.Comment[:1000]
+			// Truncate on a rune boundary so we never split a UTF-8 sequence.
+			cut := 1000
+			for cut > 0 && !utf8.RuneStart(req.Comment[cut]) {
+				cut--
+			}
+			req.Comment = req.Comment[:cut]
 		}
 		store.mu.Lock()
 		revIdx := len(store.Reviews)
@@ -848,26 +1086,50 @@ func handleReviews(w http.ResponseWriter, r *http.Request) {
 
 // --- REWARDS HANDLERS ---
 
+// perkCosts is the server-side reward perk registry. The client-supplied cost
+// is never trusted.
+var perkCosts = map[string]int{
+	"free_shipping":  200,
+	"discount_10":    500,
+	"discount_20":    1000,
+	"exclusive_item": 2500,
+	"vip_access":     5000,
+	"free_return":    350,
+}
+
+// snapshotRewards deep-copies reward data (bounded to known perks) so it can
+// be serialized after the store lock is released. Must be called with the
+// store lock held.
+func snapshotRewards(reward *RewardData) RewardData {
+	snap := RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
+	if reward != nil {
+		snap.Points = reward.Points
+		snap.Lifetime = reward.Lifetime
+		for perk := range reward.Redeemed {
+			if _, known := perkCosts[perk]; known {
+				snap.Redeemed[perk] = true
+			}
+		}
+	}
+	return snap
+}
+
 func handleRewards(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
 		getCors(w, r)
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
 
 	store.mu.RLock()
-	reward := store.Rewards[username]
+	snap := snapshotRewards(store.Rewards[username])
 	store.mu.RUnlock()
-
-	if reward == nil {
-		reward = &RewardData{Points: 0, Lifetime: 0, Redeemed: make(map[string]bool)}
-	}
-	jsonResponse(w, reward, 200)
+	jsonResponse(w, &snap, 200)
 }
 
 func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
@@ -880,7 +1142,7 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "method not allowed", 405)
 		return
 	}
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -888,10 +1150,20 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Perk string `json:"perk"`
-		Cost int    `json:"cost"`
+		Cost int    `json:"cost"` // ignored; the server-side registry is authoritative
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		errorResponse(w, "invalid request", 400)
+		return
+	}
+
+	cost, known := perkCosts[req.Perk]
+	if !known {
+		errorResponse(w, "unknown perk", 400)
+		return
+	}
+	if cost <= 0 {
+		errorResponse(w, "invalid perk cost", 400)
 		return
 	}
 
@@ -904,7 +1176,7 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 		store.Rewards[username] = reward
 	}
 
-	if reward.Points < req.Cost {
+	if reward.Points < cost {
 		errorResponse(w, "insufficient points", 400)
 		return
 	}
@@ -913,12 +1185,81 @@ func handleRewardsRedeem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reward.Points -= req.Cost
+	reward.Points -= cost
 	reward.Redeemed[req.Perk] = true
-	jsonResponse(w, reward, 200)
+	snap := snapshotRewards(reward)
+	jsonResponse(w, &snap, 200)
 }
 
 // --- DISCOUNT HANDLERS ---
+
+// discountInvalidReason returns a human-readable reason the code is currently
+// invalid (fully used or expired), or "" if it is valid. The expiry date is
+// treated as end-of-day so codes remain valid through their last day.
+// Must be called with the store lock held.
+func discountInvalidReason(d DiscountCode) string {
+	if d.Used >= d.MaxUses {
+		return "discount code fully used"
+	}
+	if d.ExpiresAt != "" {
+		exp, err := time.Parse("2006-01-02", d.ExpiresAt)
+		if err == nil && time.Now().After(exp.Add(24*time.Hour-time.Second)) {
+			return "discount code expired"
+		}
+	}
+	return ""
+}
+
+// findDiscount returns the index of the matching discount code.
+// Must be called with the store lock held.
+func findDiscount(code string) (int, bool) {
+	for i, d := range store.Discounts {
+		if strings.EqualFold(d.Code, code) {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+type DiscountListItem struct {
+	Code        string  `json:"code"`
+	Type        string  `json:"type"`
+	Value       float64 `json:"value"`
+	MinPurchase float64 `json:"min_purchase"`
+	ExpiresAt   string  `json:"expires_at"`
+	MaxUses     int     `json:"max_uses"`
+	UsedCount   int     `json:"used_count"`
+}
+
+func handleDiscountList(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		getCors(w, r)
+		return
+	}
+	getCors(w, r)
+	if r.Method != "GET" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
+
+	store.mu.RLock()
+	list := make([]DiscountListItem, 0, len(store.Discounts))
+	for _, d := range store.Discounts {
+		if discountInvalidReason(d) != "" {
+			continue
+		}
+		list = append(list, DiscountListItem{
+			Code:      d.Code,
+			Type:      "percentage",
+			Value:     d.Percent,
+			ExpiresAt: d.ExpiresAt,
+			MaxUses:   d.MaxUses,
+			UsedCount: d.Used,
+		})
+	}
+	store.mu.RUnlock()
+	jsonResponse(w, list, 200)
+}
 
 func handleDiscountValidate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
@@ -942,28 +1283,21 @@ func handleDiscountValidate(w http.ResponseWriter, r *http.Request) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
-	for _, d := range store.Discounts {
-		if strings.EqualFold(d.Code, req.Code) {
-			if d.Used >= d.MaxUses {
-				errorResponse(w, "discount code fully used", 400)
-				return
-			}
-			if d.ExpiresAt != "" {
-				exp, err := time.Parse("2006-01-02", d.ExpiresAt)
-				if err == nil && time.Now().After(exp) {
-					errorResponse(w, "discount code expired", 400)
-					return
-				}
-			}
-			jsonResponse(w, map[string]interface{}{
-				"valid":   true,
-				"percent": d.Percent,
-				"code":    d.Code,
-			}, 200)
-			return
-		}
+	idx, ok := findDiscount(req.Code)
+	if !ok {
+		errorResponse(w, "invalid discount code", 400)
+		return
 	}
-	errorResponse(w, "invalid discount code", 400)
+	d := store.Discounts[idx]
+	if reason := discountInvalidReason(d); reason != "" {
+		errorResponse(w, reason, 400)
+		return
+	}
+	jsonResponse(w, map[string]interface{}{
+		"valid":   true,
+		"percent": d.Percent,
+		"code":    d.Code,
+	}, 200)
 }
 
 func handleDiscountApply(w http.ResponseWriter, r *http.Request) {
@@ -988,22 +1322,22 @@ func handleDiscountApply(w http.ResponseWriter, r *http.Request) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	for i, d := range store.Discounts {
-		if strings.EqualFold(d.Code, req.Code) {
-			if d.Used >= d.MaxUses {
-				errorResponse(w, "discount code fully used", 400)
-				return
-			}
-			store.Discounts[i].Used++
-			jsonResponse(w, map[string]interface{}{
-				"valid":   true,
-				"percent": d.Percent,
-				"code":    d.Code,
-			}, 200)
-			return
-		}
+	idx, ok := findDiscount(req.Code)
+	if !ok {
+		errorResponse(w, "invalid discount code", 400)
+		return
 	}
-	errorResponse(w, "invalid discount code", 400)
+	d := store.Discounts[idx]
+	if reason := discountInvalidReason(d); reason != "" {
+		errorResponse(w, reason, 400)
+		return
+	}
+	store.Discounts[idx].Used++
+	jsonResponse(w, map[string]interface{}{
+		"valid":   true,
+		"percent": d.Percent,
+		"code":    d.Code,
+	}, 200)
 }
 
 // --- ADMIN HANDLERS ---
@@ -1014,43 +1348,70 @@ func handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
-
-	store.mu.RLock()
-	isAdmin := false
-	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
-		isAdmin = true
-	}
-	store.mu.RUnlock()
-	if !isAdmin {
+	if !isAdminUser(username) {
 		errorResponse(w, "forbidden", 403)
 		return
 	}
 
-	parts := strings.Split(r.URL.Path, "/")
-	if r.Method == "DELETE" && len(parts) >= 5 {
+	if r.Method == "DELETE" {
+		// /api/admin/users/{target} -> ["", "api", "admin", "users", "{target}"]
+		parts := strings.Split(r.URL.Path, "/")
+		if len(parts) < 5 || parts[4] == "" {
+			errorResponse(w, "bad path", 400)
+			return
+		}
 		target := parts[4]
 		store.mu.Lock()
-		if targetIdx, ok := store.UsersByUsername[target]; ok && store.Users[targetIdx].Role != "admin" {
-			// Remove from slice and rebuild index
-			store.Users = append(store.Users[:targetIdx], store.Users[targetIdx+1:]...)
-			delete(store.UsersByUsername, target)
-			// Rebuild index after slice modification
-			for uname, idx := range store.UsersByUsername {
-				if idx > targetIdx {
-					store.UsersByUsername[uname] = idx - 1
-				}
-			}
-			delete(store.Carts, target)
-			delete(store.Wishlists, target)
-			delete(store.Rewards, target)
+		targetIdx, ok := store.UsersByUsername[target]
+		if !ok {
+			store.mu.Unlock()
+			errorResponse(w, "user not found", 404)
+			return
 		}
+		if store.Users[targetIdx].Role == "admin" {
+			store.mu.Unlock()
+			errorResponse(w, "cannot delete admin user", 403)
+			return
+		}
+		// Remove from slice and rebuild index
+		store.Users = append(store.Users[:targetIdx], store.Users[targetIdx+1:]...)
+		delete(store.UsersByUsername, target)
+		// Rebuild index after slice modification
+		for uname, idx := range store.UsersByUsername {
+			if idx > targetIdx {
+				store.UsersByUsername[uname] = idx - 1
+			}
+		}
+		delete(store.Carts, target)
+		delete(store.Wishlists, target)
+		delete(store.Rewards, target)
+		delete(store.Profiles, target)
+		for tok, sess := range store.Sessions {
+			if sess.Username == target {
+				delete(store.Sessions, tok)
+			}
+		}
+		// Drop the user's orders and rebuild the per-user index.
+		kept := store.Orders[:0]
+		for _, o := range store.Orders {
+			if o.Username != target {
+				kept = append(kept, o)
+			}
+		}
+		store.Orders = kept
+		rebuildOrderIndex()
 		store.mu.Unlock()
 		jsonResponse(w, map[string]string{"status": "deleted"}, 200)
+		return
+	}
+
+	if r.Method != "GET" {
+		errorResponse(w, "method not allowed", 405)
 		return
 	}
 
@@ -1073,19 +1434,12 @@ func handleAdminClearOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
-
-	store.mu.RLock()
-	isAdmin := false
-	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
-		isAdmin = true
-	}
-	store.mu.RUnlock()
-	if !isAdmin {
+	if !isAdminUser(username) {
 		errorResponse(w, "forbidden", 403)
 		return
 	}
@@ -1096,6 +1450,7 @@ func handleAdminClearOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	store.mu.Lock()
 	store.Orders = []Order{}
+	store.OrdersByUsername = make(map[string][]int)
 	store.mu.Unlock()
 	jsonResponse(w, map[string]string{"status": "cleared"}, 200)
 }
@@ -1108,31 +1463,34 @@ func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
 	}
-
-	store.mu.RLock()
-	isAdmin := false
-	if idx, ok := store.UsersByUsername[username]; ok && store.Users[idx].Role == "admin" {
-		isAdmin = true
-	}
-	store.mu.RUnlock()
-	if !isAdmin {
+	if !isAdminUser(username) {
 		errorResponse(w, "forbidden", 403)
 		return
 	}
 
-	parts := strings.Split(r.URL.Path, "/")
+	if r.Method != "PUT" && r.Method != "DELETE" {
+		errorResponse(w, "method not allowed", 405)
+		return
+	}
 
-	if r.Method == "PUT" && len(parts) >= 5 {
-		productID, err := strconv.Atoi(parts[4])
-		if err != nil {
-			errorResponse(w, "invalid product id", 400)
-			return
-		}
+	// /api/admin/products/{id} -> ["", "api", "admin", "products", "{id}"]
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 5 || parts[4] == "" {
+		errorResponse(w, "bad path", 400)
+		return
+	}
+	productID, err := strconv.Atoi(parts[4])
+	if err != nil {
+		errorResponse(w, "invalid product id", 400)
+		return
+	}
+
+	if r.Method == "PUT" {
 		var updates map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 			errorResponse(w, "invalid request", 400)
@@ -1161,25 +1519,15 @@ func handleAdminProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == "DELETE" && len(parts) >= 5 {
-		productID, err := strconv.Atoi(parts[4])
-		if err != nil {
-			errorResponse(w, "invalid product id", 400)
-			return
+	store.mu.Lock()
+	for i, p := range store.Products {
+		if p.ID == productID {
+			store.Products = append(store.Products[:i], store.Products[i+1:]...)
+			break
 		}
-		store.mu.Lock()
-		for i, p := range store.Products {
-			if p.ID == productID {
-				store.Products = append(store.Products[:i], store.Products[i+1:]...)
-				break
-			}
-		}
-		store.mu.Unlock()
-		jsonResponse(w, map[string]string{"status": "deleted"}, 200)
-		return
 	}
-
-	jsonResponse(w, map[string]string{"error": "method not allowed"}, 405)
+	store.mu.Unlock()
+	jsonResponse(w, map[string]string{"status": "deleted"}, 200)
 }
 
 // --- INVENTORY ---
@@ -1269,7 +1617,7 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -1279,11 +1627,14 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		store.mu.RLock()
 		profile := store.Profiles[username]
-		store.mu.RUnlock()
-		if profile == nil {
-			profile = &UserProfile{DisplayName: username}
+		var snap UserProfile
+		if profile != nil {
+			snap = *profile
+		} else {
+			snap = UserProfile{DisplayName: username}
 		}
-		jsonResponse(w, profile, 200)
+		store.mu.RUnlock()
+		jsonResponse(w, &snap, 200)
 	case "PUT":
 		var req UserProfile
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1309,7 +1660,7 @@ func handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "method not allowed", 405)
 		return
 	}
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -1328,18 +1679,40 @@ func handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	if idx, ok := store.UsersByUsername[username]; ok {
-		if !checkPassword(store.Users[idx].PasswordHash, req.OldPassword) {
-			errorResponse(w, "incorrect current password", 401)
-			return
-		}
-		store.Users[idx].PasswordHash = hashPassword(req.NewPassword)
-		jsonResponse(w, map[string]string{"status": "password updated"}, 200)
+	// Read the current hash under a read lock, then run bcrypt without any
+	// lock held.
+	store.mu.RLock()
+	curHash, ok := store.UsersByUsername[username]
+	var oldHash string
+	if ok {
+		oldHash = store.Users[curHash].PasswordHash
+	}
+	store.mu.RUnlock()
+	if !ok {
+		errorResponse(w, "user not found", 404)
 		return
 	}
-	errorResponse(w, "user not found", 404)
+	if !checkPassword(oldHash, req.OldPassword) {
+		errorResponse(w, "incorrect current password", 401)
+		return
+	}
+	newHash := hashPassword(req.NewPassword)
+	if newHash == "" {
+		errorResponse(w, "could not process password", 500)
+		return
+	}
+
+	store.mu.Lock()
+	idx, stillExists := store.UsersByUsername[username]
+	if stillExists {
+		store.Users[idx].PasswordHash = newHash
+	}
+	store.mu.Unlock()
+	if !stillExists {
+		errorResponse(w, "user not found", 404)
+		return
+	}
+	jsonResponse(w, map[string]string{"status": "password updated"}, 200)
 }
 
 // --- RECOMMENDATIONS ---
@@ -1424,7 +1797,7 @@ func handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -1484,14 +1857,17 @@ func handleAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
 	summary.TotalUsers = len(store.Users)
 	summary.TotalProducts = len(store.Products)
 	summary.TotalReviews = len(store.Reviews)
+	summary.TotalRevenue = round2(summary.TotalRevenue)
 	if summary.TotalOrders > 0 {
-		summary.AvgOrderValue = summary.TotalRevenue / float64(summary.TotalOrders)
+		summary.AvgOrderValue = round2(summary.TotalRevenue / float64(summary.TotalOrders))
 	}
 
 	for _, tp := range productRevenue {
+		tp.Revenue = round2(tp.Revenue)
 		summary.TopProducts = append(summary.TopProducts, *tp)
 	}
 	for _, dr := range dayData {
+		dr.Revenue = round2(dr.Revenue)
 		summary.RevenueByDay = append(summary.RevenueByDay, *dr)
 	}
 
@@ -1527,7 +1903,7 @@ func handleUserActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	getCors(w, r)
-	username := getUsername(r)
+	username := getSessionUsername(r)
 	if username == "" {
 		errorResponse(w, "unauthorized", 401)
 		return
@@ -1554,12 +1930,24 @@ func handleUserActivity(w http.ResponseWriter, r *http.Request) {
 
 // --- ROUTING ---
 
+// csrfMiddleware protects the cookie-authenticated API from cross-site
+// request forgery by enforcing an origin allowlist on state-changing
+// methods. Browsers always send Origin on cross-origin POST/PUT/DELETE;
+// requests with neither Origin nor Referer (curl, server-to-server proxies)
+// are allowed.
 func csrfMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" || r.Method == "PUT" || r.Method == "DELETE" || r.Method == "PATCH" {
-			token := r.Header.Get("X-CSRF-Token")
-			if token == "" {
-				errorResponse(w, "csrf token required", 403)
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				if ref := r.Header.Get("Referer"); ref != "" {
+					if u, err := url.Parse(ref); err == nil && u.Scheme != "" && u.Host != "" {
+						origin = u.Scheme + "://" + u.Host
+					}
+				}
+			}
+			if origin != "" && !allowedOrigins[origin] {
+				errorResponse(w, "cross-origin request rejected", 403)
 				return
 			}
 		}
@@ -1604,71 +1992,196 @@ func (w *statusWriter) WriteHeader(code int) {
 }
 
 type ipRequest struct {
-	count   int
-	resetAt time.Time
+	count    int
+	resetAt  time.Time
+	lastSeen time.Time
 }
 
-var rateLimiterStore sync.Map
-var rateLimiterCount int64
+var (
+	rateLimiterMu      sync.Mutex
+	rateLimiterEntries = make(map[string]*ipRequest)
+)
 
 const maxRateLimiterEntries = 10000
 
-func rateLimit(next http.Handler) http.Handler {
-	go func() {
-		for {
-			time.Sleep(time.Minute)
+// isLoopbackOrPrivate reports whether addr is a loopback or RFC1918 address,
+// i.e. likely a local reverse proxy whose X-Forwarded-For we may trust.
+func isLoopbackOrPrivate(addr string) bool {
+	ip := net.ParseIP(addr)
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate())
+}
+
+// clientIP determines the client address for rate limiting. X-Forwarded-For /
+// X-Real-IP are only trusted when the direct peer is loopback or private
+// (a local reverse proxy); otherwise they are fully client-controlled and
+// ignored.
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	if !isLoopbackOrPrivate(host) {
+		return host
+	}
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		if cand := strings.TrimSpace(strings.Split(fwd, ",")[0]); cand != "" {
+			return cand
+		}
+	}
+	if fwd := r.Header.Get("X-Real-IP"); fwd != "" {
+		if cand := strings.TrimSpace(fwd); cand != "" {
+			return cand
+		}
+	}
+	return host
+}
+
+// evictOldestRateEntry removes the least-recently-seen bucket.
+// Must be called with rateLimiterMu held.
+func evictOldestRateEntry() {
+	var oldestKey string
+	var oldest time.Time
+	first := true
+	for k, e := range rateLimiterEntries {
+		if first || e.lastSeen.Before(oldest) {
+			oldestKey, oldest, first = k, e.lastSeen, false
+		}
+	}
+	if !first {
+		delete(rateLimiterEntries, oldestKey)
+	}
+}
+
+// sweepRateLimiter removes buckets whose window has expired.
+// Must be called with rateLimiterMu held.
+func sweepRateLimiter(now time.Time) {
+	for ip, e := range rateLimiterEntries {
+		if now.After(e.resetAt) {
+			delete(rateLimiterEntries, ip)
+		}
+	}
+}
+
+// rateLimitWith returns middleware allowing at most limit requests per minute
+// per client IP. The bucket key namespaces separate budgets (e.g. the global
+// budget vs the much tighter auth brute-force budget) so heavy traffic in one
+// class cannot exhaust the other.
+func rateLimitWith(limit int, key string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			bucket := key + "|" + clientIP(r)
 			now := time.Now()
-			rateLimiterStore.Range(func(key, value interface{}) bool {
-				entry := value.(*ipRequest)
-				if now.After(entry.resetAt) {
-					rateLimiterStore.Delete(key)
-					atomic.AddInt64(&rateLimiterCount, -1)
+
+			rateLimiterMu.Lock()
+			entry, ok := rateLimiterEntries[bucket]
+			if !ok {
+				// At capacity: evict the oldest entry instead of rejecting the
+				// newcomer (which would let one attacker lock out new IPs).
+				if len(rateLimiterEntries) >= maxRateLimiterEntries {
+					evictOldestRateEntry()
 				}
-				return true
-			})
-		}
-	}()
+				entry = &ipRequest{resetAt: now.Add(time.Minute)}
+				rateLimiterEntries[bucket] = entry
+			}
+			if now.After(entry.resetAt) {
+				entry.count = 0
+				entry.resetAt = now.Add(time.Minute)
+			}
+			entry.count++
+			entry.lastSeen = now
+			limited := entry.count > limit
+			rateLimiterMu.Unlock()
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			ip = strings.Split(fwd, ",")[0]
-		} else if fwd := r.Header.Get("X-Real-IP"); fwd != "" {
-			ip = fwd
-		}
+			if limited {
+				w.Header().Set("Retry-After", "60")
+				errorResponse(w, "rate limit exceeded", 429)
+				return
+			}
 
-		val, loaded := rateLimiterStore.LoadOrStore(ip, &ipRequest{
-			count:   0,
-			resetAt: time.Now().Add(time.Minute),
+			next.ServeHTTP(w, r)
 		})
-		if !loaded {
-			newCount := atomic.AddInt64(&rateLimiterCount, 1)
-			if newCount > maxRateLimiterEntries {
-				rateLimiterStore.Delete(ip)
-				atomic.AddInt64(&rateLimiterCount, -1)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusTooManyRequests)
-				json.NewEncoder(w).Encode(map[string]string{"error": "rate limit exceeded"})
+	}
+}
+
+// envPositiveInt reads a positive integer override from the environment.
+func envPositiveInt(name string, fallback int) int {
+	if raw := os.Getenv(name); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil && v > 0 {
+			return v
+		}
+	}
+	return fallback
+}
+
+var (
+	// Global budget: one page load fires 10+ API requests (navbar alone hits
+	// /me, /rewards, /discounts, /recommendations, /reviews), and every user
+	// behind a NAT or reverse proxy shares one IP. The old hardcoded
+	// 100 req/min silently broke sessions under modest parallelism (429s
+	// happened before the logger, so they left no trace).
+	globalRateLimitRPM = envPositiveInt("ELITE_RATE_LIMIT_RPM", 600)
+	// Auth budget: brute-force protection for login/signup/otp endpoints.
+	authRateLimitRPM = envPositiveInt("ELITE_AUTH_RATE_LIMIT_RPM", 30)
+)
+
+func rateLimit(next http.Handler) http.Handler {
+	return rateLimitWith(globalRateLimitRPM, "global")(next)
+}
+
+// isLoopbackIP reports whether host is a loopback address (127.0.0.0/8, ::1).
+func isLoopbackIP(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// authRateLimit wraps handlers whose endpoints are brute-force targets.
+// Direct loopback callers (local dev, internal tooling, CI/test suites)
+// share a single IP and would throttle each other, so they are exempt: in
+// the production topology every browser request reaches Go through the
+// Next.js proxy, which forwards X-Forwarded-For, so real client IPs are
+// always subject to the limit.
+func authRateLimit(next http.Handler) http.Handler {
+	limited := rateLimitWith(authRateLimitRPM, "auth")(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isLoopbackIP(clientIP(r)) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		limited.ServeHTTP(w, r)
+	})
+}
+
+// sweepStale prunes expired sessions and stale rate-limit buckets. Started
+// once from main().
+func sweepStale() {
+	now := time.Now()
+
+	store.mu.Lock()
+	for tok, sess := range store.Sessions {
+		if now.Unix() > sess.Expires {
+			delete(store.Sessions, tok)
+		}
+	}
+	store.mu.Unlock()
+
+	rateLimiterMu.Lock()
+	sweepRateLimiter(now)
+	rateLimiterMu.Unlock()
+}
+
+func startSweeper(stop <-chan struct{}) {
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				sweepStale()
+			case <-stop:
 				return
 			}
 		}
-		entry := val.(*ipRequest)
-
-		if time.Now().After(entry.resetAt) {
-			entry.count = 0
-			entry.resetAt = time.Now().Add(time.Minute)
-		}
-
-		entry.count++
-		if entry.count > 100 {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusTooManyRequests)
-			json.NewEncoder(w).Encode(map[string]string{"error": "rate limit exceeded"})
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	}()
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -1692,12 +2205,13 @@ func main() {
 	mux.HandleFunc("/api/health", handleHealth)
 	mux.HandleFunc("/", handleLanding)
 
-	// Auth
-	mux.HandleFunc("/api/auth/signup", handleSignup)
-	mux.HandleFunc("/api/auth/login", handleLogin)
+	// Auth. Login/signup/otp are brute-force targets and get their own tight
+	// per-IP budget so probing can't exhaust the global one (or vice versa).
+	mux.Handle("/api/auth/signup", authRateLimit(http.HandlerFunc(handleSignup)))
+	mux.Handle("/api/auth/login", authRateLimit(http.HandlerFunc(handleLogin)))
 	mux.HandleFunc("/api/auth/logout", handleLogout)
 	mux.HandleFunc("/api/auth/me", handleMe)
-	mux.HandleFunc("/api/auth/send-password", handleSendPassword)
+	mux.Handle("/api/auth/send-password", authRateLimit(http.HandlerFunc(handleSendPassword)))
 
 	// Cart
 	mux.HandleFunc("/api/cart", handleCart)
@@ -1719,6 +2233,7 @@ func main() {
 	mux.HandleFunc("/api/rewards/redeem", handleRewardsRedeem)
 
 	// Discounts
+	mux.HandleFunc("/api/discounts", handleDiscountList)
 	mux.HandleFunc("/api/discounts/validate", handleDiscountValidate)
 	mux.HandleFunc("/api/discounts/apply", handleDiscountApply)
 
@@ -1749,7 +2264,7 @@ func main() {
 	slog.Info("Go backend starting", "addr", ":3003", "go_version", runtime.Version())
 	server := &http.Server{
 		Addr:              ":3003",
-		Handler:           recoveryMiddleware(securityHeaders(rateLimit(requestLogger(mux)))),
+		Handler:           recoveryMiddleware(securityHeaders(csrfMiddleware(requestLogger(rateLimit(mux))))),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -1759,6 +2274,9 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	sweeperStop := make(chan struct{})
+	startSweeper(sweeperStop)
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed: %v", err)
@@ -1766,6 +2284,7 @@ func main() {
 	}()
 
 	<-quit
+	close(sweeperStop)
 	log.Println("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

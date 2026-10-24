@@ -36,19 +36,11 @@ const gridItemStyle: React.CSSProperties = {
   display: "flex",
 };
 
-const flashSales = [
-  {
-    id: "flash-1",
-    title: "MacBook Air M4 — Limited Time",
-    discount: 15,
-    endsAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "flash-2",
-    title: "ROG Zephyrus G16 Deal",
-    discount: 10,
-    endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-  },
+// Flash-sale end times are computed inside the component (useMemo) so the
+// module-scope Date.now() doesn't diverge between server and client renders.
+const FLASH_SALE_BASE = [
+  { id: "flash-1", title: "MacBook Air M4 — Limited Time", discount: 15, hoursAhead: 4 },
+  { id: "flash-2", title: "ROG Zephyrus G16 Deal", discount: 10, hoursAhead: 2 },
 ];
 
 export default function Home() {
@@ -63,19 +55,34 @@ export default function Home() {
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const parentRef = useRef<HTMLDivElement | null>(null);
 
+  const flashSales = useMemo(
+    () => FLASH_SALE_BASE.map(({ id, title, discount, hoursAhead }) => ({
+      id,
+      title,
+      discount,
+      endsAt: new Date(Date.now() + hoursAhead * 60 * 60 * 1000).toISOString(),
+    })),
+    []
+  );
+
   useEffect(() => {
     // sessionStorage is unavailable during Next.js prerender, so the cache
     // can only be read after mount. This is the standard SSR-safe pattern.
+    // The key is language-scoped and the parsed value is validated: a
+    // corrupted entry (non-array) must not reach products.filter below.
     try {
-      const cached = sessionStorage.getItem("products");
+      const cached = sessionStorage.getItem(`products:${language}`);
       if (cached) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setProducts(JSON.parse(cached));
+        const parsed: unknown = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setProducts(parsed);
+        }
         setLoading(false);
         return;
       }
     } catch {}
-  }, []);
+  }, [language]);
 
   const fetchProducts = useCallback(async (lang: string) => {
     try {
@@ -87,9 +94,12 @@ export default function Home() {
       console.log(
         `[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=${lang} | OK`,
       );
-      setProducts(data.products || []);
+      const fetched = Array.isArray(data.products) ? data.products : [];
+      setProducts(fetched);
       try {
-        sessionStorage.setItem("products", JSON.stringify(data.products || []));
+        // Cache per language and only ever store an array so a later read
+        // can't blow up products.filter.
+        sessionStorage.setItem(`products:${lang}`, JSON.stringify(fetched));
       } catch {}
     } catch (err) {
       console.error("Failed to fetch products:", err);
