@@ -4,6 +4,19 @@ export function settle(page: Page) {
   return page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => undefined);
 }
 
+/**
+ * Settle + wait for the app's full-screen boot overlay (LoadingScreen, which
+ * blocks all pointer interaction for at least 5s) to unmount. Without this,
+ * clicks issued right after load can race the overlay and be lost.
+ */
+export async function settleReady(page: Page) {
+  await settle(page);
+  await page
+    .locator('[data-testid="boot-overlay"]')
+    .waitFor({ state: "detached", timeout: 20000 })
+    .catch(() => undefined);
+}
+
 export function uniqueUser(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }

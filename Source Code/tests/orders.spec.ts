@@ -38,8 +38,9 @@ test.describe("Orders", () => {
     await page.locator("button", { hasText: "Pay later" }).click();
     await expect(page.locator("text=1 order found")).toBeVisible({ timeout: 15000 });
 
-    // Regression: every order used to render as "Delivered".
-    const select = page.locator("select").first();
+    // Regression: every order used to render as "Delivered". Scope to the
+    // status filter (the navbar's Language select is the page's first select).
+    const select = page.locator('select:has(option[value="delivered"])');
     await select.selectOption("delivered");
     await expect(page.locator("text=No orders match your filters.")).toBeVisible();
 

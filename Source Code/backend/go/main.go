@@ -2121,16 +2121,34 @@ var (
 	// happened before the logger, so they left no trace).
 	globalRateLimitRPM = envPositiveInt("ELITE_RATE_LIMIT_RPM", 600)
 	// Auth budget: brute-force protection for login/signup/otp endpoints.
-	authRateLimitRPM = envPositiveInt("ELITE_AUTH_RATE_LIMIT_RPM", 10)
+	authRateLimitRPM = envPositiveInt("ELITE_AUTH_RATE_LIMIT_RPM", 30)
 )
 
 func rateLimit(next http.Handler) http.Handler {
 	return rateLimitWith(globalRateLimitRPM, "global")(next)
 }
 
+// isLoopbackIP reports whether host is a loopback address (127.0.0.0/8, ::1).
+func isLoopbackIP(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // authRateLimit wraps handlers whose endpoints are brute-force targets.
+// Direct loopback callers (local dev, internal tooling, CI/test suites)
+// share a single IP and would throttle each other, so they are exempt: in
+// the production topology every browser request reaches Go through the
+// Next.js proxy, which forwards X-Forwarded-For, so real client IPs are
+// always subject to the limit.
 func authRateLimit(next http.Handler) http.Handler {
-	return rateLimitWith(authRateLimitRPM, "auth")(next)
+	limited := rateLimitWith(authRateLimitRPM, "auth")(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isLoopbackIP(clientIP(r)) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		limited.ServeHTTP(w, r)
+	})
 }
 
 // sweepStale prunes expired sessions and stale rate-limit buckets. Started
