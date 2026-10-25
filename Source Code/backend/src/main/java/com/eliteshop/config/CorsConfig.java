@@ -4,12 +4,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * CORS allow-list, registered in the security chain via the injected
+ * {@link CorsConfigurationSource} bean. Must always be used as a Spring bean —
+ * instantiating it with {@code new} skips @Value injection, leaves
+ * allowedOrigins null and makes CorsFilter reject every cross-origin request.
+ */
 @Configuration
 public class CorsConfig {
 
@@ -17,7 +23,7 @@ public class CorsConfig {
     private String[] allowedOrigins;
 
     @Bean
-    public CorsFilter corsFilter() {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         
         if (allowedOrigins != null) {
@@ -49,6 +55,6 @@ public class CorsConfig {
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
+        return source;
     }
 }

@@ -46,6 +46,7 @@ export default function LoadingScreen({ minimumLoad = 1500 }: { minimumLoad?: nu
 
   return (
     <div
+      data-testid="boot-overlay"
       style={{
         position: "fixed",
         top: 0,

@@ -3,12 +3,19 @@
 #include "evaluator.hpp"
 
 #include <cmath>
+#include <cstddef>
 #include <map>
 #include <utility>
 #include <vector>
 
 namespace calc {
 namespace {
+
+// Hard caps for symbolic differentiation: the derivative of a product grows
+// with the number of factors and simplify() runs up to 64 passes over the
+// tree, so oversized expressions are rejected up front (400 responses).
+constexpr std::size_t kMaxExpressionNodes = 500;
+constexpr std::size_t kMaxDerivativeNodes = 20000;
 
 NodePtr derivative_of(const Node& node, const std::string& variable);
 
@@ -643,8 +650,17 @@ NodePtr simplify(const Node& expression) {
 std::string differentiate_expression(const std::string& expression,
                                      const std::string& variable) {
     NodePtr ast = parse(expression);
+    if (node_count(*ast) > kMaxExpressionNodes) {
+        throw CalcError("expression too complex");
+    }
     NodePtr derivative = differentiate(*ast, variable);
+    if (node_count(*derivative) > kMaxDerivativeNodes) {
+        throw CalcError("expression too complex");
+    }
     NodePtr reduced = simplify(*derivative);
+    if (node_count(*reduced) > kMaxDerivativeNodes) {
+        throw CalcError("expression too complex");
+    }
     return to_string(*reduced);
 }
 

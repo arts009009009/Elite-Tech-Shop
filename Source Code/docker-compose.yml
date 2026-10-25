@@ -2,7 +2,8 @@ services:
   mongodb:
     image: mongo:7
     ports:
-      - "27017:27017"
+      # Bind to loopback only — the dev database has no authentication.
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongodb_data:/data/db
     healthcheck:
@@ -26,8 +27,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-    environment:
-      - MONGODB_URI=mongodb://mongodb:27017
+    # The Rust backend does not read MONGODB_URI (it stores data in
+    # backend/rust/products.json), so no environment is configured here.
     deploy:
       resources:
         limits:
@@ -60,8 +61,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-    environment:
-      - MONGODB_URI=mongodb://mongodb:27017
+    # The Go backend does not read MONGODB_URI (it stores data in memory),
+    # so no environment is configured here.
     deploy:
       resources:
         limits:

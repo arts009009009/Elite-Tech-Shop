@@ -40,6 +40,9 @@ export default function ProfilePage() {
         updateProfile({ displayName, bio, avatar });
         setMessage("Profile updated!");
         setTimeout(() => setMessage(""), 3000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setMessage((data as { error?: string }).error || "Failed to update profile");
       }
     } catch { setMessage("Failed to update profile"); }
   };

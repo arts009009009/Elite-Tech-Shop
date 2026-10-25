@@ -65,6 +65,3 @@ frontend/.yarn/*
 !frontend/.yarn/plugins
 !frontend/.yarn/releases
 !frontend/.yarn/versions
-
-# rust service product data (bootstrapped by `yarn dev`)
-/backend/rust/products.json

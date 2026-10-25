@@ -2,9 +2,19 @@ package com.eliteshop.util;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Fixed-window rate limiter keyed by an arbitrary string (e.g. "ip|email").
+ *
+ * <p>Thread-safety: window reset and increment happen under the bucket lock, so
+ * there is no lost-increment or check-then-act race between threads, and the
+ * bucket swap in {@link #allowRequest} is atomic per key via
+ * {@link ConcurrentHashMap#compute} (no TOCTOU between expiry check and insert).
+ *
+ * <p>Memory: expired buckets are pruned lazily on access plus periodically by a
+ * daemon cleanup thread, so the map stays bounded even when keys are unbounded
+ * (e.g. arbitrary user-supplied emails).
+ */
 public class RateLimiter {
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
@@ -43,27 +53,22 @@ public class RateLimiter {
     private void cleanup() {
         long now = System.currentTimeMillis();
         lastCleanup = now;
-        buckets.entrySet().removeIf(entry -> {
-            Bucket bucket = entry.getValue();
-            return bucket.isExpired(now);
-        });
+        buckets.entrySet().removeIf(entry -> entry.getValue().isExpired(now));
     }
 
     public boolean allowRequest(String key) {
         long now = System.currentTimeMillis();
-        
+
         // Periodic cleanup
         if (now - lastCleanup > cleanupIntervalMs) {
             cleanup();
         }
-        
-        Bucket bucket = buckets.computeIfAbsent(key, k -> new Bucket(now, windowSizeMs));
-        
-        if (bucket.isExpired(now)) {
-            buckets.put(key, new Bucket(now, windowSizeMs));
-            bucket = buckets.get(key);
-        }
-        
+
+        // compute() is atomic per key: the expired bucket is swapped out and the
+        // fresh one incremented without another thread slipping in between.
+        Bucket bucket = buckets.compute(key,
+            (k, existing) -> (existing == null || existing.isExpired(now)) ? new Bucket(now, windowSizeMs) : existing);
+
         return bucket.incrementAndCheck(now, maxRequests);
     }
 
@@ -89,45 +94,39 @@ public class RateLimiter {
         buckets.remove(key);
     }
 
-    private class Bucket {
-        private final AtomicInteger count;
-        private final AtomicLong windowStart;
+    /** Package-private: number of live buckets, for tests. */
+    int bucketCount() {
+        return buckets.size();
+    }
+
+    private static final class Bucket {
+        private final long windowSizeMs;
+        private long windowStart;
+        private int count;
 
         Bucket(long windowStart, long windowSizeMs) {
-            this.count = new AtomicInteger(0);
-            this.windowStart = new AtomicLong(windowStart);
+            this.windowStart = windowStart;
+            this.windowSizeMs = windowSizeMs;
         }
 
-        boolean isExpired(long now) {
-            return now - windowStart.get() >= windowSizeMs;
+        synchronized boolean isExpired(long now) {
+            return now - windowStart >= windowSizeMs;
         }
 
-        boolean incrementAndCheck(long now, int maxRequests) {
-            long currentStart = windowStart.get();
-            
-            // Check if window has expired
-            if (now - currentStart >= windowSizeMs) {
-                if (windowStart.compareAndSet(currentStart, now)) {
-                    count.set(0);
-                } else {
-                    // Someone else updated it, try again
-                    currentStart = windowStart.get();
-                    if (now - currentStart >= windowSizeMs) {
-                        windowStart.set(now);
-                        count.set(0);
-                    }
-                }
+        synchronized boolean incrementAndCheck(long now, int maxRequests) {
+            if (now - windowStart >= windowSizeMs) {
+                windowStart = now;
+                count = 0;
             }
-            
-            return count.incrementAndGet() <= maxRequests;
+            return ++count <= maxRequests;
         }
 
-        int getCount() {
-            return count.get();
+        synchronized int getCount() {
+            return count;
         }
 
-        long getResetTime() {
-            return windowStart.get() + windowSizeMs;
+        synchronized long getResetTime() {
+            return windowStart + windowSizeMs;
         }
     }
 }

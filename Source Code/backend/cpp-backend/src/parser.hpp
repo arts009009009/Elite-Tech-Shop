@@ -39,5 +39,6 @@ NodePtr make_function(const std::string& name, std::vector<NodePtr> args);
 NodePtr parse(const std::string& expression);
 NodePtr build_ast(const std::vector<Token>& tokens);
 std::string to_string(const Node& node);
+std::size_t node_count(const Node& node);
 
 }  // namespace calc

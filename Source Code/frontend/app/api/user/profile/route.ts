@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import {
   validateSession,
   jsonUnauthorized,
@@ -144,9 +145,12 @@ export async function GET() {
   }
 
   try {
+    const cookieStore = await cookies();
+    const session = cookieStore.get("user_session")?.value;
     const res = await fetch(`${GO_BACKEND}/api/profile`, {
       headers: {
         "Content-Type": "application/json",
+        ...(session ? { Cookie: `user_session=${session}` } : {}),
       },
       cache: "no-store",
     });
@@ -204,10 +208,13 @@ export async function PUT(request: Request) {
       }
     }
 
+    const cookieStore = await cookies();
+    const session = cookieStore.get("user_session")?.value;
     const res = await fetch(`${GO_BACKEND}/api/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        ...(session ? { Cookie: `user_session=${session}` } : {}),
       },
       body: JSON.stringify(body),
     });

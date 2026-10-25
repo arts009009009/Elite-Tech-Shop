@@ -43,7 +43,7 @@ const languages = {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { cart } = useCart();
+  const { itemCount } = useCart();
   const { language, setLanguage, isRTL } = useLanguage();
   const { search, setSearch } = useSearch();
   const { points } = useRewards();
@@ -219,7 +219,7 @@ export default function Navbar() {
               borderRadius: "4px",
             }}
           >
-            {labels.cart}: {mounted ? cart.length : 0}
+            {labels.cart}: {mounted ? itemCount : 0}
           </span>
 
           <input
@@ -493,7 +493,7 @@ export default function Navbar() {
         </div>
 
         <span className="nav-cart">
-          {labels.cart}: {mounted ? cart.length : 0}
+          {labels.cart}: {mounted ? itemCount : 0}
         </span>
 
         <input

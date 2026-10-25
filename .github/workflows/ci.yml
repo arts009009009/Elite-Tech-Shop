@@ -1,265 +1,135 @@
-# name: CI
+name: CI
 
-# on:
-#   push:
-#     branches: [main, develop]
-#   pull_request:
-#     branches: [main]
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
 
-# permissions:
-#   contents: read
+permissions:
+  contents: read
 
-# jobs:
-#   # ─── Frontend ─────────────────────────────────────────────────────
-#   frontend-lint:
-#     runs-on: ubuntu-latest
-#     defaults:
-#       run:
-#         working-directory: frontend
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: pnpm/action-setup@v4
-#         with:
-#           version: 10
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: "20"
-#           cache: "pnpm"
-#           cache-dependency-path: frontend/pnpm-lock.yaml
-#       - run: pnpm install --frozen-lockfile
-#       - run: pnpm lint
+jobs:
+  # ─── Frontend ─────────────────────────────────────────────────
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "Source Code/frontend"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install
+      # `next lint` no longer exists in Next 16, so run eslint directly.
+      # Non-blocking for now: the frontend pins typescript@7 and
+      # typescript-eslint does not support TS 7 yet (it throws on load).
+      - name: Lint
+        run: npx eslint
+        continue-on-error: true
+      - name: Build
+        run: npx next build
 
-#   frontend-build:
-#     runs-on: ubuntu-latest
-#     needs: frontend-lint
-#     defaults:
-#       run:
-#         working-directory: frontend
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: pnpm/action-setup@v4
-#         with:
-#           version: 10
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: "20"
-#           cache: "pnpm"
-#           cache-dependency-path: frontend/pnpm-lock.yaml
-#       - run: pnpm install --frozen-lockfile
-#       - run: pnpm build
+  # ─── Rust backend ────────────────────────────────────────────
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo check
+        working-directory: "Source Code/backend/rust"
+        run: cargo check
 
-#   frontend-e2e:
-#     runs-on: ubuntu-latest
-#     needs: frontend-build
-#     services:
-#       mongodb:
-#         image: mongo:7
-#         ports:
-#           - 27017:27017
-#         options: >-
-#           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
-#           --health-start-period 10s
-#     defaults:
-#       run:
-#         working-directory: frontend
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: pnpm/action-setup@v4
-#         with:
-#           version: 10
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: "20"
-#           cache: "pnpm"
-#           cache-dependency-path: frontend/pnpm-lock.yaml
-#       - run: pnpm install --frozen-lockfile
-#       - run: npx playwright install --with-deps chromium
-#       - run: pnpm build
-#       - run: pnpm start &
-#       - name: Wait for frontend
-#         run: sleep 10 && curl -f http://localhost:3000 || exit 1
-#       - run: npx playwright test
+  # ─── Go backend ──────────────────────────────────────────────
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: "Source Code/backend/go/go.sum"
+      - name: Build and test
+        working-directory: "Source Code/backend/go"
+        run: |
+          go build ./...
+          go test ./...
 
-#   # ─── Rust Backend ────────────────────────────────────────────────
-#   rust-check:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: dtolnay/rust-toolchain@stable
-#         with:
-#           components: clippy
-#       - uses: Swatinem/rust-cache@v2
-#         with:
-#           workspaces: backend/rust -> target
-#       - name: Cargo check
-#         working-directory: backend/rust
-#         run: cargo check --all-targets
-#       - name: Clippy
-#         working-directory: backend/rust
-#         run: cargo clippy -- -D warnings
+  # ─── Java backend ────────────────────────────────────────────
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Package
+        working-directory: "Source Code/backend"
+        run: mvn -B -DskipTests package
 
-#   rust-test:
-#     runs-on: ubuntu-latest
-#     needs: rust-check
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: dtolnay/rust-toolchain@stable
-#       - uses: Swatinem/rust-cache@v2
-#         with:
-#           workspaces: backend/rust -> target
-#       - name: Run tests (products service)
-#         working-directory: backend/rust
-#         run: cargo test
-#       - name: Run tests (minigame WASM)
-#         working-directory: backend/rust/minigame
-#         run: cargo test
-
-#   # ─── Go Backend ──────────────────────────────────────────────────
-#   go-check:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-go@v5
-#         with:
-#           go-version: "1.24"
-#           cache-dependency-path: backend/go/go.sum
-#       - name: go vet
-#         working-directory: backend/go
-#         run: go vet ./...
-
-#   go-test:
-#     runs-on: ubuntu-latest
-#     needs: go-check
-#     services:
-#       mongodb:
-#         image: mongo:7
-#         ports:
-#           - 27017:27017
-#         options: >-
-#           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
-#           --health-start-period 10s
-#     env:
-#       MONGODB_URI: mongodb://localhost:27017
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-go@v5
-#         with:
-#           go-version: "1.24"
-#           cache-dependency-path: backend/go/go.sum
-#       - name: Run unit tests
-#         working-directory: backend/go
-#         run: go test -v -count=1 -tags '!integration' ./...
-#       - name: Run integration tests
-#         working-directory: backend/go
-#         run: go test -v -count=1 -tags integration ./...
-#         continue-on-error: true
-
-#   # ─── Java Backend ────────────────────────────────────────────────
-#   java-check:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-java@v4
-#         with:
-#           distribution: temurin
-#           java-version: "21"
-#           cache: maven
-#       - name: Compile
-#         working-directory: backend
-#         run: mvn compile -q
-
-#   java-test:
-#     runs-on: ubuntu-latest
-#     needs: java-check
-#     services:
-#       mongodb:
-#         image: mongo:7
-#         ports:
-#           - 27017:27017
-#         options: >-
-#           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
-#           --health-start-period 10s
-#     env:
-#       SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/elite-shop
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-java@v4
-#         with:
-#           distribution: temurin
-#           java-version: "21"
-#           cache: maven
-#       - name: Run tests
-#         working-directory: backend
-#         run: mvn test -q
-
-#   # ─── Integration: Full Stack ────────────────────────────────────
-#   integration:
-#     runs-on: ubuntu-latest
-#     needs:
-#       - rust-check
-#       - go-check
-#       - java-check
-#       - frontend-build
-#     steps:
-#       - uses: actions/checkout@v4
-#       - name: Build and start full stack
-#         run: docker compose build && docker compose up -d
-#       - name: Wait for services
-#         run: |
-#           sleep 30
-#           curl -f http://localhost:3000 || exit 1
-#           curl -f http://localhost:3001 || exit 1
-#           curl -f http://localhost:3002 || exit 1
-#           curl -f http://localhost:3003 || exit 1
-#       - name: Run integration smoke tests
-#         run: |
-#           curl -sf http://localhost:3002/products | head -c 200
-#           curl -sf http://localhost:3003/products | head -c 200
-#       - name: Tear down
-#         if: always()
-#         run: docker compose down -v
-
-#   # ─── Gate: all jobs must pass ────────────────────────────────────
-#   ci-pass:
-#     runs-on: ubuntu-latest
-#     if: always()
-#     needs:
-#       - frontend-lint
-#       - frontend-build
-#       - frontend-e2e
-#       - rust-check
-#       - rust-test
-#       - go-check
-#       - go-test
-#       - java-check
-#       - java-test
-#       - integration
-#     steps:
-#       - name: Check all jobs
-#         run: |
-#           results=("${{ needs.frontend-lint.result }}" \
-#                    "${{ needs.frontend-build.result }}" \
-#                    "${{ needs.frontend-e2e.result }}" \
-#                    "${{ needs.rust-check.result }}" \
-#                    "${{ needs.rust-test.result }}" \
-#                    "${{ needs.go-check.result }}" \
-#                    "${{ needs.go-test.result }}" \
-#                    "${{ needs.java-check.result }}" \
-#                    "${{ needs.java-test.result }}" \
-#                    "${{ needs.integration.result }}")
-#           for r in "${results[@]}"; do
-#             if [[ "$r" != "success" ]]; then
-#               echo "FAIL: one or more jobs failed (status=$r)"
-#               exit 1
-#             fi
-#           done
-#           echo "All CI checks passed"
+  # ─── End-to-end (Playwright) ─────────────────────────────────
+  e2e:
+    runs-on: ubuntu-latest
+    # The tests exercise every feature through Next's proxy, which forwards
+    # to all four backends — so the whole stack plus MongoDB must be live.
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    defaults:
+      run:
+        working-directory: "Source Code"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: "Source Code/backend/go/go.sum"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Install root dependencies
+        run: npm install
+      - name: Install frontend dependencies
+        working-directory: "Source Code/frontend"
+        run: npm install
+      - name: Build backends
+        run: |
+          (cd backend/go && go build -o go-backend .)
+          (cd backend/rust && cargo build)
+          (cd backend && mvn -B -DskipTests package)
+          (cd backend/cpp-backend && cmake -B build && cmake --build build -j)
+      - name: Start backends and wait until healthy
+        run: |
+          (cd backend/go && ADMIN_PASSWORD=admin nohup ./go-backend > /tmp/go.log 2>&1 </dev/null &)
+          (cd backend/rust && nohup ./target/debug/products-service > /tmp/rust.log 2>&1 </dev/null &)
+          (cd backend && ADMIN_PASSWORD=admin nohup java -jar "target/elite-shop-backend-5.3 Canary 13.jar" > /tmp/java.log 2>&1 </dev/null &)
+          (cd backend/cpp-backend && nohup ./build/calc_server > /tmp/calc.log 2>&1 </dev/null &)
+          for i in $(seq 1 90); do
+            up=0
+            for port in 3001 3002 3003 8084; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://localhost:$port/" || echo 000)
+              [ "$code" != "000" ] && up=$((up+1))
+            done
+            if [ "$up" -eq 4 ]; then echo "all backends healthy"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::backends failed to become healthy"
+          tail -n 40 /tmp/go.log /tmp/rust.log /tmp/java.log /tmp/calc.log || true
+          exit 1
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      # playwright.config.ts starts `next dev` itself (webServer).
+      - name: Run Playwright tests
+        run: npx playwright test

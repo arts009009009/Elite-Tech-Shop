@@ -23,11 +23,27 @@ public class CsrfFilter extends OncePerRequestFilter {
         "/api/auth/register"
     );
 
-    private final ConcurrentHashMap<String, String> csrfTokens = new ConcurrentHashMap<>();
+    private static final class TokenEntry {
+        private final String token;
+        private final long createdAt;
+
+        TokenEntry(String token, long createdAt) {
+            this.token = token;
+            this.createdAt = createdAt;
+        }
+    }
+
+    /** sessionToken -> csrfToken + creation time (creation time enables TTL pruning). */
+    private final ConcurrentHashMap<String, TokenEntry> csrfTokens = new ConcurrentHashMap<>();
 
     public String generateToken(String sessionToken) {
+        return generateToken(sessionToken, System.currentTimeMillis());
+    }
+
+    /** Package-private overload with explicit creation time, used by tests. */
+    String generateToken(String sessionToken, long createdAt) {
         String csrfToken = UUID.randomUUID().toString();
-        csrfTokens.put(sessionToken, csrfToken);
+        csrfTokens.put(sessionToken, new TokenEntry(csrfToken, createdAt));
         return csrfToken;
     }
 
@@ -35,12 +51,23 @@ public class CsrfFilter extends OncePerRequestFilter {
         csrfTokens.remove(sessionToken);
     }
 
+    /**
+     * Drops tokens older than maxAgeMs. Sessions live at most SESSION_TTL_MS, so a
+     * CSRF token older than that can never pair with a live session again; without
+     * this the map grows forever because tokens are only removed on /logout.
+     * Called from AuthController's cleanup thread.
+     */
+    public void pruneExpiredTokens(long maxAgeMs) {
+        long cutoff = System.currentTimeMillis() - maxAgeMs;
+        csrfTokens.entrySet().removeIf(entry -> entry.getValue().createdAt < cutoff);
+    }
+
     public boolean validateToken(String sessionToken, String csrfToken) {
         if (sessionToken == null || csrfToken == null) {
             return false;
         }
-        String stored = csrfTokens.get(sessionToken);
-        return stored != null && stored.equals(csrfToken);
+        TokenEntry stored = csrfTokens.get(sessionToken);
+        return stored != null && stored.token.equals(csrfToken);
     }
 
     @Override

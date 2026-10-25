@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiFetch } from "@/lib/api-fetch";
-import { scoreProducts, parsePersonalizationHeaders } from "@/lib/personalization";
+import { scoreProducts, parsePersonalizationHeaders, shuffle } from "@/lib/personalization";
 
 type Product = { id: number; title: string; price: number; currency: string; category?: string; image?: string };
 
@@ -14,15 +14,18 @@ export async function GET(request: Request) {
     { timeout: 5000, retries: 2, fallback: { products: [], total: 0 } }
   );
 
-  const products = data.products || [];
+  const products = Array.isArray(data.products) ? data.products : [];
 
   if (products.length === 0) {
     return NextResponse.json({ recommendations: [] });
   }
 
-  if (context.browseHistory.length === 0 && context.cartItems.length === 0) {
-    const shuffled = [...products].sort(() => Math.random() - 0.5).slice(0, 8);
-    return NextResponse.json({ recommendations: shuffled, segment: context.segment });
+  // Only a request with no context at all falls back to a random sample; a
+  // supplied segment goes through the scorer so it can actually influence the
+  // ranking.
+  if (context.segment === "anonymous" && context.browseHistory.length === 0 && context.cartItems.length === 0) {
+    const sampled = shuffle(products).slice(0, 8);
+    return NextResponse.json({ recommendations: sampled, segment: context.segment });
   }
 
   const scored = scoreProducts(products, context, 8);

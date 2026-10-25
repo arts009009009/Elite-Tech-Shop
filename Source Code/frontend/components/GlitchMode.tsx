@@ -50,10 +50,18 @@ function restoreNode(node: Node) {
 export function GlitchProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState(false);
   const [crashed, setCrashed] = useState(false);
-  const [crashId] = useState("");
+  const [crashId, setCrashId] = useState("");
   const intRef = useRef<ReturnType<typeof setInterval>[]>([]);
   const toutRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const audioRef = useRef<AudioContext | null>(null);
+
+  // The app's ThemeCustomizer toggles a `reduced-motion` body class; respect it
+  // (plus the OS-level preference) before scrambling text or playing audio.
+  const prefersReducedMotion = useCallback(() => {
+    try {
+      return document.body.classList.contains("reduced-motion") || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch { return false; }
+  }, []);
 
   const playStatic = useCallback(() => {
     try {
@@ -73,7 +81,10 @@ export function GlitchProvider({ children }: { children: React.ReactNode }) {
     toutRef.current = [];
   }, []);
 
-  const activate = useCallback(() => {
+  // Returns true when glitch effects actually started; false when skipped
+  // because the user has requested reduced motion.
+  const activate = useCallback((): boolean => {
+    if (prefersReducedMotion()) return false;
     const root = document.body;
     capturing = true;
     scrambleNode(root);
@@ -129,9 +140,12 @@ export function GlitchProvider({ children }: { children: React.ReactNode }) {
       document.querySelectorAll(".glitch-shutter, .glitch-blackout, .glitch-rgb").forEach(e => e.remove());
       restoreNode(document.body);
       setActive(false);
+      setCrashId(Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, "0"));
+      setCrashed(true);
     }, 20000);
     toutRef.current.push(crashTimer);
-  }, [playStatic, stopAll]);
+    return true;
+  }, [playStatic, stopAll, prefersReducedMotion]);
 
   const deactivate = useCallback(() => {
     stopAll();
@@ -146,9 +160,18 @@ export function GlitchProvider({ children }: { children: React.ReactNode }) {
     restoreNode(document.body);
   }, []);
 
-  useEffect(() => () => { stopAll(); if (audioRef.current) { audioRef.current.close().catch(() => {}); audioRef.current = null; } document.body.classList.remove("glitch-active","glitch-flicker","glitch-shake","glitch-invert","glitch-overdrive"); document.querySelectorAll(".glitch-shutter,.glitch-blackout,.glitch-rgb").forEach(e => e.remove()); }, [stopAll]);
+  useEffect(() => () => { stopAll(); if (audioRef.current) { audioRef.current.close().catch(() => {}); audioRef.current = null; } document.body.classList.remove("glitch-active","glitch-flicker","glitch-shake","glitch-invert","glitch-overdrive"); document.querySelectorAll(".glitch-shutter,.glitch-blackout,.glitch-rgb").forEach(e => e.remove()); restoreNode(document.body); }, [stopAll]);
 
-  const toggle = useCallback(() => { setActive(p => { if (p) deactivate(); else activate(); return !p; }); }, [activate, deactivate]);
+  const toggle = useCallback(() => {
+    // Compute the next state in the handler (updaters must stay pure — side
+    // effects inside them double-run under StrictMode).
+    if (active) {
+      setActive(false);
+      deactivate();
+    } else if (activate()) {
+      setActive(true);
+    }
+  }, [active, activate, deactivate]);
 
   const ctxValue = useMemo(() => ({ active, toggle }), [active, toggle]);
 

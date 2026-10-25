@@ -28,7 +28,7 @@ export default function Notification() {
   if (!visible) return null;
 
   return (
-    <div className="animate-slide-in-right gpu" role="status" aria-live="polite" aria-atomic="true">
+    <div className="notification-bar animate-slide-in-right gpu" role="status" aria-live="polite" aria-atomic="true">
       {message}
       <style>{`
         .notification-bar {

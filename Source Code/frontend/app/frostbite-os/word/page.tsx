@@ -48,6 +48,23 @@ export default function WordPage() {
   //
   // ============================================================
 
+  // True when the value cannot be used as a URL: an unparseable value is
+  // treated as dangerous and removed by the caller.
+  const isDangerousUrl = (value: string): boolean => {
+    try {
+      const url = new URL(value, window.location.origin);
+      const protocol = url.protocol.toLowerCase();
+
+      return (
+        protocol === "javascript:" ||
+        protocol === "vbscript:" ||
+        protocol === "data:"
+      );
+    } catch {
+      return true;
+    }
+  };
+
   const sanitizeHtml = (html: string): string => {
     const parser = new DOMParser();
 
@@ -113,6 +130,13 @@ export default function WordPage() {
           // Remove dangerous URL schemes.
           // ----------------------------------------------------
 
+          // srcdoc carries a whole HTML document rather than a URL — it
+          // cannot be validated against a URL scheme, so drop it outright.
+          if (name === "srcdoc") {
+            element.removeAttribute(attribute.name);
+            return;
+          }
+
           const urlAttributes = new Set([
             "href",
             "src",
@@ -120,26 +144,20 @@ export default function WordPage() {
             "formaction",
             "poster",
             "background",
+            "srcset",
+            "xlink:href",
           ]);
 
           if (urlAttributes.has(name)) {
-            try {
-              const url = new URL(
-                value,
-                window.location.origin
-              );
+            // srcset is a comma-separated list of "url descriptor" candidates
+            // — each one needs its own scheme check, otherwise a
+            // javascript: URL hidden after a safe candidate survives.
+            const candidates =
+              name === "srcset"
+                ? value.split(",").map((part) => part.trim().split(/\s+/)[0]).filter(Boolean)
+                : [value];
 
-              const protocol = url.protocol.toLowerCase();
-
-              if (
-                protocol === "javascript:" ||
-                protocol === "vbscript:" ||
-                protocol === "data:"
-              ) {
-                element.removeAttribute(attribute.name);
-              }
-            } catch {
-              // Invalid URLs are safer to remove.
+            if (candidates.some((candidate) => isDangerousUrl(candidate as string))) {
               element.removeAttribute(attribute.name);
             }
           }

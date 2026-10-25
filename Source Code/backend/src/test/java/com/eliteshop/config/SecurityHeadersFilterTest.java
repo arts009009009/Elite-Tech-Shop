@@ -35,7 +35,7 @@ class SecurityHeadersFilterTest {
         verify(response).setHeader("X-Frame-Options", "DENY");
         verify(response).setHeader("X-XSS-Protection", "1; mode=block");
         verify(response).setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-        verify(response).setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+        verify(response).setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
         verify(chain).doFilter(request, response);
     }
 }

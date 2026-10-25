@@ -33,18 +33,29 @@ export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
   const { language } = useLanguage();
+  // Ref mirror of isOpen so async timers (typing indicator) see the current
+  // value instead of the one captured when they were scheduled.
+  const isOpenRef = useRef(false);
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
   const t = useMemo(() => {
     const lang = language as Lang;
     return (key: string) => typedTranslations[key]?.[lang] ?? key;
   }, [language]);
 
-  const initializedRef = useRef(false);
+  const welcomeLangRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!initializedRef.current && messages.length === 0) {
-      initializedRef.current = true;
+    if (welcomeLangRef.current === null) {
+      welcomeLangRef.current = language;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- inject the welcome message once on mount
       setMessages([{ id: "welcome", text: t("WelcomeSupport"), sender: "support", timestamp: new Date() }]);
+      return;
     }
-  }, [t, messages.length]);
+    // Re-translate the injected welcome message when the language changes.
+    if (welcomeLangRef.current !== language) {
+      welcomeLangRef.current = language;
+      setMessages((prev) => prev.map((m) => (m.id === "welcome" ? { ...m, text: t("WelcomeSupport") } : m)));
+    }
+  }, [language, t]);
 
   const scrollToBottom = useCallback(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, []);
 
@@ -84,9 +95,10 @@ export default function Chat() {
       typingTimerRef.current = null;
       const reply = AUTO_REPLIES[Math.floor(Math.random() * AUTO_REPLIES.length)];
       addMessage(reply, "support");
-      if (!isOpen) setUnreadCount((prev) => prev + 1);
+      // Read the panel state at reply time, not at send time.
+      if (!isOpenRef.current) setUnreadCount((prev) => prev + 1);
     }, 1000 + Math.random() * 2000);
-  }, [addMessage, isOpen]);
+  }, [addMessage]);
 
   useEffect(() => {
     return () => { if (typingTimerRef.current) clearTimeout(typingTimerRef.current); };
@@ -102,7 +114,11 @@ export default function Chat() {
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }, [handleSend]);
 
-  const toggleChat = useCallback(() => { setIsOpen((prev) => { if (!prev) setUnreadCount(0); return !prev; }); }, []);
+  const toggleChat = useCallback(() => {
+    // Side effects stay out of the state updater.
+    if (!isOpen) setUnreadCount(0);
+    setIsOpen((prev) => !prev);
+  }, [isOpen]);
 
   return (
     <>

@@ -12,20 +12,40 @@ function StockAlerts() {
   const { lowStockItems } = useInventory();
   const [alerts, setAlerts] = useState<AlertEntry[]>([]);
   const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const removalTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const prevIdsRef = useRef<Set<number>>(new Set());
+  const alertsRef = useRef<AlertEntry[]>([]);
+  useEffect(() => { alertsRef.current = alerts; }, [alerts]);
 
   const dismiss = useCallback((id: number) => {
+    // Forgetting the id here (and when it leaves lowStockItems) lets a
+    // restocked-then-low product alert again later in the session.
+    prevIdsRef.current.delete(id);
     setAlerts((prev) => prev.map((a) => (a.productId === id ? { ...a, dismissed: true } : a)));
     const t = timersRef.current.get(id);
     if (t) { clearTimeout(t); timersRef.current.delete(id); }
-    setTimeout(() => setAlerts((prev) => prev.filter((a) => a.productId !== id)), 400);
+    const existing = removalTimersRef.current.get(id);
+    if (existing) clearTimeout(existing);
+    removalTimersRef.current.set(id, setTimeout(() => {
+      removalTimersRef.current.delete(id);
+      setAlerts((prev) => prev.filter((a) => a.productId !== id));
+    }, 400));
   }, []);
 
   useEffect(() => {
+    const currentIds = new Set(lowStockItems.map((item) => item.productId));
     const existing = prevIdsRef.current;
+    // Forget products that are no longer low on stock so they can alert again
+    // after a restock.
+    for (const id of Array.from(existing)) {
+      if (!currentIds.has(id)) existing.delete(id);
+    }
+    // Read the live alerts through a ref so this effect only re-runs when
+    // stock actually changes (depending on `alerts` would re-alert in a loop).
+    const activeAlertIds = new Set(alertsRef.current.map((a) => a.productId));
     const newAlerts: AlertEntry[] = [];
     for (const item of lowStockItems) {
-      if (!existing.has(item.productId)) {
+      if (!existing.has(item.productId) && !activeAlertIds.has(item.productId)) {
         existing.add(item.productId);
         newAlerts.push({ productId: item.productId, quantity: item.quantity, dismissed: false });
         const timer = setTimeout(() => dismiss(item.productId), 8000);
@@ -39,7 +59,13 @@ function StockAlerts() {
 
   useEffect(() => {
     const timers = timersRef.current;
-    return () => { timers.forEach((t) => clearTimeout(t)); timers.clear(); };
+    const removalTimers = removalTimersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+      removalTimers.forEach((t) => clearTimeout(t));
+      removalTimers.clear();
+    };
   }, []);
 
   return (

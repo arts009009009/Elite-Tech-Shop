@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState, useCallback, useEffect, useMemo, ReactNode } from "react";
+import { createContext, useState, useCallback, useEffect, useMemo, useRef, ReactNode } from "react";
 
 interface Badge {
   id: string;
@@ -38,6 +38,17 @@ interface AchievementProviderProps {
 }
 
 const STORAGE_KEY = "elite-shop-unlocked-badges";
+const PROGRESS_KEY = "elite-shop-achievement-progress";
+
+type AchievementProgress = {
+  totalOrders: number;
+  totalSpent: number;
+  totalReviews: number;
+  referralCount: number;
+  discountCount: number;
+};
+
+const ZERO_PROGRESS: AchievementProgress = { totalOrders: 0, totalSpent: 0, totalReviews: 0, referralCount: 0, discountCount: 0 };
 
 const BADGES: Badge[] = [
   {
@@ -148,7 +159,10 @@ function loadUnlockedBadges(): string[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      // Validate: a corrupted value (e.g. "{}" or a non-array) must not crash
+      // the provider subtree when .includes is called on it.
+      const parsed: unknown = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed.filter((id): id is string => typeof id === "string");
     }
   } catch {
     // ignore
@@ -165,8 +179,44 @@ function saveUnlockedBadges(badges: string[]): void {
   }
 }
 
+function toValidCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function loadProgress(): AchievementProgress {
+  if (typeof window === "undefined") return ZERO_PROGRESS;
+  try {
+    const stored = localStorage.getItem(PROGRESS_KEY);
+    if (stored) {
+      const parsed: unknown = JSON.parse(stored);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const p = parsed as Record<string, unknown>;
+        return {
+          totalOrders: toValidCount(p.totalOrders),
+          totalSpent: toValidCount(p.totalSpent),
+          totalReviews: toValidCount(p.totalReviews),
+          referralCount: toValidCount(p.referralCount),
+          discountCount: toValidCount(p.discountCount),
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return ZERO_PROGRESS;
+}
+
+function saveProgress(progress: AchievementProgress): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+  } catch {
+    // ignore
+  }
+}
+
 export function AchievementProvider({ children }: AchievementProviderProps) {
-  const [unlockedBadges, setUnlockedBadges] = useState<string[]>(() => loadUnlockedBadges());
+  const [unlockedBadges, setUnlockedBadges] = useState<string[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
@@ -174,10 +224,37 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
   const [referralCount, setReferralCount] = useState(0);
   const [discountCount, setDiscountCount] = useState(0);
   const [hasNightOrder, setHasNightOrder] = useState(false);
+  // localStorage is unavailable during SSR/prerender, so persisted state is
+  // resolved after mount (SSR-safe hydration pattern).
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
-    saveUnlockedBadges(unlockedBadges);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted achievements after mount
+    setUnlockedBadges(loadUnlockedBadges());
+    const progress = loadProgress();
+    setTotalOrders(progress.totalOrders);
+    setTotalSpent(progress.totalSpent);
+    setTotalReviews(progress.totalReviews);
+    setReferralCount(progress.referralCount);
+    setDiscountCount(progress.discountCount);
+  }, []);
+
+  useEffect(() => {
+    if (hydratedRef.current) saveUnlockedBadges(unlockedBadges);
   }, [unlockedBadges]);
+
+  // Persist cumulative counters so long-running badges (10 orders, $500 spent,
+  // 10 reviews, referrals, discounts) can actually unlock across reloads.
+  useEffect(() => {
+    if (hydratedRef.current) {
+      saveProgress({ totalOrders, totalSpent, totalReviews, referralCount, discountCount });
+    }
+  }, [totalOrders, totalSpent, totalReviews, referralCount, discountCount]);
+
+  // Declared after the save effects: on the mount pass they see the flag still
+  // false, so defaults never overwrite persisted data; it flips before any
+  // post-hydration change can re-run them.
+  useEffect(() => { hydratedRef.current = true; }, []);
 
   const isUnlocked = useCallback(
     (id: string) => unlockedBadges.includes(id),
@@ -195,20 +272,23 @@ export function AchievementProvider({ children }: AchievementProviderProps) {
 
   const checkAndUnlock = useCallback(
     (ctx: Omit<AchievementContextType, "checkAndUnlock" | "unlockedBadges" | "totalPoints" | "badges">) => {
-      setUnlockedBadges((prev) => {
-        const newUnlocked = [...prev];
-        let changed = false;
-        for (const badge of BADGES) {
-          if (!newUnlocked.includes(badge.id) && badge.condition({ ...ctx, badges: BADGES, unlockedBadges: prev, totalPoints: 0, checkAndUnlock: () => {}, isUnlocked: () => false, incrementOrders: () => {}, addSpent: () => {}, incrementReviews: () => {}, setWishlistCount: () => {}, incrementReferrals: () => {}, incrementDiscounts: () => {}, markNightOrder: () => {} })) {
-            newUnlocked.push(badge.id);
-            changed = true;
-            window.dispatchEvent(new CustomEvent("notify", { detail: `Badge unlocked: ${badge.icon} ${badge.name}! +${badge.points} points` }));
-          }
+      // Evaluate against current state in the handler (not inside an updater)
+      // so notify events don't double-fire under StrictMode.
+      const newlyUnlocked: Badge[] = [];
+      const next = [...unlockedBadges];
+      for (const badge of BADGES) {
+        if (!next.includes(badge.id) && badge.condition({ ...ctx, badges: BADGES, unlockedBadges: unlockedBadges, totalPoints: 0, checkAndUnlock: () => {}, isUnlocked: () => false, incrementOrders: () => {}, addSpent: () => {}, incrementReviews: () => {}, setWishlistCount: () => {}, incrementReferrals: () => {}, incrementDiscounts: () => {}, markNightOrder: () => {} })) {
+          next.push(badge.id);
+          newlyUnlocked.push(badge);
         }
-        return changed ? newUnlocked : prev;
-      });
+      }
+      if (newlyUnlocked.length === 0) return;
+      setUnlockedBadges(next);
+      for (const badge of newlyUnlocked) {
+        window.dispatchEvent(new CustomEvent("notify", { detail: `Badge unlocked: ${badge.icon} ${badge.name}! +${badge.points} points` }));
+      }
     },
-    []
+    [unlockedBadges]
   );
 
   const incrementOrders = useCallback(() => {
