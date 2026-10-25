@@ -74,6 +74,13 @@ jobs:
   # ─── End-to-end (Playwright) ─────────────────────────────────
   e2e:
     runs-on: ubuntu-latest
+    # The tests exercise every feature through Next's proxy, which forwards
+    # to all four backends — so the whole stack plus MongoDB must be live.
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
     defaults:
       run:
         working-directory: "Source Code"
@@ -82,11 +89,45 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: "Source Code/backend/go/go.sum"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
       - name: Install root dependencies
         run: npm install
       - name: Install frontend dependencies
         working-directory: "Source Code/frontend"
         run: npm install
+      - name: Build backends
+        run: |
+          (cd backend/go && go build -o go-backend .)
+          (cd backend/rust && cargo build)
+          (cd backend && mvn -B -DskipTests package)
+          (cd backend/cpp-backend && cmake -B build && cmake --build build -j)
+      - name: Start backends and wait until healthy
+        run: |
+          (cd backend/go && ADMIN_PASSWORD=admin nohup ./go-backend > /tmp/go.log 2>&1 </dev/null &)
+          (cd backend/rust && nohup ./target/debug/products-service > /tmp/rust.log 2>&1 </dev/null &)
+          (cd backend && ADMIN_PASSWORD=admin nohup java -jar "target/elite-shop-backend-5.3 Canary 13.jar" > /tmp/java.log 2>&1 </dev/null &)
+          (cd backend/cpp-backend && nohup ./build/calc_server > /tmp/calc.log 2>&1 </dev/null &)
+          for i in $(seq 1 90); do
+            up=0
+            for port in 3001 3002 3003 8084; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://localhost:$port/" || echo 000)
+              [ "$code" != "000" ] && up=$((up+1))
+            done
+            if [ "$up" -eq 4 ]; then echo "all backends healthy"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::backends failed to become healthy"
+          tail -n 40 /tmp/go.log /tmp/rust.log /tmp/java.log /tmp/calc.log || true
+          exit 1
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       # playwright.config.ts starts `next dev` itself (webServer).
