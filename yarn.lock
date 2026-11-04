@@ -171,9 +171,9 @@
   integrity sha512-x76eH0vEiHlcMQu8Y8IenntaACtddpT6W0wmXtWrnKcnKI7ME5DdgqhAD6SEWOEl1v2zDvkZDhFA9KnURwpfqg==
 
 "blazefire@github:arts009009009/Blazefire":
-  version "1.1.2"
-  uid "57015f40a470720967ad99fda7079e95e15b2e0a"
-  resolved "https://codeload.github.com/arts009009009/Blazefire/tar.gz/57015f40a470720967ad99fda7079e95e15b2e0a"
+  version "2.0.0"
+  uid "48ff3a74e662a356e2ba4ca81cdbb539cfe00711"
+  resolved "https://codeload.github.com/arts009009009/Blazefire/tar.gz/48ff3a74e662a356e2ba4ca81cdbb539cfe00711"
 
 detect-libc@^2.1.2:
   version "2.1.2"
