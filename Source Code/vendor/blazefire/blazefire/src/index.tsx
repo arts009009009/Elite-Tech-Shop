@@ -27,6 +27,10 @@ export interface CompilerInstance {
 export const BLAZEFIRE_VERSION = '1.0.0';
 export const FROSTFAST_VERSION = '1.0.0';
 
+export { BlazefireLogo } from './components/BlazefireLogo';
+export { BlazefireDevTools } from './components/BlazefireDevTools';
+export { BlazefireErrorOverlay } from './components/BlazefireErrorOverlay';
+
 export function insertBlazefireStyles(): void {
   if (typeof document === 'undefined') return;
 
@@ -85,6 +89,24 @@ export function createBlazefireLogo(size: number = 40): string {
   </svg>`;
 }
 
+function mergeDeep<T>(base: T, override: Partial<T> | undefined): T {
+  if (!override || typeof override !== 'object' || Array.isArray(override)) {
+    return base;
+  }
+
+  const merged = { ...base } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(override as Record<string, unknown>)) {
+    const existing = merged[key];
+    if (value === undefined || value === null) continue;
+    if (existing && typeof existing === 'object' && !Array.isArray(existing) && typeof value === 'object' && !Array.isArray(value)) {
+      merged[key] = mergeDeep(existing, value as Record<string, unknown>);
+    } else {
+      merged[key] = value;
+    }
+  }
+  return merged as T;
+}
+
 export function createCompiler(options: CompilerOptions = {}): CompilerInstance {
   const defaultOptions: CompilerOptions = {
     jsc: {
@@ -94,7 +116,7 @@ export function createCompiler(options: CompilerOptions = {}): CompilerInstance 
     module: { type: 'es6' },
   };
 
-  const merged = { ...defaultOptions, ...options };
+  const merged = mergeDeep(defaultOptions, options);
 
   return {
     options: merged,

@@ -29,10 +29,17 @@ function blazefireLoader(source) {
   // Idempotency: never inject twice (HMR may re-run the loader).
   if (typeof source === 'string' && source.includes(MARKER)) return source
 
-  const options = this.getOptions ? this.getOptions() : {}
-  const injectPath = options.injectPath
+  let options = {}
+  try {
+    options = this.getOptions ? this.getOptions() : {}
+  } catch (error) {
+    throw new Error('Blazefire Turbopack loader could not read its options; ensure the loader is configured with injectPath.')
+  }
 
-  if (!injectPath) return source
+  const injectPath = options.injectPath
+  if (!injectPath) {
+    throw new Error('Blazefire Turbopack loader requires options.injectPath to point at the runtime injector.')
+  }
 
   // Turbopack resolves from the project root and rejects absolute paths
   // outside it (it rewrites "/a/b" to "./a/b"). Emitting a path relative to

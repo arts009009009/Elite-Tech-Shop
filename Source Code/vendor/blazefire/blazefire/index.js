@@ -90,6 +90,22 @@ export function createBlazefireLogo(size) {
 }
 
 // ===== Compiler Factory =====
+function mergeDeep(base, override) {
+  if (!override || typeof override !== 'object' || Array.isArray(override)) return base;
+  var merged = Object.assign({}, base);
+  for (var key of Object.keys(override)) {
+    var value = override[key];
+    if (value === undefined || value === null) continue;
+    var existing = merged[key];
+    if (existing && typeof existing === 'object' && !Array.isArray(existing) && value && typeof value === 'object' && !Array.isArray(value)) {
+      merged[key] = mergeDeep(existing, value);
+    } else {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
 export function createCompiler(options) {
   options = options || {};
   var defaultOptions = {
@@ -100,7 +116,7 @@ export function createCompiler(options) {
     module: { type: 'es6' },
   };
 
-  var merged = Object.assign({}, defaultOptions, options);
+  var merged = mergeDeep(defaultOptions, options);
 
   return {
     options: merged,
