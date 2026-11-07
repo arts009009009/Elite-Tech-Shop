@@ -52,6 +52,12 @@ const BACKEND_URLS: Record<string, string> = {
 const RUST_ENABLED =
   process.env.NEXT_PUBLIC_RUST_BACKEND_ENABLED === "true" ||
   (process.env.NODE_ENV !== "development" && process.env.NEXT_PUBLIC_RUST_BACKEND_ENABLED !== "false");
+const JAVA_ENABLED =
+  process.env.NEXT_PUBLIC_JAVA_BACKEND_ENABLED === "true" ||
+  (process.env.NODE_ENV !== "development" && process.env.NEXT_PUBLIC_JAVA_BACKEND_ENABLED !== "false");
+const GO_ENABLED =
+  process.env.NEXT_PUBLIC_GO_BACKEND_ENABLED === "true" ||
+  (process.env.NODE_ENV !== "development" && process.env.NEXT_PUBLIC_GO_BACKEND_ENABLED !== "false");
 
 function localRustResponse<T>(url: string): T | undefined {
   if (RUST_ENABLED) return undefined;
@@ -107,6 +113,13 @@ export async function apiFetch<T>(
   if (/^\/?api\/(products|categories|health)(\/|\?|$)/.test(url)) {
     const localResponse = localRustResponse<T>(url);
     if (localResponse !== undefined) return localResponse;
+  }
+  const pathname = new URL(url, "http://localhost").pathname;
+  if (pathname.startsWith("/api/auth") && !JAVA_ENABLED) {
+    return fallback !== null && fallback !== undefined ? fallback : (null as T);
+  }
+  if (!pathname.startsWith("/api/products") && !pathname.startsWith("/api/categories") && !pathname.startsWith("/api/health") && !pathname.startsWith("/api/auth") && !GO_ENABLED) {
+    return fallback !== null && fallback !== undefined ? fallback : (null as T);
   }
   const resolvedUrl = resolveBackendUrl(url);
   const httpMethod: HttpMethod = method || "GET";

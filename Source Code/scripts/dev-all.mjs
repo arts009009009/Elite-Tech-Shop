@@ -485,10 +485,14 @@ async function main() {
   }
 
   if (!BACKEND_ONLY) {
+    const javaAvailable = javaOk || await isPortOpen(3001);
+    const goAvailable = goOk || await isPortOpen(3003);
     const rustAvailable = rustOk || await isPortOpen(3002);
     const zigAvailable = zigOk || await isPortOpen(8090);
     const frontendEnv = {
       ...process.env,
+      NEXT_PUBLIC_JAVA_BACKEND_ENABLED: String(javaAvailable),
+      NEXT_PUBLIC_GO_BACKEND_ENABLED: String(goAvailable),
       NEXT_PUBLIC_RUST_BACKEND_ENABLED: String(rustAvailable),
       NEXT_PUBLIC_ZIG_BACKEND_ENABLED: String(zigAvailable),
     };

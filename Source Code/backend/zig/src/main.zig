@@ -413,156 +413,22 @@ fn handleWebRtcCandidates(stream: std.net.Stream, body: []const u8) !void {
 // Web dashboard (port 3004) - HTML served directly by Zig
 // ============================================================================
 
-const WEB_DASHBOARD_HTML = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Zig Platform - Elite Tech Shop</title>\n<style>\n* { box-sizing: border-box; }\nbody { font-family: 'Courier New', monospace; background: #0a0a0f; color: #e0e0e0; margin: 0; padding: 24px; }\n.header { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }\n.logo { font-size: 28px; font-weight: bold; color: #ffd700; }\n.subtitle { color: #00d4ff; font-size: 14px; opacity: 0.9; }\n.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }\n.card { background: color-mix(in srgb, #1a1a2e 85%, transparent); border: 1px solid #00d4ff; border-radius: 8px; padding: 16px; }\n.card h3 { color: #ffd700; margin: 0 0 12px 0; font-size: 16px; border-bottom: 1px solid #00d4ff; padding-bottom: 6px; }\n.row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1a1a2e; }\n.row:last-child { border-bottom: none; }\n.btn { background: #00d4ff; color: #0a0a0f; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 13px; }\n.btn:hover { background: #33e0ff; }\n.btn.secondary { background: transparent; color: #00d4ff; border: 1px solid #00d4ff; }\n.status { font-family: monospace; font-size: 12px; }\n.ok { color: #39ff14; }\n.warn { color: #ffd700; }\n.err { color: #ff4d4d; }\n.toggle { display: flex; align-items: center; gap: 8px; }\n.toggle input { accent-color: #00d4ff; }\n.notice { margin-top: 24px; font-size: 13px; color: #888; border-top: 1px solid #1a1a2e; padding-top: 12px; }\na { color: #00d4ff; text-decoration: none; }\na:hover { text-decoration: underline; }\ncode { background: #1a1a2e; padding: 2px 6px; border-radius: 4px; color: #00d4ff; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n<div class=\"logo\">ZIG PLATFORM</div>\n<div class=\"subtitle\">Elite Tech Shop | Port 3004 | Distributed Platform Services</div>\n</div>\n\n<div class=\"grid\">\n\n<div class=\"card\">\n<h3>Service Status</h3>\n<div class=\"row\"><span>Zig API</span><span class=\"status ok">*** online (8090)</span></div>\n<div class=\"row\"><span>Web Dashboard</span><span class=\"status ok">*** online (3004)</span></div>\n<div class=\"row\"><span>Next.js Frontend</span><span class=\"status ok">*** :3000</span></div>\n<div class=\"row\"><span>Java Auth</span><span class=\"status ok">*** :3001</span></div>\n<div class=\"row\"><span>Rust Products</span><span class=\"status ok">*** :3002</span></div>\n<div class=\"row\"><span>Go Orders</span><span class=\"status ok">*** :3003</span></div>\n<div class=\"row\"><span>C++ Calculator</span><span class=\"status ok">*** :8084</span></div>\n</div>\n\n<div class=\"card\">\n<h3>Chaos Engineering</h3>\n<div class=\"row toggle\"><label>Rust latency</label><input type=\"checkbox\" onchange=\"toggleChaos('rust-backend','latency',this.checked)\"></div>\n<div class=\"row toggle\"><label>Rust errors</label><input type=\"checkbox\" onchange=\"toggleChaos('rust-backend','error',this.checked)\"></div>\n<div class=\"row toggle\"><label>Go latency</label><input type=\"checkbox\" onchange=\"toggleChaos('go-backend','latency',this.checked)\"></div>\n<div class=\"row toggle\"><label>Go drop</label><input type=\"checkbox\" onchange=\"toggleChaos('go-backend','drop',this.checked)\"></div>\n<div class=\"row toggle\"><label>Java latency</label><input type=\"checkbox\" onchange=\"toggleChaos('java-backend','latency',this.checked)\"></div>\n<p class=\"notice\">Chaos faults are injected via <code>/api/v1/chaos/toggle</code> on the Zig API.</p>\n</div>\n\n<div class=\"card\">\n<h3>Feature Flags</h3>\n<div class=\"row toggle\"><label>Flash Sales</label><input type=\"checkbox\" id=\"flag-flash-sales\" onchange=\"toggleFlag('flash-sales',this.checked)\"></div>\n<div class=\"row toggle\"><label>AI Assistant</label><input type=\"checkbox\" id=\"flag-ai-assistant\" onchange=\"toggleFlag('ai-assistant',this.checked)\"></div>\n<div class=\"row toggle\"><label>Glitch Mode</label><input type=\"checkbox\" id=\"flag-glitch-mode\" onchange=\"toggleFlag('glitch-mode',this.checked)\"></div>\n<p class=\"notice\">Flags evaluated at <code>/api/v1/flags/check</code> with % rollout support.</p>\n</div>\n\n<div class=\"card\">\n<h3>Circuit Breakers</h3>\n<div class=\"row\"><span>Rust backend</span><span class=\"status ok">closed</span></div>\n<div class=\"row\"><span>Java backend</span><span class=\"status ok">closed</span></div>\n<div class=\"row\"><span>Go backend</span><span class=\"status ok">closed</span></div>\n<div class=\"row\"><span>C++ Calculator</span><span class=\"status ok">closed</span></div>\n</div>\n\n<div class=\"card\">\n<h3>Quick Links</h3>\n<div class=\"row\"><a href=\"/admin/platform\" target=\"_blank\">Admin Platform (Next.js)</a></div>\n<div class=\"row\"><a href=\"/api/v1/flags\" target=\"_blank\">API: Feature Flags</a></div>\n<div class=\"row\"><a href=\"/api/v1/trace\" target=\"_blank\">API: Distributed Traces</a></div>\n<div class=\"row\"><a href=\"/api/v1/circuit-breakers\" target=\"_blank\">API: Circuit Breakers</a></div>\n</div>\n\n</div>\n\n<div class=\"notice\">\nZig backend serving on <code>:3004</code>  |  API at <code>:8090</code>  |  Proxied via Next.js at <code>/api/zig</code>\n</div>\n\n<script>\nfunction toggleChaos(service, faultType, enabled) {\n  fetch('/api/zig/chaos/toggle', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ service, fault_type: faultType, enabled })\n  }).then(r => r.json()).then(d => console.log('chaos:', d)).catch(e => console.error(e));\n}\nfunction toggleFlag(key, enabled) {\n  fetch('/api/zig/flags/check', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ key, user_id: 'web' })\n  }).then(r => r.json()).then(d => console.log('flag:', d)).catch(e => console.error(e));\n}\n</script>\n</body>\n</html>\n";
-
 fn handleWebRequest(stream: std.net.Stream) !void {
-    const body = WEB_DASHBOARD_HTML;
-    const body_bytes = @as([]const u8, body);
+    const html_file = std.fs.cwd().readFileAlloc(allocator, "src/dashboard.html", 64 * 1024) catch |err| {
+        try stream.writeAll("HTTP/1.1 500 Internal Server Error\r\n");
+        try stream.writeAll("Content-Type: text/plain\r\n\r\n");
+        try stream.writeAll("dashboard.html not found");
+        return;
+    };
+    defer allocator.free(html_file);
+
     try stream.writeAll("HTTP/1.1 200 OK\r\n");
     try stream.writeAll("Content-Type: text/html; charset=utf-8\r\n");
     try stream.writeAll("Access-Control-Allow-Origin: *\r\n");
     try stream.writeAll("Content-Length: ");
-    try stream.writeAll(std.fmt.intToStr(usize, body_bytes.len));
+    try stream.writeAll(std.fmt.intToStr(usize, html_file.len));
     try stream.writeAll("\r\n\r\n");
-    try stream.writeAll(body_bytes);
+    try stream.writeAll(html_file);
 }
 
-fn startWebServer() !void {
-    const socket = try net.StreamSocket.listen(WEB_LISTEN_ADDR, {});
-    defer socket.close();
-    std.debug.print("zig web dashboard listening on {s}\n", .{WEB_LISTEN_ADDR});
-    while (true) {
-        const client = try socket.accept() catch |err| {
-            std.debug.print("web accept error: {}\n", .{err});
-            continue;
-        };
-        client.setTimeout(10_000) catch {};
-        handleWebRequest(client) catch |err| {
-            std.debug.print("web request error: {}\n", .{err});
-        };
-        client.close();
-    }
-}
 
-// ---------------------------------------------------------------------------
-// Routing
-// ---------------------------------------------------------------------------
-
-fn isMethod(method: []const u8, want: []const u8) bool {
-    return method.len == want.len and buf.eql(u8, method, want);
-}
-
-fn respOptions(stream: std.net.Stream) !void {
-    try stream.writeAll("HTTP/1.1 204 No Content\r\n");
-    try stream.writeAll("Access-Control-Allow-Origin: *\r\n");
-    try stream.writeAll("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n");
-    try stream.writeAll("Access-Control-Allow-Headers: Content-Type, Authorization\r\n\r\n");
-}
-
-fn stripPrefix(path: []const u8) []const u8 {
-    if (path.len >= API_PREFIX.len and buf.eql(u8, path[0..API_PREFIX.len], API_PREFIX)) {
-        return path[API_PREFIX.len..];
-    }
-    return path;
-}
-
-fn dispatch(stream: std.net.Stream, method: []const u8, path: []const u8, body: []const u8) !void {
-    const rel = stripPrefix(path);
-
-    if (isMethod(method, "OPTIONS")) {
-        try respOptions(stream);
-        return;
-    }
-
-    if (isMethod(method, "GET")) {
-        if (rel.len == 0) { try handleRoot(stream); return; }
-        if (buf.eql(u8, rel, "/trace")) { try handleTraceList(stream); return; }
-        if (buf.eql(u8, rel, "/inventory/stream")) { try handleInventorySse(stream); return; }
-        if (buf.eql(u8, rel, "/abandoned-carts")) { try handleAbandonedCarts(stream); return; }
-        if (buf.eql(u8, rel, "/bundles")) { try handleBundles(stream); return; }
-        if (buf.eql(u8, rel, "/gift-cards")) { try handleGiftCards(stream); return; }
-        if (buf.eql(u8, rel, "/rate-limit")) { try handleRateLimit(stream); return; }
-        if (buf.eql(u8, rel, "/circuit-breakers")) { try handleCircuitBreakers(stream); return; }
-        if (buf.eql(u8, rel, "/flags")) { try handleFlags(stream); return; }
-        if (buf.eql(u8, rel, "/abtest")) { try handleAbTest(stream); return; }
-        if (buf.eql(u8, rel, "/oauth/authorize")) { try handleOAuthAuthorize(stream); return; }
-        if (buf.eql(u8, rel, "/mfa/setup")) { try handleMfaSetup(stream); return; }
-        if (buf.eql(u8, rel, "/webrtc/signal")) { try handleWebRtcSignal(stream, body); return; }
-        if (buf.eql(u8, rel, "/webrtc/candidates")) { try handleWebRtcCandidates(stream, body); return; }
-        try writeJson(stream, 404, "{\"error\":\"not found\"}");
-        return;
-    }
-
-    if (isMethod(method, "POST")) {
-        if (buf.eql(u8, rel, "/trace")) { try handleTraceIngest(stream, body); return; }
-        if (buf.eql(u8, rel, "/chaos/toggle")) { try handleChaosToggle(stream, body); return; }
-        if (buf.eql(u8, rel, "/abandoned-carts/recover")) { try handleRecoverCart(stream, body); return; }
-        if (buf.eql(u8, rel, "/gift-cards/validate")) { try handleGiftCardValidate(stream, body); return; }
-        if (buf.eql(u8, rel, "/flags/check")) { try handleFlagCheck(stream, body); return; }
-        if (buf.eql(u8, rel, "/oauth/token")) { try handleOAuthToken(stream); return; }
-        if (buf.eql(u8, rel, "/mfa/verify")) { try handleMfaVerify(stream, body); return; }
-        try writeJson(stream, 404, "{\"error\":\"not found\"}");
-        return;
-    }
-
-    try writeJson(stream, 405, "{\"error\":\"method not allowed\"}");
-}
-
-fn handleRequest(stream: std.net.Stream) !void {
-    const head = try parseStreamBody(stream, 8 * 1024) catch return;
-    if (head.len == 0) return;
-
-    // method
-    const sp1 = buf.indexOf(head, " ");
-    if (sp1 == null) return;
-    const method = head[0..sp1.value];
-
-    // path
-    const after_method = head[sp1.value + 1..];
-    const sp2 = buf.indexOf(after_method, " ");
-    if (sp2 == null) return;
-    const path = after_method[0..sp2.value];
-
-    // body (Content-Length)
-    var body: []const u8 = "";
-    const cl_needle = "Content-Length: ";
-    const cl_idx = buf.indexOf(head, cl_needle);
-    if (cl_idx) |ci| {
-        const val_start = ci + cl_needle.len;
-        var val_end = val_start;
-        while (val_end < head.len and head[val_end] != '\r') : (val_end += 1) {}
-        const cl_str = head[val_start..val_end];
-        const cl = std.fmt.parseInt(usize, cl_str, 10) catch 0;
-        if (cl > 0) {
-            body = try parseStreamBody(stream, cl) catch "";
-        }
-    }
-
-    try dispatch(stream, method, path, body);
-}
-
-// ---------------------------------------------------------------------------
-// Entrypoint
-// ---------------------------------------------------------------------------
-
-pub fn main() !void {
-    // Start the web dashboard on port 3004 in a detached thread.
-    const web_thread = try std.thread.spawn(.{}, startWebServer);
-    web_thread.detach();
-
-    const socket = try net.StreamSocket.listen(LISTEN_ADDR, {});
-    defer socket.close();
-    std.debug.print("zig-platform listening on {s}\n", .{LISTEN_ADDR});
-
-    while (true) {
-        const client = try socket.accept() catch |err| {
-            std.debug.print("accept error: {}\n", .{err});
-            continue;
-        };
-        client.setTimeout(10_000) catch {};
-        handleRequest(client) catch |err| {
-            std.debug.print("request error: {}\n", .{err});
-        };
-        client.close();
-    }
-}
