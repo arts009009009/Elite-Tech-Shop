@@ -323,6 +323,21 @@ function buildCalc() {
   return ok;
 }
 
+function buildZig() {
+  const zigDir = join(ROOT, "backend/zig");
+  const bin = join(zigDir, "zig-out", "bin", "zig-platform");
+  if (existsSync(bin)) {
+    console.log("[dev] Zig platform binary found.");
+    return true;
+  }
+  if (!has("zig")) {
+    console.log("[dev] Skipping Zig platform — zig not installed.");
+    console.log("[dev]   Install it (e.g. 'nix develop' — flake.nix already provides pkgs.zig)");
+    return false;
+  }
+  return buildSync("Zig platform", "zig", ["build"], zigDir);
+}
+
 // ── Ensure Rust products.json ──
 
 function ensureRustProductsJson() {
@@ -412,6 +427,7 @@ async function main() {
   const javaOk = buildJava();
   const goOk = buildGo();
   const calcOk = buildCalc();
+  const zigOk = buildZig();
 
   // Step 2: Prepare Rust products.json symlink
   if (rustOk) ensureRustProductsJson();
@@ -442,6 +458,11 @@ async function main() {
   if (calcOk) {
     console.log("[dev] Starting Calculator backend → http://localhost:8084");
     start("Calculator backend", run(calcBinPath(join(ROOT, "backend/cpp-backend")), [], { cwd: join(ROOT, "backend/cpp-backend") }));
+  }
+
+  if (zigOk) {
+    console.log("[dev] Starting Zig platform → API :8090 · Web :3004");
+    start("Zig platform", run(join(ROOT, "backend/zig", "zig-out", "bin", "zig-platform"), [], { cwd: join(ROOT, "backend/zig") }));
   }
 
   if (!BACKEND_ONLY) {

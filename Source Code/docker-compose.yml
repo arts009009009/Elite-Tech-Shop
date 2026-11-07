@@ -75,6 +75,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8090:8090"
+      - "3004:3004"
     depends_on:
       - mongodb
         condition: service_healthy

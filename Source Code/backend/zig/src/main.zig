@@ -10,6 +10,7 @@ const buf = std.mem;
 // ============================================================================
 
 const LISTEN_ADDR = "0.0.0.0:8090";
+const WEB_LISTEN_ADDR = "0.0.0.0:3004";
 const API_PREFIX = "/api/v1";
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -406,6 +407,41 @@ fn handleWebRtcCandidates(stream: std.net.Stream, body: []const u8) !void {
     try writeJson(stream, 200, "{\"candidates\":[]}");
 }
 
+// ============================================================================
+// Web dashboard (port 3004) — HTML served directly by Zig
+// ============================================================================
+
+const WEB_DASHBOARD_HTML = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Zig Platform — Elite Tech Shop</title>\n<style>\n* { box-sizing: border-box; }\nbody { font-family: 'Courier New', monospace; background: #0a0a0f; color: #e0e0e0; margin: 0; padding: 24px; }\n.header { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }\n.logo { font-size: 28px; font-weight: bold; color: #ffd700; }\n.subtitle { color: #00d4ff; font-size: 14px; opacity: 0.9; }\n.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }\n.card { background: color-mix(in srgb, #1a1a2e 85%, transparent); border: 1px solid #00d4ff; border-radius: 8px; padding: 16px; }\n.card h3 { color: #ffd700; margin: 0 0 12px 0; font-size: 16px; border-bottom: 1px solid #00d4ff; padding-bottom: 6px; }\n.row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1a1a2e; }\n.row:last-child { border-bottom: none; }\n.btn { background: #00d4ff; color: #0a0a0f; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 13px; }\n.btn:hover { background: #33e0ff; }\n.btn.secondary { background: transparent; color: #00d4ff; border: 1px solid #00d4ff; }\n.status { font-family: monospace; font-size: 12px; }\n.ok { color: #39ff14; }\n.warn { color: #ffd700; }\n.err { color: #ff4d4d; }\n.toggle { display: flex; align-items: center; gap: 8px; }\n.toggle input { accent-color: #00d4ff; }\n.notice { margin-top: 24px; font-size: 13px; color: #888; border-top: 1px solid #1a1a2e; padding-top: 12px; }\na { color: #00d4ff; text-decoration: none; }\na:hover { text-decoration: underline; }\ncode { background: #1a1a2e; padding: 2px 6px; border-radius: 4px; color: #00d4ff; }\n</style>\n</head>\n<body>\n<div class=\"header\">\n<div class=\"logo\">⚡ ZIG PLATFORM</div>\n<div class=\"subtitle\">Elite Tech Shop · Port 3004 · Distributed Platform Services</div>\n</div>\n\n<div class=\"grid\">\n\n<div class=\"card\">\n<h3>Service Status</h3>\n<div class=\"row\"><span>Zig API</span><span class=\"status ok">● online (8090)</span></div>\n<div class=\"row\"><span>Web Dashboard</span><span class=\"status ok">● online (3004)</span></div>\n<div class=\"row\"><span>Next.js Frontend</span><span class=\"status ok">● :3000</span></div>\n<div class=\"row\"><span>Java Auth</span><span class=\"status ok">● :3001</span></div>\n<div class=\"row\"><span>Rust Products</span><span class=\"status ok">● :3002</span></div>\n<div class=\"row\"><span>Go Orders</span><span class=\"status ok">● :3003</span></div>\n<div class=\"row\"><span>C++ Calculator</span><span class=\"status ok">● :8084</span></div>\n</div>\n\n<div class=\"card\">\n<h3>Chaos Engineering</h3>\n<div class=\"row toggle\"><label>Rust latency</label><input type=\"checkbox\" onchange=\"toggleChaos('rust-backend','latency',this.checked)\"></div>\n<div class=\"row toggle\"><label>Rust errors</label><input type=\"checkbox\" onchange=\"toggleChaos('rust-backend','error',this.checked)\"></div>\n<div class=\"row toggle\"><label>Go latency</label><input type=\"checkbox\" onchange=\"toggleChaos('go-backend','latency',this.checked)\"></div>\n<div class=\"row toggle\"><label>Go drop</label><input type=\"checkbox\" onchange=\"toggleChaos('go-backend','drop',this.checked)\"></div>\n<div class=\"row toggle\"><label>Java latency</label><input type=\"checkbox\" onchange=\"toggleChaos('java-backend','latency',this.checked)\"></div>\n<p class=\"notice\">Chaos faults are injected via <code>/api/v1/chaos/toggle</code> on the Zig API.</p>\n</div>\n\n<div class=\"card\">\n<h3>Feature Flags</h3>\n<div class=\"row toggle\"><label>Flash Sales</label><input type=\"checkbox\" id=\"flag-flash-sales\" onchange=\"toggleFlag('flash-sales',this.checked)\"></div>\n<div class=\"row toggle\"><label>AI Assistant</label><input type=\"checkbox\" id=\"flag-ai-assistant\" onchange=\"toggleFlag('ai-assistant',this.checked)\"></div>\n<div class=\"row toggle\"><label>Glitch Mode</label><input type=\"checkbox\" id=\"flag-glitch-mode\" onchange=\"toggleFlag('glitch-mode',this.checked)\"></div>\n<p class=\"notice\">Flags evaluated at <code>/api/v1/flags/check</code> with % rollout support.</p>\n</div>\n\n<div class=\"card\">\n<h3>Circuit Breakers</h3>\n<div class=\"row\"><span>Rust backend</span><span class=\"status ok">closed</span></div>\n<div class=\"row\"><span>Java backend</span><span class=\"status ok">closed</span></div>\n<div class=\"row\"><span>Go backend</span><span class=\"status ok">closed</span></div>\n<div class=\"row\"><span>C++ Calculator</span><span class=\"status ok">closed</span></div>\n</div>\n\n<div class=\"card\">\n<h3>Quick Links</h3>\n<div class=\"row\"><a href=\"/admin/platform\" target=\"_blank\">Admin Platform (Next.js)</a></div>\n<div class=\"row\"><a href=\"/api/v1/flags\" target=\"_blank\">API: Feature Flags</a></div>\n<div class=\"row\"><a href=\"/api/v1/trace\" target=\"_blank\">API: Distributed Traces</a></div>\n<div class=\"row\"><a href=\"/api/v1/circuit-breakers\" target=\"_blank\">API: Circuit Breakers</a></div>\n</div>\n\n</div>\n\n<div class=\"notice\">\nZig backend serving on <code>:3004</code> · API at <code>:8090</code> · Proxied via Next.js at <code>/api/zig</code>\n</div>\n\n<script>\nfunction toggleChaos(service, faultType, enabled) {\n  fetch('/api/zig/chaos/toggle', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ service, fault_type: faultType, enabled })\n  }).then(r => r.json()).then(d => console.log('chaos:', d)).catch(e => console.error(e));\n}\nfunction toggleFlag(key, enabled) {\n  fetch('/api/zig/flags/check', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ key, user_id: 'web' })\n  }).then(r => r.json()).then(d => console.log('flag:', d)).catch(e => console.error(e));\n}\n</script>\n</body>\n</html>\n";
+
+fn handleWebRequest(stream: std.net.Stream) !void {
+    const body = WEB_DASHBOARD_HTML;
+    const body_bytes = @as([]const u8, body);
+    try stream.writeAll("HTTP/1.1 200 OK\r\n");
+    try stream.writeAll("Content-Type: text/html; charset=utf-8\r\n");
+    try stream.writeAll("Access-Control-Allow-Origin: *\r\n");
+    try stream.writeAll("Content-Length: ");
+    try stream.writeAll(std.fmt.intToStr(usize, body_bytes.len));
+    try stream.writeAll("\r\n\r\n");
+    try stream.writeAll(body_bytes);
+}
+
+fn startWebServer() !void {
+    const socket = try net.StreamSocket.listen(WEB_LISTEN_ADDR, {});
+    defer socket.close();
+    std.debug.print("zig web dashboard listening on {s}\n", .{WEB_LISTEN_ADDR});
+    while (true) {
+        const client = try socket.accept() catch |err| {
+            std.debug.print("web accept error: {}\n", .{err});
+            continue;
+        };
+        client.setTimeout(10_000) catch {};
+        handleWebRequest(client) catch |err| {
+            std.debug.print("web request error: {}\n", .{err});
+        };
+        client.close();
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Routing
 // ---------------------------------------------------------------------------
@@ -508,6 +544,10 @@ fn handleRequest(stream: std.net.Stream) !void {
 // ---------------------------------------------------------------------------
 
 pub fn main() !void {
+    // Start the web dashboard on port 3004 in a detached thread.
+    const web_thread = try std.thread.spawn(.{}, startWebServer);
+    web_thread.detach();
+
     const socket = try net.StreamSocket.listen(LISTEN_ADDR, {});
     defer socket.close();
     std.debug.print("zig-platform listening on {s}\n", .{LISTEN_ADDR});
