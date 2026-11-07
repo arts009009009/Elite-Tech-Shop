@@ -19,6 +19,7 @@ const backendOrigins = [
   process.env.JAVA_BACKEND_URL || process.env.NEXT_PUBLIC_JAVA_BACKEND_URL || "http://localhost:3001",
   process.env.RUST_BACKEND_URL || process.env.NEXT_PUBLIC_RUST_BACKEND_URL || "http://localhost:3002",
   process.env.GO_BACKEND_URL || process.env.NEXT_PUBLIC_GO_BACKEND_URL || "http://localhost:3003",
+  process.env.ZIG_BACKEND_URL || process.env.NEXT_PUBLIC_ZIG_BACKEND_URL || "http://localhost:8090",
 ];
 const connectSrc = [`'self'`, ...new Set(backendOrigins)].join(" ");
 
@@ -168,6 +169,14 @@ const nextConfig: NextConfig = {
       {
         source: "/api/profile",
         destination: "http://localhost:3003/api/profile",
+      },
+      {
+        source: "/api/zig/:path*",
+        destination: "http://localhost:8090/api/v1/:path*",
+      },
+      {
+        source: "/api/zig",
+        destination: "http://localhost:8090/api/v1",
       },
     ];
   },

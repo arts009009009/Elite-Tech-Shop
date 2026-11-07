@@ -69,6 +69,22 @@ services:
           memory: 256M
           cpus: "0.5"
 
+  zig-platform:
+    build:
+      context: backend/zig
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+      - "3004:3004"
+    depends_on:
+      - mongodb
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
   frontend:
     build:
       context: frontend
@@ -79,6 +95,7 @@ services:
       - rust-backend
       - java-backend
       - go-backend
+      - zig-platform
     deploy:
       resources:
         limits:

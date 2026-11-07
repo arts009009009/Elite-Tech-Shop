@@ -63,8 +63,8 @@ const CJS_REQUIRE = 'const blazefire = require("blazefire/plugin");';
 //   - `&& <theirs>` when a postinstall already exists — `||` binds tighter in
 //     effect here (left-associative, equal precedence), so their command runs
 //     whether init succeeded or was skipped.
-const HOOK_COMMAND = "blazefire init || echo blazefire skipped";
-const HOOK_RE = /\bblazefire\b[\s\S]*\binit\b/;
+const HOOK_COMMAND = "npx blazefire init || echo blazefire skipped";
+const HOOK_RE = /(?:^|&&|;)\s*npx\s+blazefire\s+init\b/;
 // Written next to the config backup so `restore` can undo it exactly, without
 // restoring a whole (now stale) copy of package.json.
 const HOOK_RECORD = "scripts.postinstall.json";
@@ -301,31 +301,49 @@ function findTopLevel(src, targets) {
   return null;
 }
 
-/** Index just past the statement starting at `start` (its terminating `;`, else EOF). */
+/** Index just past the first top-level statement, even when the source uses no semicolon. */
 function statementEnd(src, start) {
   let i = start;
   let depth = 0;
+  let sawStatement = false;
   while (i < src.length) {
     const c = src[i];
+    const next = src[i + 1];
+
     if (c === '"' || c === "'" || c === "`") {
       i = skipString(src, i);
       continue;
     }
-    if (c === "/" && src[i + 1] === "/") {
+    if (c === "/" && next === "/") {
       const e = src.indexOf("\n", i);
       i = e === -1 ? src.length : e + 1;
       continue;
     }
-    if (c === "/" && src[i + 1] === "*") {
+    if (c === "/" && next === "*") {
       const e = src.indexOf("*/", i + 2);
       i = e === -1 ? src.length : e + 2;
       continue;
     }
-    if (c === "{" || c === "(" || c === "[") depth += 1;
-    else if (c === "}" || c === ")" || c === "]") depth -= 1;
-    else if (c === ";" && depth <= 0) return i + 1;
+
+    if (c === "{" || c === "(" || c === "[") {
+      depth += 1;
+      sawStatement = true;
+    } else if (c === "}" || c === ")" || c === "]") {
+      depth = Math.max(0, depth - 1);
+      sawStatement = true;
+    } else if (c === ";" && depth <= 0) {
+      return i + 1;
+    } else if (!/[\s\r\n]/.test(c)) {
+      sawStatement = true;
+    }
+
+    if (depth <= 0 && sawStatement && /[\r\n]/.test(c)) {
+      return i;
+    }
+
     i += 1;
   }
+
   return src.length;
 }
 
@@ -531,10 +549,15 @@ function hookBoth(configRoot, installRoot) {
   return wrote;
 }
 
+function shouldSkipAuto() {
+  const value = String(process.env.BLAZEFIRE_SKIP_AUTO || "").trim().toLowerCase();
+  return ["1", "true", "yes"].includes(value);
+}
+
 function ensureHook(projectRoot) {
   // Writing a hook under an explicit opt-out would defeat the opt-out on the
   // very next install, so skip it entirely.
-  if (process.env.BLAZEFIRE_SKIP_AUTO) return false;
+  if (shouldSkipAuto()) return false;
 
   const file = path.join(projectRoot, "package.json");
   const pkg = readJson(file);
@@ -568,7 +591,7 @@ function ensureHook(projectRoot) {
   }
 
   pkg.scripts = scripts;
-  scripts.postinstall = existing ? HOOK_COMMAND + " && " + existing : HOOK_COMMAND;
+  scripts.postinstall = existing ? `( ${existing} ) && ${HOOK_COMMAND}` : HOOK_COMMAND;
   writeJsonPreserving(file, pkg);
   say(
     'added "postinstall": ' +
@@ -664,7 +687,9 @@ function run(opts) {
   // Opt-out covers both paths: the plain postinstall, and the hook (which is
   // a CLI invocation but still "auto", so honouring it here is what keeps
   // BLAZEFIRE_SKIP_AUTO=1 true for the life of the project).
-  if (process.env.BLAZEFIRE_SKIP_AUTO && (!cli || isLifecycleHook())) return "not-found";
+  const skipAuto = String(process.env.BLAZEFIRE_SKIP_AUTO || '').trim().toLowerCase();
+  const skipSet = ['1', 'true', 'yes'].includes(skipAuto);
+  if (skipSet && (!cli || isLifecycleHook())) return "not-found";
 
   const located = locateCandidates();
   const { ownRoot, candidates } = located;

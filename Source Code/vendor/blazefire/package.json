@@ -3,26 +3,35 @@
   "version": "1.0.0",
   "description": "Blazefire framework powered by Frostfast compiler",
   "type": "module",
-  "main": "blazefire/index.js",
-  "types": "blazefire/src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./blazefire/src/index.ts",
-      "default": "./blazefire/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./plugin": {
       "types": "./blazefire/plugin.d.ts",
+      "import": "./blazefire/plugin.cjs",
+      "require": "./blazefire/plugin.cjs",
       "default": "./blazefire/plugin.cjs"
     },
     "./branding": "./blazefire/branding.cjs",
     "./compiler": {
-      "types": "./blazefire/src/compiler/index.ts",
-      "default": "./blazefire/src/compiler/index.js"
+      "types": "./dist/compiler/index.d.ts",
+      "import": "./dist/compiler/index.js",
+      "require": "./dist/compiler/index.js",
+      "default": "./dist/compiler/index.js"
     },
     "./styles": "./blazefire/assets/blazefire-global.css",
     "./components/*": {
-      "types": "./blazefire/src/components/*.tsx",
-      "default": "./blazefire/src/components/*.js"
+      "types": "./dist/components/*.d.ts",
+      "import": "./dist/components/*.js",
+      "require": "./dist/components/*.js",
+      "default": "./dist/components/*.js"
     },
     "./data/*": "./blazefire/data/*"
   },
@@ -31,6 +40,7 @@
   },
   "files": [
     "blazefire/**/*",
+    "dist/**/*",
     "LICENSE",
     "README.md"
   ],
@@ -56,13 +66,20 @@
   ],
   "author": "Blazefire Team",
   "license": "MIT",
-  "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+  "peerDependencies": {
+    "next": ">=14.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    }
+  },
+  "dependencies": {},
   "devDependencies": {
     "@types/react": "^19.0.0",
-    "typescript": "^6.0.2",
+    "typescript": "^5.6.3",
     "jest": "^29.7.0"
   },
   "engines": {

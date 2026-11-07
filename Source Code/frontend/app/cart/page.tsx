@@ -5,6 +5,9 @@ import { useUser } from "@/context/UserContext";
 import { formatCurrency } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import OptimizedImage from "@/components/OptimizedImage";
+import AbandonedCartBanner from "@/components/AbandonedCartBanner";
+import { zigPlatform } from "@/lib/zig-platform";
+import { useEffect, useCallback } from "react";
 
 export default function CartPage() {
   const cartCtx = useCart();
@@ -17,9 +20,33 @@ export default function CartPage() {
     }
   };
 
+  const saveAbandonedCart = useCallback(async () => {
+    if (!userCtx?.user || cartCtx.cart.length === 0) return;
+    try {
+      await zigPlatform.saveAbandonedCart({
+          cart_id: `cart-${userCtx.user.id}`,
+          user_id: userCtx.user.id,
+          items_json: JSON.stringify(cartCtx.cart),
+          total_cents: Math.round(cartCtx.cartTotal * 100),
+          created_at: Date.now(),
+          recovered: false,
+      });
+    } catch {
+      // best-effort only
+    }
+  }, [userCtx, cartCtx.cart, cartCtx.cartTotal]);
+
+  useEffect(() => {
+    saveAbandonedCart();
+    const onBeforeUnload = () => saveAbandonedCart();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [saveAbandonedCart]);
+
   return (
     <>
       <Navbar />
+      {userCtx?.user && <AbandonedCartBanner userId={userCtx.user.id} />}
       <div className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
         <div className="page-card">
           <h2 className="mb-4">Shopping Cart</h2>

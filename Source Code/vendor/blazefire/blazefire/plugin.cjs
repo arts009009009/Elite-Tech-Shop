@@ -34,6 +34,17 @@ const DEFAULTS = {
   version: 'v1.0.0',
 }
 
+function stripUndefinedValues(value) {
+  if (!value || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.filter((item) => item !== undefined && item !== null)
+
+  const out = {}
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry !== undefined && entry !== null) out[key] = entry
+  }
+  return out
+}
+
 /**
  * Activate Blazefire branding.
  *
@@ -103,18 +114,31 @@ function buildConfig(opts) {
     }),
 
     // ---- 2. Build-time flag so runtime code can detect Blazefire ----
-    env: {
+    env: stripUndefinedValues({
       NEXT_PUBLIC_BLAZEFIRE: 'true',
       NEXT_PUBLIC_BLAZEFIRE_VERSION: opts.version,
       NEXT_PUBLIC_BLAZEFIRE_COMPILER: 'frostfast',
-    },
+    }),
 
     // ---- 3. Client-side theme injection (webpack builds) ----
     webpack(config, ctx) {
       if (opts.theme && !ctx.isServer) {
         const runtime = path.join(__dirname, 'runtime', 'inject.cjs')
-        for (const name of Object.keys(config.entry)) {
-          config.entry[name] = runtime
+        const originalEntry = config.entry
+        config.entry = function injectBlazefireEntry(...args) {
+          const value = typeof originalEntry === 'function' ? originalEntry.apply(this, args) : originalEntry
+          if (value == null) return runtime
+          if (typeof value === 'string') return [runtime, value]
+          if (Array.isArray(value)) return [runtime, ...value]
+          if (typeof value === 'object') {
+            const out = {}
+            for (const [name, entry] of Object.entries(value)) {
+              const injected = entry == null ? runtime : Array.isArray(entry) ? [runtime, ...entry] : entry
+              out[name] = injected
+            }
+            return out
+          }
+          return value
         }
       }
       return config

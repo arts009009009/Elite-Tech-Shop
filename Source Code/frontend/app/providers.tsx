@@ -15,6 +15,7 @@ import { ReviewProvider } from "@/context/ReviewContext";
 import { RecommendationsProvider } from "@/context/RecommendationsContext";
 import { AchievementProvider } from "@/context/AchievementContext";
 import { ReferralProvider } from "@/context/ReferralContext";
+import { PlatformProvider } from "@/context/PlatformContext";
 import Notification from "@/components/Notification";
 import StockAlerts from "@/components/StockAlerts";
 import { GlitchProvider } from "@/components/GlitchMode";
@@ -62,12 +63,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                         <RecommendationsProvider>
                         <AchievementProvider>
                         <ReferralProvider>
-                        {children}
                         <Notification />
                         <StockAlerts />
                         <Suspense fallback={null}><Chat /></Suspense>
                         <Suspense fallback={null}><AIAssistant /></Suspense>
                         <Suspense fallback={null}><ThemeCustomizer /></Suspense>
+                        <PlatformProvider>
+                          {children}
+                        </PlatformProvider>
                         </ReferralProvider>
                         </AchievementProvider>
                         </RecommendationsProvider>

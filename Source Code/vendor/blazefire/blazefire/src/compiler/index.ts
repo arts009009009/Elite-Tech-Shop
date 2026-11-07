@@ -11,6 +11,20 @@ export interface CompilerConfig {
 
 export const COMPILER_VERSION = '1.0.0';
 
+function mergeDeep<T extends object>(base: T, override: Partial<T> = {} as Partial<T>): T {
+  const merged = { ...(base as Record<string, unknown>) } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(override as Record<string, unknown>)) {
+    if (value === undefined || value === null) continue;
+    const current = merged[key];
+    if (current && typeof current === 'object' && !Array.isArray(current) && value && typeof value === 'object' && !Array.isArray(value)) {
+      merged[key] = mergeDeep(current as Record<string, unknown>, value as Record<string, unknown>);
+    } else {
+      merged[key] = value;
+    }
+  }
+  return merged as T;
+}
+
 export function createCompiler(config: CompilerConfig = {}) {
   const defaults: CompilerConfig = {
     target: 'es2020',
@@ -20,7 +34,7 @@ export function createCompiler(config: CompilerConfig = {}) {
   };
 
   return {
-    config: { ...defaults, ...config },
+    config: mergeDeep(defaults, config),
     version: COMPILER_VERSION,
     async compile(code: string) {
       return { code, error: null };

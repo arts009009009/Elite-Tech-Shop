@@ -66,6 +66,7 @@
             pkgs.maven
             pkgs.pkg-config
             pkgs.openssl
+            pkgs.zig
 
             # Utilities
             pkgs.git
@@ -83,6 +84,7 @@
             echo "  java $(java --version 2>&1 | head -1)"
             echo "  go   $(go version | awk '{print $3}')"
             echo "  cargo $(cargo --version | awk '{print $2}')"
+            echo "  zig   $(zig version)"
             echo ""
             echo "  Run 'pnpm install' to install Node dependencies."
             echo "  Run 'pnpm run dev' to start all services."

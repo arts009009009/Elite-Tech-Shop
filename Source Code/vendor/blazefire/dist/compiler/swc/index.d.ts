@@ -1,0 +1,26 @@
+/**
+ * Blazefire SWC Compiler Bindings
+ */
+export interface SwcOptions {
+    jsc?: {
+        parser?: {
+            syntax: string;
+            tsx?: boolean;
+            decorators?: boolean;
+        };
+        transform?: {
+            react?: {
+                runtime: string;
+            };
+        };
+    };
+    module?: {
+        type: string;
+    };
+}
+export declare function transformSync(code: string, options?: SwcOptions): {
+    code: string;
+};
+export declare function transform(code: string, options?: SwcOptions): Promise<{
+    code: string;
+}>;

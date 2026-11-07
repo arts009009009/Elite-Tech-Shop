@@ -163,25 +163,25 @@ is written, and an existing hook honours the flag too.
 
 ## Usage
 
-```jsx
-import { BlazefireLogo, BlazefireErrorOverlay } from 'blazefire';
-import { insertBlazefireStyles } from 'blazefire/styles';
+```tsx
+import Blazefire, { BlazefireProvider, BlazefireErrorOverlay, BlazefireLogo } from 'blazefire';
 import { createCompiler } from 'blazefire/compiler';
+import { insertBlazefireStyles } from 'blazefire';
 
-// Insert styles
 insertBlazefireStyles();
 
-// Create compiler instance
 const compiler = createCompiler();
 
-// Use components
 function App() {
   return (
-    <BlazefireErrorOverlay
-      errorType="Runtime Error"
-      errorMessage="Something went wrong"
-      onClose={() => {}}
-    />
+    <BlazefireProvider>
+      <BlazefireLogo size={28} />
+      <BlazefireErrorOverlay
+        errorType="Runtime Error"
+        errorMessage="Something went wrong"
+        onClose={() => {}}
+      />
+    </BlazefireProvider>
   );
 }
 ```
@@ -208,17 +208,16 @@ console.log(`Frostfast v${FROSTFAST_VERSION}`);
 ## Components
 
 - `BlazefireLogo` - Flame logo with neon glow
-- `BlazefireErrorHeader` - Error overlay header
+- `BlazefireDevTools` - Floating dev tools panel
 - `BlazefireErrorOverlay` - Full error overlay
-- `BlazefireDevToolsIndicator` - Floating dev tools button
+- `BlazefireProvider` - Theme/context wrapper
 
 ## Styles
 
-Import the CSS files for the full cyberpunk theme:
+Use the global theme injection or import the shipped stylesheet directly:
 
 ```css
-@import 'blazefire/assets/blazefire-dark-theme.css';
-@import 'blazefire/assets/blazefire-global.css';
+@import 'blazefire/styles';
 ```
 
 ## License

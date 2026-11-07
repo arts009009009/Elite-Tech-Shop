@@ -2,6 +2,7 @@
 
 import { spawn, spawnSync, execSync } from "child_process";
 import { copyFileSync, existsSync, readdirSync, readFileSync, symlinkSync } from "fs";
+import { createConnection } from "net";
 import { join } from "path";
 import { fileURLToPath } from "url";
 
@@ -20,6 +21,20 @@ function has(cmd) {
     const out = execSync(`${cmd} --version`, { stdio: ["ignore", "pipe", "ignore"], timeout: 5000 }).toString().trim();
     return out.length > 0 && !out.includes("ERR_");
   } catch { return false; }
+}
+
+function isPortOpen(port) {
+  return new Promise((resolve) => {
+    const socket = createConnection({ host: "127.0.0.1", port });
+    const finish = (isOpen) => {
+      socket.destroy();
+      resolve(isOpen);
+    };
+    socket.setTimeout(500);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", () => finish(false));
+  });
 }
 
 // ── JDK detection ──
@@ -154,7 +169,7 @@ function installSync(label, cwd) {
   console.log(`[dev] ${label} dependencies not installed — running \`${cmd} ${args.join(" ")}\`...`);
   const start = Date.now();
   try {
-    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: BUILD_TIMEOUT_MS });
+    const result = spawnSync(cmd, args, { stdio: "inherit", shell: IS_WIN, cwd, timeout: BUILD_TIMEOUT_MS });
     if (result.error) {
       if (result.error.code === "ETIMEDOUT") {
         console.log(`[dev] ${label} install timed out after ${BUILD_TIMEOUT_MS / 1000}s.`);
@@ -202,7 +217,7 @@ function buildSync(label, cmd, args, cwd, env) {
   console.log(`[dev] Building ${label}...`);
   const start = Date.now();
   try {
-    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: BUILD_TIMEOUT_MS, env });
+    const result = spawnSync(cmd, args, { stdio: "inherit", shell: IS_WIN, cwd, timeout: BUILD_TIMEOUT_MS, env });
     if (result.error) {
       if (result.error.code === "ETIMEDOUT") {
         console.log(`[dev] ${label} build timed out after ${BUILD_TIMEOUT_MS / 1000}s. Skipping.`);
@@ -233,12 +248,13 @@ function pmRun(script, cwd, env) {
   }
 }
 
-function pmFrontendDev() {
-  const feDir = { cwd: join(ROOT, "frontend") };
+function pmFrontendDev(env) {
+  const opts = { cwd: join(ROOT, "frontend"), env };
   switch (pm) {
-    case "pnpm":   return run("pnpm", ["--filter", "frontend", "dev"], { cwd: ROOT });
-    case "bun":    return run("npx", ["next", "dev"], feDir);
-    default:       return run("npx", ["next", "dev"], feDir);
+    case "pnpm":   return run("pnpm", ["--filter", "frontend", "dev"], { cwd: ROOT, env });
+    case "bun":    return run("bun", ["run", "dev"], opts);
+    case "yarn":   return run("yarn", ["run", "dev"], opts);
+    default:       return run("npm", ["run", "dev"], opts);
   }
 }
 
@@ -321,6 +337,21 @@ function buildCalc() {
   const ok = buildSync("Calculator backend", "cmake", ["-B", "build"], dir)
     && buildSync("Calculator backend", "cmake", ["--build", "build", "-j"], dir);
   return ok;
+}
+
+function buildZig() {
+  const zigDir = join(ROOT, "backend/zig");
+  const bin = join(zigDir, "zig-out", "bin", "zig-platform");
+  if (existsSync(bin)) {
+    console.log("[dev] Zig platform binary found.");
+    return true;
+  }
+  if (!has("zig")) {
+    console.log("[dev] Skipping Zig platform — zig not installed.");
+    console.log("[dev]   Install it (e.g. 'nix develop' — flake.nix already provides pkgs.zig)");
+    return false;
+  }
+  return buildSync("Zig platform", "zig", ["build"], zigDir);
 }
 
 // ── Ensure Rust products.json ──
@@ -412,6 +443,7 @@ async function main() {
   const javaOk = buildJava();
   const goOk = buildGo();
   const calcOk = buildCalc();
+  const zigOk = buildZig();
 
   // Step 2: Prepare Rust products.json symlink
   if (rustOk) ensureRustProductsJson();
@@ -423,30 +455,53 @@ async function main() {
   // Step 4: Start all services
   const procs = [];
   const start = (name, child) => procs.push({ name, child });
+  const startService = async (name, port, address, createProcess) => {
+    if (await isPortOpen(port)) {
+      console.log(`[dev] ${name} already listening on ${address}; reusing it.`);
+      return;
+    }
+    console.log(`[dev] Starting ${name} → ${address}`);
+    start(name, createProcess());
+  };
 
   if (rustOk) {
-    console.log("[dev] Starting Rust backend → http://localhost:3002");
-    start("Rust backend", run("cargo", ["run", "--release"], { cwd: join(ROOT, "backend/rust") }));
+    await startService("Rust backend", 3002, "http://localhost:3002", () => run("cargo", ["run", "--release"], { cwd: join(ROOT, "backend/rust") }));
   }
 
   if (javaOk) {
-    console.log("[dev] Starting Java backend → http://localhost:3001");
-    start("Java backend", pmRun("backend:java", null, javaEnv()));
+    await startService("Java backend", 3001, "http://localhost:3001", () => pmRun("backend:java", null, javaEnv()));
   }
 
   if (goOk) {
-    console.log("[dev] Starting Go backend → http://localhost:3003");
-    start("Go backend", pmRun("backend:go"));
+    await startService("Go backend", 3003, "http://localhost:3003", () => pmRun("backend:go"));
   }
 
   if (calcOk) {
-    console.log("[dev] Starting Calculator backend → http://localhost:8084");
-    start("Calculator backend", run(calcBinPath(join(ROOT, "backend/cpp-backend")), [], { cwd: join(ROOT, "backend/cpp-backend") }));
+    await startService("Calculator backend", 8084, "http://localhost:8084", () => run(calcBinPath(join(ROOT, "backend/cpp-backend")), [], { cwd: join(ROOT, "backend/cpp-backend") }));
+  }
+
+  if (zigOk) {
+    await startService("Zig platform", 8090, "API :8090 · Web :3004", () => run(join(ROOT, "backend/zig", "zig-out", "bin", "zig-platform"), [], { cwd: join(ROOT, "backend/zig") }));
   }
 
   if (!BACKEND_ONLY) {
-    console.log("[dev] Starting Frontend → http://localhost:3000");
-    start("Frontend", pmFrontendDev());
+    const javaAvailable = javaOk || await isPortOpen(3001);
+    const goAvailable = goOk || await isPortOpen(3003);
+    const rustAvailable = rustOk || await isPortOpen(3002);
+    const zigAvailable = zigOk || await isPortOpen(8090);
+    const frontendEnv = {
+      ...process.env,
+      NEXT_PUBLIC_JAVA_BACKEND_ENABLED: String(javaAvailable),
+      NEXT_PUBLIC_GO_BACKEND_ENABLED: String(goAvailable),
+      NEXT_PUBLIC_RUST_BACKEND_ENABLED: String(rustAvailable),
+      NEXT_PUBLIC_ZIG_BACKEND_ENABLED: String(zigAvailable),
+    };
+    await startService("Frontend", 3000, "http://localhost:3000", () => pmFrontendDev(frontendEnv));
+  }
+
+  if (procs.length === 0) {
+    console.log("\n[dev] All requested services are already running.");
+    return;
   }
 
   console.log("\n[dev] All services started. Press Ctrl+C to stop.\n");

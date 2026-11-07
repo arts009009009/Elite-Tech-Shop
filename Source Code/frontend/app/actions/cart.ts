@@ -3,6 +3,9 @@
 import { cookies } from "next/headers";
 
 const GO_BACKEND = process.env.GO_BACKEND_URL || "http://localhost:3003";
+const GO_ENABLED =
+  process.env.NEXT_PUBLIC_GO_BACKEND_ENABLED === "true" ||
+  (process.env.NODE_ENV !== "development" && process.env.NEXT_PUBLIC_GO_BACKEND_ENABLED !== "false");
 
 type ServerActionResult<T = unknown> = {
   success: boolean;
@@ -73,6 +76,9 @@ async function ensureGuestId(): Promise<string | null> {
 }
 
 async function goBackendFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  if (!GO_ENABLED) {
+    return Response.json({ error: "Go backend unavailable" }, { status: 503 });
+  }
   const cookieStore = await cookies();
   const session = cookieStore.get("user_session")?.value;
   const guestId = session ? null : await ensureGuestId();

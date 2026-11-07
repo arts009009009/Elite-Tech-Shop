@@ -6,6 +6,7 @@ cmake-build-*/
 node_modules/
 .next/
 out/
+/.yarn/install-state.gz
 # yarn.lock is the project's lockfile; package-lock.json is a stray npm
 # artifact (regenerated on demand, must never be committed).
 package-lock.json

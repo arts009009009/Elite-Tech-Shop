@@ -56,6 +56,16 @@ function injectOverlayTheme() {
   var css = branding.blazefireOverlayStyles()
   var labels = branding.BLAZEFIRE_BRANDING.labels || []
   var observed = []
+  var scanQueued = false
+
+  function scheduleScan() {
+    if (scanQueued) return
+    scanQueued = true
+    setTimeout(function () {
+      scanQueued = false
+      scan()
+    }, 100)
+  }
 
   function applyTheme(root) {
     if (!root.getElementById('blazefire-overlay-styles')) {
@@ -138,7 +148,7 @@ function injectOverlayTheme() {
       // React may have re-rendered (restoring Next's strings) or dropped our
       // <style>; both are repaired here. applyTheme/applyLabels only write
       // when something actually differs, so this settles instead of looping.
-      rebrand(root)
+      scheduleScan()
     })
     rebrander.observe(root, { childList: true, subtree: true, characterData: true })
   }
@@ -148,7 +158,7 @@ function injectOverlayTheme() {
   if (typeof MutationObserver !== 'undefined' && document.body) {
     // Long-lived: the overlay mounts, is dismissed and can come back.
     var observer = new MutationObserver(function () {
-      scan()
+      scheduleScan()
     })
     observer.observe(document.body, { childList: true, subtree: true })
   }
