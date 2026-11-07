@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zig Platform - Elite Tech Shop</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Courier New', monospace; background: #0a0a0f; color: #e0e0e0; margin: 0; padding: 24px; }
+.header { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+.logo { font-size: 28px; font-weight: bold; color: #ffd700; }
+.subtitle { color: #00d4ff; font-size: 14px; opacity: 0.9; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.card { background: color-mix(in srgb, #1a1a2e 85%, transparent); border: 1px solid #00d4ff; border-radius: 8px; padding: 16px; }
+.card h3 { color: #ffd700; margin: 0 0 12px 0; font-size: 16px; border-bottom: 1px solid #00d4ff; padding-bottom: 6px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1a1a2e; }
+.row:last-child { border-bottom: none; }
+.btn { background: #00d4ff; color: #0a0a0f; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 13px; }
+.btn:hover { background: #33e0ff; }
+.btn.secondary { background: transparent; color: #00d4ff; border: 1px solid #00d4ff; }
+.status { font-family: monospace; font-size: 12px; }
+.ok { color: #39ff14; }
+.warn { color: #ffd700; }
+.err { color: #ff4d4d; }
+.toggle { display: flex; align-items: center; gap: 8px; }
+.toggle input { accent-color: #00d4ff; }
+.notice { margin-top: 24px; font-size: 13px; color: #888; border-top: 1px solid #1a1a2e; padding-top: 12px; }
+a { color: #00d4ff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { background: #1a1a2e; padding: 2px 6px; border-radius: 4px; color: #00d4ff; }
+</style>
+</head>
+<body>
+<div class="header">
+<div class="logo">ZIG PLATFORM</div>
+<div class="subtitle">Elite Tech Shop | Port 3004 | Distributed Platform Services</div>
+</div>
+
+<div class="grid">
+
+<div class="card">
+<h3>Service Status</h3>
+<div class="row"><span>Zig API</span><span class="status ok">* online (8090)</span></div>
+<div class="row"><span>Web Dashboard</span><span class="status ok">* online (3004)</span></div>
+<div class="row"><span>Next.js Frontend</span><span class="status ok">* :3000</span></div>
+<div class="row"><span>Java Auth</span><span class="status ok">* :3001</span></div>
+<div class="row"><span>Rust Products</span><span class="status ok">* :3002</span></div>
+<div class="row"><span>Go Orders</span><span class="status ok">* :3003</span></div>
+<div class="row"><span>C++ Calculator</span><span class="status ok">* :8084</span></div>
+</div>
+
+<div class="card">
+<h3>Chaos Engineering</h3>
+<div class="row toggle"><label>Rust latency</label><input type="checkbox" onchange="toggleChaos('rust-backend','latency',this.checked)"></div>
+<div class="row toggle"><label>Rust errors</label><input type="checkbox" onchange="toggleChaos('rust-backend','error',this.checked)"></div>
+<div class="row toggle"><label>Go latency</label><input type="checkbox" onchange="toggleChaos('go-backend','latency',this.checked)"></div>
+<div class="row toggle"><label>Go drop</label><input type="checkbox" onchange="toggleChaos('go-backend','drop',this.checked)"></div>
+<div class="row toggle"><label>Java latency</label><input type="checkbox" onchange="toggleChaos('java-backend','latency',this.checked)"></div>
+<p class="notice">Chaos faults are injected via <code>/api/v1/chaos/toggle</code> on the Zig API.</p>
+</div>
+
+<div class="card">
+<h3>Feature Flags</h3>
+<div class="row toggle"><label>Flash Sales</label><input type="checkbox" id="flag-flash-sales" onchange="toggleFlag('flash-sales',this.checked)"></div>
+<div class="row toggle"><label>AI Assistant</label><input type="checkbox" id="flag-ai-assistant" onchange="toggleFlag('ai-assistant',this.checked)"></div>
+<div class="row toggle"><label>Glitch Mode</label><input type="checkbox" id="flag-glitch-mode" onchange="toggleFlag('glitch-mode',this.checked)"></div>
+<p class="notice">Flags evaluated at <code>/api/v1/flags/check</code> with % rollout support.</p>
+</div>
+
+<div class="card">
+<h3>Circuit Breakers</h3>
+<div class="row"><span>Rust backend</span><span class="status ok">closed</span></div>
+<div class="row"><span>Java backend</span><span class="status ok">closed</span></div>
+<div class="row"><span>Go backend</span><span class="status ok">closed</span></div>
+<div class="row"><span>C++ Calculator</span><span class="status ok">closed</span></div>
+</div>
+
+<div class="card">
+<h3>Quick Links</h3>
+<div class="row"><a href="/admin/platform" target="_blank">Admin Platform (Next.js)</a></div>
+<div class="row"><a href="/api/v1/flags" target="_blank">API: Feature Flags</a></div>
+<div class="row"><a href="/api/v1/trace" target="_blank">API: Distributed Traces</a></div>
+<div class="row"><a href="/api/v1/circuit-breakers" target="_blank">API: Circuit Breakers</a></div>
+</div>
+
+</div>
+
+<div class="notice">
+Zig backend serving on <code>:3004</code> | API at <code>:8090</code> | Proxied via Next.js at <code>/api/zig</code>
+</div>
+
+<script>
+function toggleChaos(service, faultType, enabled) {
+  fetch('/api/zig/chaos/toggle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ service, fault_type: faultType, enabled })
+  }).then(r => r.json()).then(d => console.log('chaos:', d)).catch(e => console.error(e));
+}
+function toggleFlag(key, enabled) {
+  fetch('/api/zig/flags/check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, user_id: 'web' })
+  }).then(r => r.json()).then(d => console.log('flag:', d)).catch(e => console.error(e));
+}
+</script>
+</body>
+</html>
