@@ -1,3 +1,5 @@
+import productTranslations from "@/data/products.json";
+
 type HttpMethod = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS";
 
 type ApiFetchOptions<T = unknown> = {
@@ -47,6 +49,46 @@ const BACKEND_URLS: Record<string, string> = {
   auth: process.env.JAVA_BACKEND_URL || "http://localhost:3001",
 };
 
+const RUST_ENABLED =
+  process.env.NEXT_PUBLIC_RUST_BACKEND_ENABLED === "true" ||
+  (process.env.NODE_ENV !== "development" && process.env.NEXT_PUBLIC_RUST_BACKEND_ENABLED !== "false");
+
+function localRustResponse<T>(url: string): T | undefined {
+  if (RUST_ENABLED) return undefined;
+
+  const parsedUrl = new URL(url, "http://localhost");
+  const lang = parsedUrl.searchParams.get("lang") || "en";
+  const localizedProducts = productTranslations.products.map((rawProduct) => {
+    const product = rawProduct as unknown as {
+      id: number;
+      category?: string;
+      image?: string;
+      [key: string]: unknown;
+    };
+    const localized = (product[lang] ?? product.en) as Record<string, unknown>;
+    return { id: product.id, category: product.category, image: product.image, ...localized };
+  });
+
+  if (parsedUrl.pathname === "/api/categories") {
+    return { categories: [...new Set(localizedProducts.map((product) => product.category).filter(Boolean))], total: 2 } as T;
+  }
+
+  if (parsedUrl.pathname === "/api/products") {
+    return { products: localizedProducts, total: localizedProducts.length } as T;
+  }
+
+  const productMatch = parsedUrl.pathname.match(/^\/api\/products\/(\d+)$/);
+  if (productMatch) {
+    return (localizedProducts.find((product) => product.id === Number(productMatch[1])) ?? null) as T;
+  }
+
+  if (parsedUrl.pathname === "/api/health") {
+    return { status: "ok", source: "local" } as T;
+  }
+
+  return undefined;
+}
+
 function resolveBackendUrl(url: string): string {
   if (url.startsWith("http")) return url;
   if (typeof window !== "undefined") return url;
@@ -62,6 +104,10 @@ export async function apiFetch<T>(
   options: ApiFetchOptions<T> = {},
 ): Promise<T> {
   const { timeout, retries, fallback, method, headers, body, credentials } = { ...defaults, ...options };
+  if (/^\/?api\/(products|categories|health)(\/|\?|$)/.test(url)) {
+    const localResponse = localRustResponse<T>(url);
+    if (localResponse !== undefined) return localResponse;
+  }
   const resolvedUrl = resolveBackendUrl(url);
   const httpMethod: HttpMethod = method || "GET";
   const maxRetries =

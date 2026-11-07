@@ -91,8 +91,9 @@ export default function Home() {
         `/api/products?lang=${lang}`,
         { timeout: 5000, retries: 2, fallback: { products: [], total: 0 } },
       );
+      const backend = process.env.NEXT_PUBLIC_RUST_BACKEND_ENABLED === "false" ? "LOCAL" : "RUST :3002";
       console.log(
-        `[BACKEND] ${new Date().toISOString()} | RUST :3002 | GET /api/products?lang=${lang} | OK`,
+        `[BACKEND] ${new Date().toISOString()} | ${backend} | GET /api/products?lang=${lang} | OK`,
       );
       const fetched = Array.isArray(data.products) ? data.products : [];
       setProducts(fetched);

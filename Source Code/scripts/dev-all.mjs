@@ -485,9 +485,11 @@ async function main() {
   }
 
   if (!BACKEND_ONLY) {
+    const rustAvailable = rustOk || await isPortOpen(3002);
     const zigAvailable = zigOk || await isPortOpen(8090);
     const frontendEnv = {
       ...process.env,
+      NEXT_PUBLIC_RUST_BACKEND_ENABLED: String(rustAvailable),
       NEXT_PUBLIC_ZIG_BACKEND_ENABLED: String(zigAvailable),
     };
     await startService("Frontend", 3000, "http://localhost:3000", () => pmFrontendDev(frontendEnv));
