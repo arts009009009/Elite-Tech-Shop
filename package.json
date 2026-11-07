@@ -1,6 +1,10 @@
 {
-  "dependencies": {
-    "blazefire": "github:arts009009009/Blazefire#2.0.0",
-    "sharp": "^0.35.5"
+  "name": "elite-tech-shop-launcher",
+  "private": true,
+  "packageManager": "yarn@4.18.1",
+  "scripts": {
+    "install:all": "cd \"Source Code\" && corepack yarn install:all",
+    "dev": "cd \"Source Code\" && corepack yarn dev",
+    "postinstall": "cd \"Source Code\" && corepack yarn install:all"
   }
 }
