@@ -20,7 +20,7 @@ var allocator = gpa.allocator();
 // Shared in-memory stores (MVP; production should back these with Postgres/Redis)
 // ---------------------------------------------------------------------------
 
-var spans = std.AutoHashMap([]const u8, struct {
+const SpanValue = struct {
     trace_id: []const u8,
     span_id: []const u8,
     parent_id: ?[]const u8,
@@ -28,7 +28,9 @@ var spans = std.AutoHashMap([]const u8, struct {
     operation_name: []const u8,
     end_ns: u64,
     status: []const u8,
-}).init(allocator).catch unreachable;
+};
+
+var spans = std.AutoHashMap([]const u8, SpanValue).init(allocator) catch unreachable;
 
 var chaos_rules = std.AutoHashMap([]const u8, struct {
     service: []const u8,
@@ -36,7 +38,7 @@ var chaos_rules = std.AutoHashMap([]const u8, struct {
     enabled: bool,
     rate: f64,
     latency_ms: u64,
-}).init(allocator).catch unreachable;
+}).init(allocator) catch unreachable;
 
 var inventory = std.AutoHashMap([]const u8, struct {
     sku: []const u8,
@@ -44,7 +46,7 @@ var inventory = std.AutoHashMap([]const u8, struct {
     stock: u64,
     price_cents: u64,
     currency: []const u8,
-}).init(allocator).catch unreachable;
+}).init(allocator) catch unreachable;
 
 var abandoned_carts = std.AutoHashMap([]const u8, struct {
     cart_id: []const u8,
@@ -53,27 +55,27 @@ var abandoned_carts = std.AutoHashMap([]const u8, struct {
     total_cents: u64,
     created_at: u64,
     recovered: bool,
-}).init(allocator).catch unreachable;
+}).init(allocator) catch unreachable;
 
 var bundles = std.AutoHashMap([]const u8, struct {
     id: []const u8,
     name: []const u8,
     skus: [][]const u8,
     bundle_price_cents: u64,
-}).init(allocator).catch unreachable;
+}).init(allocator) catch unreachable;
 
 var gift_cards = std.AutoHashMap([]const u8, struct {
     code: []const u8,
     balance_cents: u64,
     currency: []const u8,
     active: bool,
-}).init(allocator).catch unreachable;
+}).init(allocator) catch unreachable;
 
 var flags = std.AutoHashMap([]const u8, struct {
     key: []const u8,
     enabled: bool,
     rollout: f64,
-}).init(allocator).catch unreachable;
+}).init(allocator) catch unreachable;
 
 const CircuitState = enum { closed, open, half_open };
 
@@ -82,13 +84,13 @@ var circuit_breakers = std.AutoHashMap([]const u8, struct {
     state: CircuitState,
     failures: u64,
     threshold: u64,
-}).init(allocator).catch unreachable;
+}).init(allocator) catch unreachable;
 
 var rate_limits = std.AutoHashMap([]const u8, struct {
     key: []const u8,
     count: u64,
     window_start: u64,
-}).init(allocator).catch unreachable;
+}).init(allocator) catch unreachable;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -158,7 +160,7 @@ fn stringHash(input: []const u8) u64 {
     var h: u64 = 1469598103934665603;
     for (input) |b| {
         h = h * 1099511628211;
-        h = h xor @as(u64, @intCast(b));
+        h = h + @as(u64, @intCast(b));
     }
     return h;
 }
@@ -229,22 +231,16 @@ fn handleTraceIngest(stream: std.net.Stream, body: []const u8) !void {
         try writeJson(stream, 400, "{\"error\":\"trace_id required\"}");
         return;
     }
-    const existing = spans.get(tid);
-    var s: anytype;
-    if (existing) |e| {
-        s = e.value;
-    } else {
-        s = .{
-            .trace_id = tid,
-            .span_id = extractJsonField(body, "span_id"),
-            .parent_id = null,
-            .service_name = extractJsonField(body, "service_name"),
-            .operation_name = extractJsonField(body, "operation_name"),
-            .end_ns = nowNs(),
-            .status = "ok",
-        };
-        try spans.put(tid, s) catch {};
-    }
+    const s = SpanValue{
+        .trace_id = tid,
+        .span_id = extractJsonField(body, "span_id"),
+        .parent_id = null,
+        .service_name = extractJsonField(body, "service_name"),
+        .operation_name = extractJsonField(body, "operation_name"),
+        .end_ns = nowNs(),
+        .status = "ok",
+    };
+    try spans.put(tid, s) catch {};
     try writeJson(stream, 200, "{\"status\":\"ingested\"}");
 }
 
@@ -352,7 +348,7 @@ fn handleFlagCheck(stream: std.net.Stream, body: []const u8) !void {
         try writeJson(stream, 400, "{\"error\":\"key required\"}");
         return;
     }
-    let enabled: bool = false;
+    var enabled: bool = false;
     const flag = flags.get(key);
     if (flag) |f| {
         enabled = f.value.enabled;
@@ -385,7 +381,7 @@ fn handleMfaVerify(stream: std.net.Stream, body: []const u8) !void {
     try writeJson(stream, 200, "{\"valid\":true}");
 }
 
-var signaling_peers = std.AutoHashMap([]const u8, std.ArrayList([]const u8)).init(allocator).catch unreachable;
+var signaling_peers = std.AutoHashMap([]const u8, std.ArrayList([]const u8)).init(allocator) catch unreachable;
 
 fn handleWebRtcSignal(stream: std.net.Stream, body: []const u8) !void {
     const room = extractJsonField(body, "room");
@@ -395,11 +391,17 @@ fn handleWebRtcSignal(stream: std.net.Stream, body: []const u8) !void {
         try writeJson(stream, 400, "{\"error\":\"room and peer_id required\"}");
         return;
     }
-    const peers = signaling_peers.getOrPut(room, \\ std.ArrayList([]const u8).init(allocator)) catch |err| {
-        try writeJson(stream, 500, "{\"error\":\"oom\"}");
-        return;
-    };
-    try peers.value.append(sdp) catch {};
+    var peers_slot = signaling_peers.get(room);
+    if (peers_slot) |slot| {
+        try slot.append(sdp) catch {};
+    } else {
+        const new_list = try std.ArrayList([]const u8).init(allocator);
+        try signaling_peers.put(room, new_list) catch {};
+        peers_slot = signaling_peers.get(room);
+        if (peers_slot) |slot| {
+            try slot.append(sdp) catch {};
+        }
+    }
     try writeJson(stream, 200, "{\"status\":\"signaled\"}");
 }
 

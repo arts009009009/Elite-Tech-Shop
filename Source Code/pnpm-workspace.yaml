@@ -1,6 +1,10 @@
 packages:
   - "frontend"
 
+nodeLinker: hoisted
+onlyBuiltDependencies:
+  - unrs-resolver
+
 overrides:
   "minimatch@3>brace-expansion": "1.1.18"
   "minimatch@7>brace-expansion": "5.0.9"

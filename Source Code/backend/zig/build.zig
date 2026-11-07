@@ -11,15 +11,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.install();
+    b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
 
     const run_step = b.step("run", "Run the zig platform service");
     run_step.dependOn(&run_cmd.step);
-
-    if (b.options.api) |_| {
-        run_cmd.step.dependOn(b.getInstallStep());
-    }
 }

@@ -62,10 +62,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const setFlag = useCallback(async (key: string, enabled: boolean) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_ZIG_API_URL ?? "/api/zig"}/flags/check`, {
-        method: "POST",
-        body: JSON.stringify({ key, user_id: "admin" }),
-      });
+      const res = await zigPlatform.flagCheck(key, "admin");
       const json = await res.json();
       setFlags((prev) =>
         prev.map((f) => (f.key === key ? { ...f, enabled } : f)),

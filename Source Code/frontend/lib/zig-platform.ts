@@ -4,8 +4,14 @@
  * via Next.js rewrites in frontend/next.config.ts).
  */
 const ZIG_BASE = process.env.NEXT_PUBLIC_ZIG_API_URL ?? "/api/zig";
+const ZIG_ENABLED =
+  process.env.NEXT_PUBLIC_ZIG_BACKEND_ENABLED === "true" ||
+  (process.env.NODE_ENV !== "development" && process.env.NEXT_PUBLIC_ZIG_BACKEND_ENABLED !== "false");
 
 async function zig(path: string, init?: RequestInit): Promise<Response> {
+  if (!ZIG_ENABLED) {
+    return Response.json({ unavailable: true }, { status: 503 });
+  }
   const res = await fetch(`${ZIG_BASE}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
@@ -31,6 +37,7 @@ export const zigPlatform = {
 
   // real-time inventory (SSE)
   inventorySse: (onEvent: (data: string) => void) => {
+    if (!ZIG_ENABLED) return { close() {} } as EventSource;
     const es = new EventSource(`${ZIG_BASE}/inventory/stream`);
     es.onmessage = (e) => onEvent(e.data);
     return es;
@@ -38,6 +45,8 @@ export const zigPlatform = {
 
   // abandoned cart recovery
   abandonedCarts: () => zig("/abandoned-carts"),
+  saveAbandonedCart: (body: unknown) =>
+    zig("/abandoned-carts", { method: "POST", body: JSON.stringify(body) }),
   recoverCart: (cartId: string) =>
     zig("/abandoned-carts/recover", {
       method: "POST",

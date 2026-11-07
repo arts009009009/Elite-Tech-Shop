@@ -169,7 +169,7 @@ function installSync(label, cwd) {
   console.log(`[dev] ${label} dependencies not installed — running \`${cmd} ${args.join(" ")}\`...`);
   const start = Date.now();
   try {
-    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: BUILD_TIMEOUT_MS });
+    const result = spawnSync(cmd, args, { stdio: "inherit", shell: IS_WIN, cwd, timeout: BUILD_TIMEOUT_MS });
     if (result.error) {
       if (result.error.code === "ETIMEDOUT") {
         console.log(`[dev] ${label} install timed out after ${BUILD_TIMEOUT_MS / 1000}s.`);
@@ -217,7 +217,7 @@ function buildSync(label, cmd, args, cwd, env) {
   console.log(`[dev] Building ${label}...`);
   const start = Date.now();
   try {
-    const result = spawnSync(cmd, args, { stdio: "inherit", shell: true, cwd, timeout: BUILD_TIMEOUT_MS, env });
+    const result = spawnSync(cmd, args, { stdio: "inherit", shell: IS_WIN, cwd, timeout: BUILD_TIMEOUT_MS, env });
     if (result.error) {
       if (result.error.code === "ETIMEDOUT") {
         console.log(`[dev] ${label} build timed out after ${BUILD_TIMEOUT_MS / 1000}s. Skipping.`);
@@ -248,12 +248,13 @@ function pmRun(script, cwd, env) {
   }
 }
 
-function pmFrontendDev() {
-  const feDir = { cwd: join(ROOT, "frontend") };
+function pmFrontendDev(env) {
+  const opts = { cwd: join(ROOT, "frontend"), env };
   switch (pm) {
-    case "pnpm":   return run("pnpm", ["--filter", "frontend", "dev"], { cwd: ROOT });
-    case "bun":    return run("npx", ["next", "dev"], feDir);
-    default:       return run("npx", ["next", "dev"], feDir);
+    case "pnpm":   return run("pnpm", ["--filter", "frontend", "dev"], { cwd: ROOT, env });
+    case "bun":    return run("bun", ["run", "dev"], opts);
+    case "yarn":   return run("yarn", ["run", "dev"], opts);
+    default:       return run("npm", ["run", "dev"], opts);
   }
 }
 
@@ -484,7 +485,12 @@ async function main() {
   }
 
   if (!BACKEND_ONLY) {
-    await startService("Frontend", 3000, "http://localhost:3000", () => pmFrontendDev());
+    const zigAvailable = zigOk || await isPortOpen(8090);
+    const frontendEnv = {
+      ...process.env,
+      NEXT_PUBLIC_ZIG_BACKEND_ENABLED: String(zigAvailable),
+    };
+    await startService("Frontend", 3000, "http://localhost:3000", () => pmFrontendDev(frontendEnv));
   }
 
   if (procs.length === 0) {

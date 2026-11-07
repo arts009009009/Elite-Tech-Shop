@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
 import OptimizedImage from "@/components/OptimizedImage";
 import AbandonedCartBanner from "@/components/AbandonedCartBanner";
+import { zigPlatform } from "@/lib/zig-platform";
 import { useEffect, useCallback } from "react";
 
 export default function CartPage() {
@@ -22,17 +23,13 @@ export default function CartPage() {
   const saveAbandonedCart = useCallback(async () => {
     if (!userCtx?.user || cartCtx.cart.length === 0) return;
     try {
-      await fetch("/api/zig/abandoned-carts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await zigPlatform.saveAbandonedCart({
           cart_id: `cart-${userCtx.user.id}`,
           user_id: userCtx.user.id,
           items_json: JSON.stringify(cartCtx.cart),
           total_cents: Math.round(cartCtx.cartTotal * 100),
           created_at: Date.now(),
           recovered: false,
-        }),
       });
     } catch {
       // best-effort only
