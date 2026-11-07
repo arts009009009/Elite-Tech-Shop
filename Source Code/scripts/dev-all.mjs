@@ -2,6 +2,7 @@
 
 import { spawn, spawnSync, execSync } from "child_process";
 import { copyFileSync, existsSync, readdirSync, readFileSync, symlinkSync } from "fs";
+import { createConnection } from "net";
 import { join } from "path";
 import { fileURLToPath } from "url";
 
@@ -20,6 +21,20 @@ function has(cmd) {
     const out = execSync(`${cmd} --version`, { stdio: ["ignore", "pipe", "ignore"], timeout: 5000 }).toString().trim();
     return out.length > 0 && !out.includes("ERR_");
   } catch { return false; }
+}
+
+function isPortOpen(port) {
+  return new Promise((resolve) => {
+    const socket = createConnection({ host: "127.0.0.1", port });
+    const finish = (isOpen) => {
+      socket.destroy();
+      resolve(isOpen);
+    };
+    socket.setTimeout(500);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", () => finish(false));
+  });
 }
 
 // ── JDK detection ──
@@ -439,35 +454,42 @@ async function main() {
   // Step 4: Start all services
   const procs = [];
   const start = (name, child) => procs.push({ name, child });
+  const startService = async (name, port, address, createProcess) => {
+    if (await isPortOpen(port)) {
+      console.log(`[dev] ${name} already listening on ${address}; reusing it.`);
+      return;
+    }
+    console.log(`[dev] Starting ${name} → ${address}`);
+    start(name, createProcess());
+  };
 
   if (rustOk) {
-    console.log("[dev] Starting Rust backend → http://localhost:3002");
-    start("Rust backend", run("cargo", ["run", "--release"], { cwd: join(ROOT, "backend/rust") }));
+    await startService("Rust backend", 3002, "http://localhost:3002", () => run("cargo", ["run", "--release"], { cwd: join(ROOT, "backend/rust") }));
   }
 
   if (javaOk) {
-    console.log("[dev] Starting Java backend → http://localhost:3001");
-    start("Java backend", pmRun("backend:java", null, javaEnv()));
+    await startService("Java backend", 3001, "http://localhost:3001", () => pmRun("backend:java", null, javaEnv()));
   }
 
   if (goOk) {
-    console.log("[dev] Starting Go backend → http://localhost:3003");
-    start("Go backend", pmRun("backend:go"));
+    await startService("Go backend", 3003, "http://localhost:3003", () => pmRun("backend:go"));
   }
 
   if (calcOk) {
-    console.log("[dev] Starting Calculator backend → http://localhost:8084");
-    start("Calculator backend", run(calcBinPath(join(ROOT, "backend/cpp-backend")), [], { cwd: join(ROOT, "backend/cpp-backend") }));
+    await startService("Calculator backend", 8084, "http://localhost:8084", () => run(calcBinPath(join(ROOT, "backend/cpp-backend")), [], { cwd: join(ROOT, "backend/cpp-backend") }));
   }
 
   if (zigOk) {
-    console.log("[dev] Starting Zig platform → API :8090 · Web :3004");
-    start("Zig platform", run(join(ROOT, "backend/zig", "zig-out", "bin", "zig-platform"), [], { cwd: join(ROOT, "backend/zig") }));
+    await startService("Zig platform", 8090, "API :8090 · Web :3004", () => run(join(ROOT, "backend/zig", "zig-out", "bin", "zig-platform"), [], { cwd: join(ROOT, "backend/zig") }));
   }
 
   if (!BACKEND_ONLY) {
-    console.log("[dev] Starting Frontend → http://localhost:3000");
-    start("Frontend", pmFrontendDev());
+    await startService("Frontend", 3000, "http://localhost:3000", () => pmFrontendDev());
+  }
+
+  if (procs.length === 0) {
+    console.log("\n[dev] All requested services are already running.");
+    return;
   }
 
   console.log("\n[dev] All services started. Press Ctrl+C to stop.\n");
